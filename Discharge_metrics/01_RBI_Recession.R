@@ -214,3 +214,9 @@ p_summary <- ggplot(summary_site, aes(x = site, y = mean_val, color = site)) +
 
 ggsave("MeanSD_RBI_RecessionSlope_by_site.png", p_summary, path = output_dir,
        width = 5, height = 8, units = "in", dpi = 300)
+
+# Save annual metrics for aggregation script
+annual_metrics %>%
+  rename(recession_curve_slope = slope) %>%
+  select(site, year, recession_curve_slope, RBI) %>%
+  write_csv(file.path(output_dir, "RBI_RecessionCurve_Annual.csv"))
