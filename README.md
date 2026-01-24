@@ -62,30 +62,39 @@ Old or replaced scripts retained for reference.
 **Scripts:** `Discharge_metrics/`
 
 Run in order:
-1. `RBI_RecessionCurve_Average_Annual.R` - Calculate RBI and recession slope
-2. `Storage_Discharge_method.R` - Kirchner-Staudinger storage-discharge, FDC
-3. `Chemical_Hydrograph_Separation.R` - Baseflow from specific conductance
-4. `Stream_Temperature_LowFlow_Metrics.R` - Thermal and low-flow ecological indicators
+1. `01_RBI_Recession.R` - Calculate RBI and recession slope
+2. `02_Storage_Discharge_FDC.R` - Kirchner-Staudinger storage-discharge, FDC
+3. `03_Dynamic_Storage_Drawdown.R` - Dynamic storage drawdown from water balance
+4. `04_Chemical_Hydrograph_Separation.R` - Baseflow from specific conductance
+5. `05_Stream_Temperature_LowFlow.R` - Thermal and low-flow ecological indicators
+6. `06_Aggregate_All_Metrics.R` - Combine all metrics into master tables
 
 **Outputs:**
 - `RBI_RecessionCurve_Annual.csv` - Annual RBI and recession slopes
 - `StorageDischarge_FDC_Annual.csv` - Storage-discharge and FDC metrics
+- `DS_drawdown_annual.csv` - Annual dynamic storage drawdown
 - `Annual_GW_Prop.csv` - Annual mean baseflow proportion
-- `stream_thermal_lowflow_metrics_annual.csv` - Max 7-day temp, min 7-day Q, temp at min Q
+- `stream_thermal_lowflow_metrics_annual.csv` - Max 7-day temp, min 7-day Q, temp at min Q, Q5_CV
+- `HJA_StorageMetrics_Annual_All.csv` - All metrics, annual
+- `HJA_Ave_StorageMetrics_CatCharacter.csv` - Site-averaged metrics
 
 ### Phase 3: Statistical Analyses
 **Scripts:** `Statistical_analyses/`
 
 Run in order:
-1. `Correlations_Metrics.R` - Site-averaged metrics + correlation matrices
-2. `PCA_Analysis.R` - PCA on storage metrics
-3. `Catchment_Storage_MLR.R` - MLR predicting storage from catchment attributes
-4. `RDA_Variance_Partitioning.R` - Variance partitioning
-5. `Storage_Predicts_Thermal_LowFlow.R` - **KEY ANALYSIS** - Test storage → ecological response
+1. `01_Correlations.R` - Site-averaged metrics + correlation matrices
+2. `02_PCA.R` - PCA on storage metrics
+3. `03_ANOVA_Tukey.R` - Test for site differences in storage metrics
+4. `04_Catchment_Storage_MLR.R` - MLR predicting storage from catchment attributes
+5. `05_RDA.R` - Redundancy analysis and variance partitioning
+6. `06_Storage_Predicts_Thermal_LowFlow.R` - **KEY ANALYSIS** - Test storage → ecological response
 
 **Outputs:**
 - `HJA_Ave_StorageMetrics_CatCharacter.csv` - Site-averaged data
+- `ANOVA_results.csv` - ANOVA F-statistics and p-values
+- `Tukey_HSD_results.csv` - Pairwise site comparisons
 - `MLR_Storage_Catchment_Results.csv` - Catchment → storage models
+- `RDA_variance_explained.csv` - Variance partitioning results
 - `Storage_Thermal_LowFlow_Models.csv` - **Storage → thermal/low-flow models**
 - QA plots for all analyses
 
