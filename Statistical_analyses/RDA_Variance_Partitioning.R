@@ -44,7 +44,7 @@ rm(list = ls())
 # =============================================================================
 
 base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/Hydrometric"
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -139,20 +139,45 @@ write.csv(rda_variance,
           row.names = FALSE)
 
 # =============================================================================
-# 7. EXTRACT RDA COMPONENTS FOR PLOTTING
+# 7. EXTRACT RDA COMPONENTS FOR PLOTTING (USE scores(), NOT summary())
 # =============================================================================
 
-# Site scores (points)
-site_scores <- as.data.frame(rda_sum$sites[, 1:2])
+# How many constrained axes exist?
+n_constrained_axes <- length(my_rda$CCA$eig)
+
+# If you truly need RDA2 for plotting, you must have >= 2 constrained axes
+if (n_constrained_axes < 2) {
+  stop(paste0(
+    "Only ", n_constrained_axes,
+    " constrained RDA axis available (rank deficiency / collinearity / too few sites). ",
+    "You can't make an RDA1 vs RDA2 biplot. Consider plotting RDA1 vs PC1 (unconstrained) ",
+    "or reduce predictors."
+  ))
+}
+
+# --- Site scores (points)
+site_scores <- scores(my_rda, display = "sites", choices = 1:2, scaling = 2) |>
+  as.data.frame()
+colnames(site_scores)[1:2] <- c("RDA1", "RDA2")
 site_scores$site <- rda_data$site
 
-# Species scores (storage metrics - response variables)
-species_scores <- as.data.frame(rda_sum$species[, 1:2]) * 2  # Scale for visibility
+# --- Species scores (response variables; your storage metrics)
+species_scores <- scores(my_rda, display = "species", choices = 1:2, scaling = 2) |>
+  as.data.frame()
+colnames(species_scores)[1:2] <- c("RDA1", "RDA2")
+species_scores <- species_scores * 2  # optional: scale arrows for visibility
 species_scores$variable <- rownames(species_scores)
 
-# Biplot scores (catchment characteristics - explanatory variables)
-biplot_scores <- as.data.frame(rda_sum$biplot[, 1:2])
+# --- Biplot scores (explanatory variables; your catchment characteristics)
+biplot_scores <- scores(my_rda, display = "bp", choices = 1:2, scaling = 2) |>
+  as.data.frame()
+colnames(biplot_scores)[1:2] <- c("RDA1", "RDA2")
 biplot_scores$variable <- rownames(biplot_scores)
+
+# --- Axis labels with % variance explained
+total_var <- sum(c(my_rda$CCA$eig, my_rda$CA$eig))
+rda1_var <- round(100 * my_rda$CCA$eig[1] / total_var, 1)
+rda2_var <- round(100 * my_rda$CCA$eig[2] / total_var, 1)
 
 # =============================================================================
 # 8. CREATE RDA BIPLOT
