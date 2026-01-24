@@ -29,7 +29,6 @@ library(readr)
 library(tidyr)
 library(ggplot2)
 library(patchwork)
-library(broom)
 
 theme_set(theme_bw(base_size = 12))
 
