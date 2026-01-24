@@ -165,7 +165,51 @@ add_vol <- function(df_in) {
 overall_vol <- add_vol(overall)
 annual_vol  <- add_vol(annual)
 
-# 8) Save outputs (with wateryear in filenames for clarity)
+# 8) Calculate FDC slope (Q5-Q95), Q5norm, and CV_Q5norm
+# FDC slope: slope of log10(Q) ~ exceedance probability for 5th-95th percentile
+# Q5norm: 5th percentile discharge during Aug-Oct low-flow period (mm/day)
+# CV_Q5norm: coefficient of variation of annual Q5norm values
+
+# Calculate FDC slopes (overall per site, 5th-95th percentile)
+fdc_slopes <- df %>%
+  filter(Q > 0) %>%  # Remove zero/negative values before log transform
+  group_by(site) %>%
+  arrange(desc(Q)) %>%
+  mutate(
+    rank = row_number(),
+    n = n(),
+    exceedance_prob = 100 * rank / (n + 1)
+  ) %>%
+  filter(exceedance_prob >= 5, exceedance_prob <= 95) %>%
+  summarise(
+    fdc_slope = coef(lm(log10(Q) ~ exceedance_prob))[2],
+    .groups = "drop"
+  )
+
+# Calculate Q5norm: 5th percentile during Aug-Oct (months 8-10)
+Q5_annual <- df %>%
+  filter(month(date) >= 8, month(date) <= 10) %>%
+  group_by(site, wateryear) %>%
+  summarise(
+    Q5norm = quantile(Q, 0.05, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Calculate CV_Q5norm: coefficient of variation across years
+CV_Q5norm <- Q5_annual %>%
+  group_by(site) %>%
+  summarise(
+    CV_Q5norm = sd(Q5norm, na.rm = TRUE) / mean(Q5norm, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Merge FDC metrics into annual data
+annual <- annual %>%
+  left_join(fdc_slopes, by = "site") %>%
+  left_join(Q5_annual, by = c("site", "wateryear")) %>%
+  left_join(CV_Q5norm, by = "site")
+
+# 9) Save outputs (with wateryear in filenames for clarity)
 write.csv(overall_vol,
           file = file.path(output_dir, "storage_overall_per_site.csv"),
           row.names = FALSE)
@@ -178,7 +222,14 @@ write.csv(annual_vol,
                            "storage_discharge_method_annual_vol_per_site_wateryear.csv"),
           row.names = FALSE)
 
-# 9) Quick plot of annual dynamic storage depths vs. water-year
+# Save annual FDC metrics for aggregation script
+write.csv(
+  annual %>% select(site, year = wateryear, S_annual_mm, fdc_slope, Q99, Q50, Q01, Q5norm, CV_Q5norm),
+  file.path(output_dir, "StorageDischarge_FDC_Annual.csv"),
+  row.names = FALSE
+)
+
+# 10) Quick plot of annual dynamic storage depths vs. water-year
 library(ggplot2)
 ggplot(annual_vol, aes(x = wateryear, y = S_annual_mm, color = site, group = site)) +
   geom_line() +
