@@ -231,6 +231,10 @@ write.csv(
 
 # 10) Quick plot of annual dynamic storage depths vs. water-year
 library(ggplot2)
+
+# Save plots to PDF in Box output directory
+pdf(file.path(output_dir, "QA_Storage_Timeseries.pdf"), width = 14, height = 8)
+
 ggplot(annual_vol, aes(x = wateryear, y = S_annual_mm, color = site, group = site)) +
   geom_line() +
   geom_point() +
@@ -258,10 +262,12 @@ ggplot(annual_long, aes(x = wateryear, y = storage_mm, color = site)) +
   labs(x = "Water Year", y = "Storage (mm)", color = "Site") +
   theme_minimal()
 
-ggplot(annual_long, aes(x = wateryear, y = storage_mm, 
+ggplot(annual_long, aes(x = wateryear, y = storage_mm,
                         linetype = metric, color = metric)) +
   geom_line() +
   facet_wrap(~ site) +
   labs(x = "Water Year", y = "Storage (mm)") +
   theme_classic()
+
+dev.off()
 
