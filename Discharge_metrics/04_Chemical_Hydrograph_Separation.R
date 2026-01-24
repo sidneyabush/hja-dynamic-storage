@@ -28,12 +28,16 @@
 library(dplyr)
 library(ggplot2)
 library(lubridate)
-library(EflowStats)  # for get_waterYear()
 
 theme_set(theme_classic(base_size = 12))
 
 # Clear environment
 rm(list = ls())
+
+# Helper function to replace EflowStats
+get_waterYear <- function(date) {
+  ifelse(month(date) >= 10, year(date) + 1, year(date))
+}
 
 # =============================================================================
 # 1. SETUP: Directories
