@@ -1,113 +1,167 @@
+# HJA Storage Manuscript - Code Repository
 
-# Folder details
+Code and workflow for the H.J. Andrews Experimental Forest hydrometric storage analysis manuscript.
 
-- **[`Create_Master_Hydrometric_Dataset/`](Create_Master_Hydrometric_Dataset.R/)**  
-  A *comprehensive* workflow that harmonizes meteorology and streamflow for ET calculations and downstream analyses.
+**Timeline:** Water Years 1997-2020
+**Sites:** 10 HJA watersheds (GSLOOK, GSWS01-10, GSWSMC)
 
-- **[`Discharge_metrics/`](Discharge_metrics/)**  
-  Q-based indicators including:
-  - **RBI (flashiness)**
-  - **Recession curve slope** (log–log slope of −dQ/dt vs. Q)
-  - **Dynamic (active) storage** using the storage–discharge (Kirchner–Staudinger) approach
+---
 
-- **[`ET_calculations/`](ET_calculations/)**  
-  Evapotranspiration estimation using multiple methods and combined summaries
-  
-- **[`Plots/`](Plots/)**  
-  Scripts to generate figures for exploration and publication.
+## Repository Structure
 
-- **[`Prior_analyses/`](Prior_analyses/)**  
-  Archived scripts from early project stages (e.g., proposal writing, initial concentration–discharge exploration).
+### [`Create_Master_Hydrometric_Dataset/`](Create_Master_Hydrometric_Dataset/)
+Comprehensive workflow harmonizing meteorology and streamflow for ET calculations and downstream analyses.
 
-- **[`deprecated/`](deprecated/)**  
-  Old or replaced scripts retained for reference.
+### [`ET_calculations/`](ET_calculations/)
+Evapotranspiration estimation using Hamon method with Zhang-style calibrated coefficient.
 
-# Workflow details
-## Hydromet harmonization & interpolation (highlights)
+### [`Discharge_metrics/`](Discharge_metrics/)
+Discharge-based storage indicators and ecological response variables:
+- **RBI (flashiness)** - Richards-Baker Flashiness Index
+- **Recession curve slope** - log-log slope of -dQ/dt vs Q
+- **Dynamic storage** - Kirchner-Staudinger storage-discharge approach
+- **Flow Duration Curves (FDC)** - Q99, Q50, Q01 percentiles
+- **Chemical Hydrograph Separation** - Baseflow from specific conductance
+- **Stream Temperature & Low-Flow Metrics** - 7-day moving averages for ecological stress indicators
 
-Builds **daily, site-level meteorology** for each watershed and attaches **discharge**. Focus here is on how multi-station data are combined.
+### [`Statistical_analyses/`](Statistical_analyses/)
+Statistical models and multivariate analyses:
+- **Correlations** - Correlation matrices of storage metrics and catchment attributes
+- **PCA** - Principal component analysis of storage metrics
+- **MLR** - Multiple linear regression (catchment → storage)
+- **RDA** - Redundancy analysis and variance partitioning
+- **Storage → Thermal/Low-Flow** - Prediction models testing storage effects on ecological responses
 
-### How data are combined
+### [`Plots/`](Plots/)
+Figures for exploration and publication.
 
-**Station → Watershed mapping**
-- Each watershed lists one or more stations per variable: **temp (T_C)**, **precip (P_mm_d)**, **RH (RH_d_pct)**, **net radiation (NR_Wm2_d)**.
+### [`Prior_analyses/`](Prior_analyses/)
+Archived scripts from early project stages.
 
-**Single-station case**
-- Use the mapped station directly.
+### [`deprecated/`](deprecated/)
+Old or replaced scripts retained for reference.
 
-**Pairs (two stations for a variable)**
-- Fit a simple **OLS** relationship on overlapping days (require **≥ 5 complete cases**).
-- Use the fitted line to **predict missing days** at one station from the other.
-- If predicting “back” (site1 from site2), use the **inverse** of the fitted line.
-- Keep original observations; only fill gaps.
+---
 
-**Triplets (three stations for a variable)**
-- Fit **three multiple regressions** (each station as target, other two as predictors) on overlapping days (require **≥ 10 complete cases**).
-- Predict missing days **only** for the single missing station in each case.
-- If triplet overlap is insufficient, **fall back** to pairwise interpolation.
+## Workflow Overview
 
-**Scale-up to watershed**
-- After interpolation, if multiple stations are mapped for a watershed/variable, take the **daily average** across mapped stations to produce the **site-ready** series.
+### Phase 1: Data Harmonization & ET
+**Scripts:** `Create_Master_Hydrometric_Dataset/`, `ET_calculations/`
 
-**Composite site (GSLOOK_FULL)**
-- **Met variables:** daily average of component watersheds (`GSWS01`, `GSWS06`, `LONGER`, `COLD`).
-- **Discharge:** computed from raw `GSLOOK` records and drainage area, then joined to the composite.
+1. **Meteorology Harmonization**
+   - Combine multi-station data using OLS (pairs) or multiple regression (triplets)
+   - Minimum overlap: pairs ≥5 days, triplets ≥10 days
+   - Output: `watersheds_met_data_q.csv`
 
-### Assumptions & thresholds
+2. **ET Calculation**
+   - Hamon PET with Zhang calibration coefficient
+   - Join P, Q, ET into daily water balance
+   - Output: `daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv`
 
-- **Minimum overlap:** pairs **≥ 5** days; triplets **≥ 10** days.
-- **Duplicates:** duplicate `DATE × SITECODE` rows are **averaged** before modeling.
-- **Physical constraints:** cap **RH ≤ 100%**; set **precip ≥ 0**.
-- **VPD:** computed **after** interpolation from T and RH so it reflects gap-filled inputs.
-- **Drainage areas:** read from `drainage_area.csv`; consistent station recodes (e.g., `GSWSMC → GSMACK`) applied prior to joins.
+### Phase 2: Storage Metrics Calculation
+**Scripts:** `Discharge_metrics/`
 
-### Outputs 
-- Master, site-level table: `.../05_Outputs/MET/data/watersheds_met_data_q.csv`
-- QA plots (pair/triplet fits, time series): `.../05_Outputs/MET/plots/`
+Run in order:
+1. `RBI_RecessionCurve_Average_Annual.R` - Calculate RBI and recession slope
+2. `Storage_Discharge_method.R` - Kirchner-Staudinger storage-discharge, FDC
+3. `Chemical_Hydrograph_Separation.R` - Baseflow from specific conductance
+4. `Stream_Temperature_LowFlow_Metrics.R` - Thermal and low-flow ecological indicators
 
-### Outputs
-- **Master table:** watershed-level daily `P`, `Q`, `ET` (mm/day).  
-- **QA figures:** pair/triplet fit plots (with R² and 1:1 line) and per-site time series.
+**Outputs:**
+- `RBI_RecessionCurve_Annual.csv` - Annual RBI and recession slopes
+- `StorageDischarge_FDC_Annual.csv` - Storage-discharge and FDC metrics
+- `Annual_GW_Prop.csv` - Annual mean baseflow proportion
+- `stream_thermal_lowflow_metrics_annual.csv` - Max 7-day temp, min 7-day Q, temp at min Q
 
-## ET_calculations
+### Phase 3: Statistical Analyses
+**Scripts:** `Statistical_analyses/`
 
-Produce **daily, watershed-level ET** and a **joined water-balance table** for downstream storage analysis.
+Run in order:
+1. `Correlations_Metrics.R` - Site-averaged metrics + correlation matrices
+2. `PCA_Analysis.R` - PCA on storage metrics
+3. `Catchment_Storage_MLR.R` - MLR predicting storage from catchment attributes
+4. `RDA_Variance_Partitioning.R` - Variance partitioning
+5. `Storage_Predicts_Thermal_LowFlow.R` - **KEY ANALYSIS** - Test storage → ecological response
 
-### Purpose
-- Compute ET from gap-filled meteorology (station → watershed).
-- Use a **Hamon** formulation with a **Zhang-style calibrated coefficient** (smoothed/interpolated).
-- Assemble `P (mm d⁻¹)`, `Q (mm d⁻¹)`, and `ET (mm d⁻¹)` into a single daily table.
+**Outputs:**
+- `HJA_Ave_StorageMetrics_CatCharacter.csv` - Site-averaged data
+- `MLR_Storage_Catchment_Results.csv` - Catchment → storage models
+- `Storage_Thermal_LowFlow_Models.csv` - **Storage → thermal/low-flow models**
+- QA plots for all analyses
+
+---
+
+## Key Analyses for Manuscript
+
+### 1. Storage Metrics (Hydrometrics)
+- **RBI**: Flashiness index
+- **Recession slope**: Drainage rate
+- **Q5**: Low-flow magnitude
+- **CV(Q5)**: Low-flow variability
+- **Mean baseflow**: Chemical hydrograph separation
+- **FDC slope**: Flow duration curve slope
+- **S (annual)**: Annual storage (Kirchner-Staudinger)
+- **ΔS (sum)**: Cumulative storage change
+
+### 2. Ecological Response Variables (WY 1997-2020)
+- **Max 7-day avg stream temp (°C)**: Indicator of thermal stress
+- **Min 7-day avg discharge (mm/d)**: Indicator of drought stress
+- **Temp at min Q (°C)**: Combined thermal-hydrologic stress
+
+### 3. Hypotheses Tested
+**H1:** Greater storage capacity → Lower maximum stream temperatures
+**H2:** Greater storage capacity → Higher minimum discharge
+**H3:** Greater storage capacity → Lower temperature at minimum discharge timing
+
+---
+
+## Data Requirements
 
 ### Inputs
-- Harmonized, gap-filled met at watershed level: `T_C`, `P_mm_d`, `RH_d_pct`, `NR_Wm2_d`.
-- Discharge converted to depth over drainage area: `Q_mm_d`.
-- Site-station mapping from the harmonization step (e.g., single / pair / triplet).
+All data reside in: `/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data/`
 
-### Workflow 
-1. **Load gap-filled met** (already mapped + averaged from stations to watershed).
-2. **Compute VPD (kPa)** from filled `T_C` and `RH_d_pct`.
-3. **PET (Hamon + Zhang calibration)**  
-   - Calculate daily Hamon PET.  
-   - Apply a **calibration coefficient** (Zhang-style) and **interpolate** that coefficient across time to avoid step changes.
-4. **Select ET series**  
-   - Use the calibrated Hamon PET as **ET (mm d⁻¹)** for the master table.
-5. **Assemble daily water balance**  
-   - Join `P_mm_d`, `Q_mm_d`, and `ET_mm_d` by `DATE × SITECODE`.
-6. *(Optional diagnostic)* Export QA plots comparing ET and showing per-site series.
-
-### Key ET calculation:
-- Hamon PET scaled by a **Zhang-calibrated coefficient** (time-interpolated), producing **ET (mm d⁻¹)**.
-
-### Assumptions
-- Station-watershed combining happens **before** ET:  
-  **pairs ≥ 5 overlap (OLS with inverse back-prediction), triplets ≥ 10 overlap (multiple regression);** then daily **averaging** across mapped stations.  
-- **Physical caps:** `RH ≤ 100%`, `P ≥ 0`.  
-- **VPD** computed **after** interpolation so ET uses the same filled T & RH.  
+- **Discharge:** `Q/HF00402_v14.csv`
+- **Stream Temperature:** `Stream_T/HT00201_results_*.csv`
+- **Specific Conductance:** `EC/CF01201_v3.txt`
+- **Catchment Attributes:** `DynamicStorage/Catchment_Charc.csv`
+- **Drainage Areas:** `Q/drainage_area.csv`
 
 ### Outputs
-- **Daily water-balance with ET:** `.../DynamicStorage/daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv`  
-- **QA plots (optional):** `.../05_Outputs/MET/plots/` (pair/triplet fits, per-site time series)
+All outputs saved to: `/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/`
 
+---
 
+## Data Coverage & Timeline
 
+**Water Years:** 1997-2020 (Oct 1, 1996 - Sep 30, 2020)
 
+**Sites:**
+- GSLOOK (Lookout Creek)
+- GSWS01, GSWS02, GSWS03 (WS01-03)
+- GSWS06, GSWS07, GSWS08, GSWS09, GSWS10 (WS06-10)
+- GSWSMC (Mack Creek)
+
+**Data availability varies by site and metric** - see individual scripts for details.
+
+---
+
+## Software Requirements
+
+**R ≥ 4.3.x**
+
+### Core Packages
+- Data manipulation: `dplyr`, `tidyr`, `readr`, `lubridate`
+- Statistics: `MASS` (stepAIC), `car` (VIF), `vegan` (RDA)
+- Visualization: `ggplot2`, `patchwork`, `ggcorrplot`, `ggrepel`, `GGally`
+- Hydrology: `EflowStats`, `zoo`
+
+---
+
+## Notes
+
+- **Paths:** All scripts use Box paths. Update `base_dir` and `output_dir` if running locally.
+- **.gitignore:** Excludes `.DS_Store`, `.Rhistory`, `.RData`, and other R temp files.
+- **Message statements:** Removed from all scripts for cleaner execution.
+- **Water year definition:** Oct-Dec belongs to next calendar year (e.g., Oct 1996 = WY 1997).
+
+---
