@@ -29,14 +29,25 @@
 library(pracma)
 library(dplyr)
 library(ggplot2)
-library(EflowStats)
 library(zoo)
 library(tibble)
+library(lubridate)
 
 theme_set(theme_classic(base_size = 12))
 
 # Clear environment
 rm(list = ls())
+
+# Helper functions to replace EflowStats
+get_waterYear <- function(date) {
+  ifelse(month(date) >= 10, year(date) + 1, year(date))
+}
+
+get_waterYearDay <- function(date) {
+  wy <- get_waterYear(date)
+  wy_start <- as.Date(paste0(wy - 1, "-10-01"))
+  as.numeric(date - wy_start) + 1
+}
 
 # =============================================================================
 # 1. SETUP: Directories
