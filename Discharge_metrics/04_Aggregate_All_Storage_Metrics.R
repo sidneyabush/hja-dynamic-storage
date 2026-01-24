@@ -84,7 +84,7 @@ thermal_lowflow <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = wateryear) %>%
-  select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C)
+  select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, Q5_CV)
 
 # =============================================================================
 # 3. MERGE ALL ANNUAL METRICS

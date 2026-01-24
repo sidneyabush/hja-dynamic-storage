@@ -5,6 +5,7 @@
 #   1. Maximum 7-day moving average stream temperature (per water year)
 #   2. Minimum 7-day moving average discharge (per water year)
 #   3. Stream temperature at time of minimum 7-day discharge
+#   4. Q5_CV: Coefficient of variation of stream temp during low-flow period
 #
 # Timeline: Water Years 1997-2020
 #
@@ -188,6 +189,27 @@ temp_at_min_Q <- min_Q_7d %>%
   rename(temp_at_min_Q_7d_C = temp_mean_C) %>%
   select(SITECODE, STREAM, wateryear, date_min_Q_7d, temp_at_min_Q_7d_C)
 
+# 5.4 Q5_CV: Coefficient of variation of stream temp during low-flow period
+# CV of daily mean stream temperature during Aug-Oct (late-summer recession)
+# Lower values indicate greater thermal buffering by subsurface storage
+temp_cv_lowflow <- temp_daily %>%
+  mutate(
+    wateryear = if_else(month(date) >= 10,
+                       year(date) + 1,
+                       year(date)),
+    month_num = month(date)
+  ) %>%
+  filter(wateryear %in% target_years, month_num %in% 8:10) %>%  # Aug-Oct
+  group_by(STREAM, wateryear) %>%
+  summarise(
+    temp_mean = mean(temp_mean_C, na.rm = TRUE),
+    temp_sd = sd(temp_mean_C, na.rm = TRUE),
+    n_days = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(Q5_CV = temp_sd / temp_mean) %>%
+  select(STREAM, wateryear, Q5_CV)
+
 # =============================================================================
 # 6. COMBINE METRICS INTO MASTER TABLE
 # =============================================================================
@@ -202,6 +224,10 @@ master_metrics <- max_temp_7d %>%
   left_join(
     temp_at_min_Q %>% select(SITECODE, wateryear, temp_at_min_Q_7d_C),
     by = c("SITECODE", "wateryear")
+  ) %>%
+  left_join(
+    temp_cv_lowflow,
+    by = c("STREAM", "wateryear")
   ) %>%
   arrange(SITECODE, wateryear)
 
@@ -251,7 +277,7 @@ ggsave(file.path(output_dir, "QA_7day_Q_timeseries.png"),
 # Plot 2: Annual metrics distributions
 p2 <- master_metrics %>%
   pivot_longer(
-    cols = c(max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C),
+    cols = c(max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, Q5_CV),
     names_to = "metric",
     values_to = "value"
   ) %>%
@@ -269,7 +295,7 @@ p2 <- master_metrics %>%
   theme_minimal()
 
 ggsave(file.path(output_dir, "QA_annual_metrics_timeseries.png"),
-       p2, width = 12, height = 8, dpi = 300)
+       p2, width = 12, height = 10, dpi = 300)
 
 # =============================================================================
 # 8. SUMMARY STATISTICS
@@ -285,5 +311,7 @@ summary_stats <- master_metrics %>%
     min_Q_7d_sd      = sd(min_Q_7d_mm_d, na.rm = TRUE),
     temp_at_min_Q_mean = mean(temp_at_min_Q_7d_C, na.rm = TRUE),
     temp_at_min_Q_sd   = sd(temp_at_min_Q_7d_C, na.rm = TRUE),
+    Q5_CV_mean = mean(Q5_CV, na.rm = TRUE),
+    Q5_CV_sd   = sd(Q5_CV, na.rm = TRUE),
     .groups = "drop"
   )
