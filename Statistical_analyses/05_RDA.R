@@ -44,7 +44,7 @@ rm(list = ls())
 # =============================================================================
 
 base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/Hydrometric"
+output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -74,17 +74,14 @@ response_vars <- c(
 # =============================================================================
 # 4. SELECT EXPLANATORY VARIABLES (CATCHMENT CHARACTERISTICS)
 # =============================================================================
+# Note: Reduced predictor set to avoid rank deficiency (N=10 sites)
+# Selected key predictors based on theoretical importance
 
 explanatory_vars <- c(
-  "Area_km2",
   "Elevation_mean_m",
   "Slope_mean",
   "Harvest",
-  "Landslide_Young",
-  "Landslide_Total",
   "Lava1_per",
-  "Lava2_per",
-  "Ash_Per",
   "Pyro_per"
 )
 
