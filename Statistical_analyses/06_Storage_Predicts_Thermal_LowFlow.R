@@ -58,45 +58,28 @@ output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manusc
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # =============================================================================
-# 2. LOAD STORAGE METRICS (ANNUAL)
+# 2. LOAD STORAGE & THERMAL METRICS (ANNUAL)
 # =============================================================================
+# This file already contains storage metrics AND thermal/low-flow metrics
+# (merged by 06_Aggregate_All_Metrics.R)
 
-storage_annual <- read_csv(
+merged_data <- read_csv(
   file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
   show_col_types = FALSE
 ) %>%
-  select(-1)  # Remove first column (likely row number)
-
-# =============================================================================
-# 3. LOAD THERMAL & LOW-FLOW METRICS
-# =============================================================================
-
-thermal_lowflow <- read_csv(
-  file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv"),
-  show_col_types = FALSE
-)
-
-# =============================================================================
-# 4. MERGE DATASETS
-# =============================================================================
-
-# Note: Need to match site names between datasets
-# Assuming SITECODE in thermal_lowflow corresponds to 'site' in storage_annual
-merged_data <- thermal_lowflow %>%
-  left_join(storage_annual, by = c("SITECODE" = "site", "wateryear" = "year")) %>%
-  na.omit()
+  filter(!is.na(max_temp_7d_C))  # Keep only years with thermal data
 
 # =============================================================================
 # 5. DEFINE PREDICTOR AND RESPONSE VARIABLES
 # =============================================================================
 
 # Storage metrics (predictors)
+# Note: mean_bf excluded - no data overlap with thermal metrics
 storage_predictors <- c(
   "recession_curve_slope",
   "RBI",
   "Q5norm",
   "CV_Q5norm",
-  "mean_bf",
   "fdc_slope",
   "S_annual_mm",
   "DS_sum"
@@ -115,7 +98,7 @@ response_vars <- c(
 
 # Calculate correlation matrix
 cor_data <- merged_data %>%
-  select(all_of(c(response_vars, storage_predictors)))
+  dplyr::select(all_of(c(response_vars, storage_predictors)))
 
 cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
 
@@ -138,7 +121,7 @@ for (response in response_vars) {
 
   # Fit full model
   data_for_model <- merged_data %>%
-    select(all_of(c(response, storage_predictors, "SITECODE", "wateryear"))) %>%
+    dplyr::select(all_of(c(response, storage_predictors, "site", "year"))) %>%
     na.omit()
 
   if (nrow(data_for_model) < 20) {
@@ -199,7 +182,7 @@ for (response in response_vars) {
       R2_adj = lm_summary$adj.r.squared,
       n_obs = nrow(data_for_model)
     ) %>%
-    select(response, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj, n_obs)
+    dplyr::select(response, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj, n_obs)
 
   colnames(result_df) <- c("Response", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj", "n")
 
@@ -224,6 +207,9 @@ write.csv(model_results_combined,
 plot_list <- list()
 
 for (response in response_vars) {
+
+  # Skip if no model was built for this response
+  if (is.null(model_results[[response]])) next
 
   # Get top 3 predictors for this response (by absolute beta)
   top_predictors <- model_results[[response]] %>%
@@ -274,7 +260,7 @@ for (response in response_vars) {
 
   # Residuals vs Fitted
   data_for_model <- merged_data %>%
-    select(all_of(c(response, storage_predictors))) %>%
+    dplyr::select(all_of(c(response, storage_predictors))) %>%
     na.omit()
 
   data_for_model$fitted <- fitted(model)

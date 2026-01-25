@@ -26,10 +26,11 @@
 # =============================================================================
 
 # Load libraries
-library(tidyverse)
+library(dplyr)
+library(readr)
+library(tidyr)
 library(ggplot2)
 library(scales)
-library(ggrepel)
 
 theme_set(theme_minimal(base_size = 12))
 
@@ -49,9 +50,11 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 # =============================================================================
 # 2. LOAD ANNUAL STORAGE METRICS
 # =============================================================================
+# This file was created by 06_Aggregate_All_Metrics.R and contains all annual
+# storage metrics, temperature metrics, and catchment characteristics
 
 HJA_Yr <- read_csv(
-  file.path(output_dir, "HJA_Stor_Temp_Yr.csv"),
+  file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
   show_col_types = FALSE
 )
 

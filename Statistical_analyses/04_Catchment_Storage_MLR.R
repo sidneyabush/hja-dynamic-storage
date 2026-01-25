@@ -76,17 +76,14 @@ outcome_vars <- c(
 # =============================================================================
 # 4. DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
 # =============================================================================
+# Note: Reduced predictor set to avoid overfitting (N=10 sites)
+# Selected key predictors based on theoretical importance
 
 predictor_vars <- c(
-  "Area_km2",
   "Elevation_mean_m",
   "Slope_mean",
   "Harvest",
-  "Landslide_Young",
-  "Landslide_Total",
   "Lava1_per",
-  "Lava2_per",
-  "Ash_Per",
   "Pyro_per"
 )
 
@@ -103,7 +100,7 @@ for (outcome in outcome_vars) {
 
   # Fit full model
   data_for_model <- HJA_Ave %>%
-    select(all_of(c(outcome, predictor_vars))) %>%
+    dplyr::select(all_of(c(outcome, predictor_vars))) %>%
     na.omit()
 
   if (nrow(data_for_model) < 5) {
@@ -113,7 +110,17 @@ for (outcome in outcome_vars) {
   lm_full <- lm(formula_full, data = data_for_model)
 
   # Stepwise AIC (backward selection)
-  lm_aic <- stepAIC(lm_full, direction = "backward", trace = 0)
+  # Skip if AIC is -infinity (can happen with small sample sizes)
+  lm_aic <- tryCatch(
+    stepAIC(lm_full, direction = "backward", trace = 0),
+    error = function(e) {
+      return(NULL)
+    }
+  )
+
+  if (is.null(lm_aic)) {
+    next
+  }
 
   # Extract retained variables (excluding intercept)
   retained_vars <- names(coef(lm_aic))[-1]
@@ -166,7 +173,7 @@ for (outcome in outcome_vars) {
       R2 = lm_summary$r.squared,
       R2_adj = lm_summary$adj.r.squared
     ) %>%
-    select(outcome, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj)
+    dplyr::select(outcome, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj)
 
   colnames(result_df) <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj")
 
@@ -195,7 +202,7 @@ for (outcome in outcome_vars) {
   formula_full <- as.formula(paste(outcome, "~", paste(predictor_vars, collapse = " + ")))
 
   data_for_model <- HJA_Ave %>%
-    select(all_of(c(outcome, predictor_vars, "site"))) %>%
+    dplyr::select(all_of(c(outcome, predictor_vars, "site"))) %>%
     na.omit()
 
   if (nrow(data_for_model) < 5) {
@@ -203,7 +210,16 @@ for (outcome in outcome_vars) {
   }
 
   lm_full <- lm(formula_full, data = data_for_model)
-  lm_aic <- stepAIC(lm_full, direction = "backward", trace = 0)
+  lm_aic <- tryCatch(
+    stepAIC(lm_full, direction = "backward", trace = 0),
+    error = function(e) {
+      return(NULL)
+    }
+  )
+
+  if (is.null(lm_aic)) {
+    next
+  }
 
   data_for_model$predicted <- predict(lm_aic, data_for_model)
 
