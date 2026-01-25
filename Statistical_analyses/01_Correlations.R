@@ -34,6 +34,22 @@ theme_set(theme_classic(base_size = 12))
 rm(list = ls())
 
 # =============================================================================
+# SITE ORDERING (consistent across all analyses)
+# =============================================================================
+site_order <- c(
+  "GSWS09",      # WS 09
+  "GSWS10",      # WS 10
+  "GSWS01",      # WS 01
+  "GSLOOK",      # Lookout Creek
+  "GSWS02",      # WS 02
+  "GSWS03",      # WS 03
+  "GSWS06",      # WS 06
+  "GSWS07",      # WS 07
+  "GSWS08",      # WS 08
+  "GSWSMC"       # Mack Creek
+)
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -54,7 +70,8 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 HJA_Ave <- read_csv(
   file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
   show_col_types = FALSE
-)
+) %>%
+  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
 
 # =============================================================================
 # 3. CORRELATION ANALYSIS: STORAGE METRICS ONLY

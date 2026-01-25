@@ -40,6 +40,14 @@ theme_set(theme_bw(base_size = 12))
 rm(list = ls())
 
 # =============================================================================
+# SITE ORDERING (consistent across all analyses)
+# =============================================================================
+site_order <- c(
+  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
+  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
+)
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -56,7 +64,8 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 HJA_Ave <- read_csv(
   file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
   show_col_types = FALSE
-)
+) %>%
+  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
 
 # =============================================================================
 # 3. SELECT RESPONSE VARIABLES (STORAGE METRICS)
@@ -89,14 +98,21 @@ explanatory_vars <- c(
 # 5. PREPARE DATA FOR RDA
 # =============================================================================
 
-# Remove rows with missing data in response or explanatory variables
+# Keep all sites, impute missing values with column means
 rda_data <- HJA_Ave %>%
-  select(site, all_of(c(response_vars, explanatory_vars))) %>%
-  na.omit()
+  dplyr::select(site, all_of(c(response_vars, explanatory_vars))) %>%
+  mutate(across(where(is.numeric), ~ {
+    if (all(is.na(.))) {
+      .
+    } else {
+      ifelse(is.na(.), mean(., na.rm = TRUE), .)
+    }
+  })) %>%
+  mutate(site = factor(site, levels = site_order))
 
 # Check if enough sites remain
 if (nrow(rda_data) < 5) {
-  stop("Insufficient data: fewer than 5 sites with complete data")
+  stop("Insufficient data: fewer than 5 sites")
 }
 
 # Center and scale response variables

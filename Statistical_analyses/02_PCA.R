@@ -38,6 +38,22 @@ theme_set(theme_minimal(base_size = 12))
 rm(list = ls())
 
 # =============================================================================
+# SITE ORDERING (consistent across all analyses)
+# =============================================================================
+site_order <- c(
+  "GSWS09",      # WS 09
+  "GSWS10",      # WS 10
+  "GSWS01",      # WS 01
+  "GSLOOK",      # Lookout Creek
+  "GSWS02",      # WS 02
+  "GSWS03",      # WS 03
+  "GSWS06",      # WS 06
+  "GSWS07",      # WS 07
+  "GSWS08",      # WS 08
+  "GSWSMC"       # Mack Creek
+)
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -56,7 +72,8 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 HJA_Yr <- read_csv(
   file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
   show_col_types = FALSE
-)
+) %>%
+  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
 
 # =============================================================================
 # 3. SELECT FEATURES FOR PCA
@@ -74,24 +91,32 @@ features <- c(
 
 site_column <- "site"
 
-# Select features and remove missing data
+# Select features - keep all sites even with partial data
 HJA_selected <- HJA_Yr %>%
-  select(all_of(site_column), all_of(features)) %>%
-  drop_na()
+  select(all_of(site_column), all_of(features))
 
 # =============================================================================
 # 4. OUTLIER REMOVAL (Z-SCORE > 3)
 # =============================================================================
+# Remove outliers only from non-missing values
 
 HJA_clean <- HJA_selected %>%
-  filter(if_all(all_of(features), ~ abs((. - mean(.)) / sd(.)) < 3))
+  filter(if_all(all_of(features), ~ is.na(.) | abs((. - mean(., na.rm = TRUE)) / sd(., na.rm = TRUE)) < 3))
 
 # =============================================================================
-# 5. NORMALIZE FEATURES
+# 5. IMPUTE MISSING VALUES & NORMALIZE FEATURES
 # =============================================================================
+# Impute missing values with column means so all sites can be included
 
 scaled_features <- HJA_clean %>%
   select(all_of(site_column), all_of(features)) %>%
+  mutate(across(all_of(features), ~ {
+    if (all(is.na(.))) {
+      .
+    } else {
+      ifelse(is.na(.), mean(., na.rm = TRUE), .)
+    }
+  })) %>%
   mutate(across(all_of(features), scale))
 
 # =============================================================================
@@ -110,7 +135,7 @@ pca_result <- prcomp(
 
 # PCA scores (PC1 and PC2)
 pca_df <- as.data.frame(pca_result$x[, 1:2])
-pca_df$site <- scaled_features$site
+pca_df$site <- factor(scaled_features$site, levels = site_order)
 
 # Loadings (rotation matrix)
 loadings <- as.data.frame(pca_result$rotation[, 1:2])
@@ -123,25 +148,6 @@ loadings_scaled <- loadings %>%
     PC2 = PC2 * 5
   )
 
-# =============================================================================
-# 8. DEFINE SITE COLORS
-# =============================================================================
-
-site_colors <- c(
-  "GSWS10" = "#AA4499",
-  "GSWS09" = "#882255",
-  "GSWS01" = "#CC6677",
-  "GSLOOK" = "#DDCC77",
-  "GSWS02" = "#999933",
-  "GSWS03" = "#117733",
-  "GSWSMC" = "#44AA99",
-  "GSWS06" = "#88CCEE",
-  "GSWS07" = "#6699CC",
-  "GSWS08" = "#332288"
-)
-
-# Ensure site is a factor with the correct order
-pca_df$site <- factor(pca_df$site, levels = names(site_colors))
 
 # =============================================================================
 # 9. PLOT: PC1 vs PC2 BIPLOT WITH LOADINGS
@@ -149,7 +155,6 @@ pca_df$site <- factor(pca_df$site, levels = names(site_colors))
 
 p_biplot <- ggplot(pca_df, aes(x = PC1, y = PC2, color = site)) +
   geom_point(size = 3, alpha = 0.8) +
-  scale_color_manual(name = "Site", values = site_colors) +
 
   # Add loading vectors
   geom_segment(

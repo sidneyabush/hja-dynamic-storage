@@ -36,6 +36,14 @@ theme_set(theme_bw(base_size = 12))
 rm(list = ls())
 
 # =============================================================================
+# SITE ORDERING (consistent across all analyses)
+# =============================================================================
+site_order <- c(
+  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
+  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
+)
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -52,7 +60,9 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 HJA_annual <- read_csv(
   file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
   show_col_types = FALSE
-)
+) %>%
+  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%
+  mutate(site = factor(site, levels = site_order))
 
 # =============================================================================
 # 3. SELECT STORAGE METRICS FOR ANOVA

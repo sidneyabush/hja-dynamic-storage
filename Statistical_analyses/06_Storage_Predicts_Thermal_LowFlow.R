@@ -48,6 +48,14 @@ theme_set(theme_classic(base_size = 12))
 rm(list = ls())
 
 # =============================================================================
+# SITE ORDERING (consistent across all analyses)
+# =============================================================================
+site_order <- c(
+  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
+  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
+)
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -67,6 +75,7 @@ merged_data <- read_csv(
   file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
   show_col_types = FALSE
 ) %>%
+  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%  # Exclude non-analysis sites
   filter(!is.na(max_temp_7d_C))  # Keep only years with thermal data
 
 # =============================================================================
