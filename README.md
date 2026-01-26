@@ -3,7 +3,7 @@
 Code and workflow for the H.J. Andrews Experimental Forest hydrometric storage analysis manuscript.
 
 **Timeline:** Water Years 1997-2020
-**Sites:** 10 HJA watersheds (GSLOOK, GSWS01-10, GSWSMC)
+**Sites:** 10 HJA watersheds (GSLOOK, GSWS01-10, GSWSMC; McRae, NC, LO1, LO2 from Ortega et al., 2025a,b)
 
 ---
 
