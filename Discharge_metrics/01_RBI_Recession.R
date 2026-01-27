@@ -220,3 +220,5 @@ annual_metrics %>%
   rename(recession_curve_slope = slope) %>%
   select(site, year, recession_curve_slope, RBI) %>%
   write_csv(file.path(output_dir, "RBI_RecessionCurve_Annual.csv"))
+
+# End of script
