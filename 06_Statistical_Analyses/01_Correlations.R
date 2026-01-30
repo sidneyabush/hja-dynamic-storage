@@ -86,9 +86,10 @@ HJA_Ave <- read_csv(
 # 3. CORRELATION ANALYSIS: STORAGE METRICS ONLY
 # =============================================================================
 
+# NOTE: Q5norm_mean, CV_Q5norm_mean are response variables, not storage metrics
+# Using method abbreviations: RBI, RCS, FDC, SD, CHS, WB
 storage_vars <- c(
-  "recession_curve_slope_mean", "RBI_mean", "Q5norm_mean", "CV_Q5norm_mean",
-  "mean_bf_mean", "fdc_slope_mean", "S_annual_mm_mean", "DS_sum_mean"
+  "RCS_mean", "RBI_mean", "CHS_mean", "FDC_mean", "SD_mean", "WB_mean"
 )
 
 cor_storage <- cor(HJA_Ave[storage_vars], use = "pairwise.complete.obs")

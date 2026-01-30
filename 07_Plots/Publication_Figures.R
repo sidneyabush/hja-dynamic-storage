@@ -79,19 +79,17 @@ if (!dir.exists(output_dir)) {
 site_order <- SITE_ORDER_HYDROMETRIC
 site_cols <- SITE_COLORS
 
-# Metric labels for publication
+# Metric labels for publication (using method abbreviations)
 metric_labels <- c(
-  "RBI" = "Richards-Baker Index",
-  "recession_curve_slope" = "Recession Slope",
-  "fdc_slope" = "FDC Slope",
-  "S_annual_mm" = "Storage-Discharge (mm)",
-  "DS_sum" = "Drawdown (mm)",
-  "mean_bf" = "Baseflow Fraction",
-  "MTT" = "Mean Transit Time (yr)",
-  "Fyw" = "Young Water Fraction",
-  "DR" = "Damping Ratio",
-  "Q5norm" = "Normalized Q5",
-  "CV_Q5norm" = "CV of Normalized Q5"
+  "RBI" = "Richards-Baker Index (RBI)",
+  "RCS" = "Recession Curve Slope (RCS)",
+  "FDC" = "Flow Duration Curve (FDC)",
+  "SD" = "Storage-Discharge (SD, mm)",
+  "WB" = "Water Balance (WB, mm)",
+  "CHS" = "Baseflow Fraction (CHS)",
+  "MTT" = "Mean Transit Time (MTT, yr)",
+  "Fyw" = "Young Water Fraction (Fyw)",
+  "DR" = "Damping Ratio (DR)"
 )
 
 # Theme for publication
@@ -158,9 +156,8 @@ if (file.exists(avg_file)) {
 
 cat("\nCreating Figure 2: Storage metrics comparison...\n")
 
-# Select storage metrics for comparison
-storage_vars <- c("RBI", "recession_curve_slope", "fdc_slope",
-                  "S_annual_mm", "DS_sum", "mean_bf")
+# Select storage metrics for comparison (using method abbreviations)
+storage_vars <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS")
 
 # Calculate site means and SDs
 summary_data <- annual_data %>%
@@ -210,9 +207,8 @@ cat("  Saved Figure 2\n")
 cat("Creating Figure 3: Correlation matrix...\n")
 
 if (!is.null(avg_data)) {
-  # Select numeric columns for correlation
-  cor_vars <- c("RBI_mean", "recession_curve_slope_mean", "fdc_slope_mean",
-                "S_annual_mm_mean", "DS_sum_mean", "mean_bf_mean")
+  # Select numeric columns for correlation (using method abbreviations)
+  cor_vars <- c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean")
   cor_vars <- intersect(cor_vars, names(avg_data))
 
   if (length(cor_vars) >= 3) {
@@ -259,8 +255,8 @@ if (!is.null(avg_data)) {
 
 cat("Creating Figure 4: PCA biplot...\n")
 
-# PCA on annual data
-pca_vars <- c("RBI", "recession_curve_slope", "fdc_slope", "S_annual_mm", "DS_sum")
+# PCA on annual data (using method abbreviations)
+pca_vars <- c("RBI", "RCS", "FDC", "SD", "WB")
 pca_vars <- intersect(pca_vars, names(annual_data))
 
 if (length(pca_vars) >= 3) {
@@ -348,9 +344,9 @@ if (length(response_present) >= 1) {
   plot_list <- list()
 
   # Storage predictor to use
-  predictor <- "DS_sum"  # Drawdown as main predictor
+  predictor <- "WB"  # Water Balance as main predictor
   if (!predictor %in% names(annual_data)) {
-    predictor <- "S_annual_mm"
+    predictor <- "SD"
   }
 
   for (resp in response_present) {
@@ -412,8 +408,8 @@ if (length(response_present) >= 1) {
 
 cat("Creating Figure 6: Time series panels...\n")
 
-# Key metrics for time series
-ts_vars <- c("RBI", "DS_sum", "S_annual_mm")
+# Key metrics for time series (using method abbreviations)
+ts_vars <- c("RBI", "WB", "SD")
 ts_vars <- intersect(ts_vars, names(annual_data))
 
 if (length(ts_vars) >= 1) {

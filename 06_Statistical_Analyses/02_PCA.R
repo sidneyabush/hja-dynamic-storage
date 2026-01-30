@@ -89,13 +89,14 @@ HJA_Yr <- read_csv(
 # =============================================================================
 
 # Core hydrometric storage metrics (annual values)
+# Using method abbreviations: RBI, RCS, FDC, SD, WB
+# NOTE: Q5norm is a response variable, not a storage metric
 features <- c(
-  "recession_curve_slope",
+  "RCS",
   "RBI",
-  "Q5norm",
-  "fdc_slope",
-  "S_annual_mm",
-  "DS_sum"
+  "FDC",
+  "SD",
+  "WB"
 )
 
 site_column <- "site"

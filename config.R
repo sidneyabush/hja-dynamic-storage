@@ -36,7 +36,7 @@ if (USE_LOCAL_DATA) {
   BOX_BASE_DIR  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
   BASE_DATA_DIR <- file.path(BOX_BASE_DIR, "03_Data")
   OUTPUT_DIR    <- file.path(BOX_BASE_DIR, "05_Outputs")
-  FIGURES_DIR   <- file.path(BOX_BASE_DIR, "figures")
+  FIGURES_DIR   <- file.path(BOX_BASE_DIR, "Final_Workflow", "03_Figures")
 }
 
 # Subdirectories
@@ -71,7 +71,7 @@ SITE_ORDER_HYDROMETRIC <- c(
   "Mack"      # Mack Creek
 )
 
-# Sites with chemistry data (for CHS/mean_bf) - excludes GSWS06, GSWS09, GSLOOK
+# Sites with chemistry data (for CHS) - excludes GSWS06, GSWS09, GSLOOK
 SITE_ORDER_CHEMISTRY <- c(
   "GSWS10",   # Watershed 10
   "GSWS01",   # Watershed 01
@@ -135,14 +135,19 @@ WY_END   <- 2020
 # =============================================================================
 
 # Dynamic storage metrics (from hydrometric data - annual time series)
-DYNAMIC_METRICS <- c("RBI", "recession_curve_slope", "fdc_slope", "S_annual_mm")
+# RBI = Richards-Baker Index, RCS = Recession Curve Slope
+# FDC = Flow Duration Curve, SD = Storage-Discharge
+DYNAMIC_METRICS <- c("RBI", "RCS", "FDC", "SD")
 
 # Mobile storage metrics
-MOBILE_METRICS_ANNUAL <- c("mean_bf")  # CHS - annual from chemistry
+# CHS = Chemical Hydrograph Separation (mean baseflow fraction)
+# MTT = Mean Transit Time, Fyw = Young Water Fraction, DR = Damping Ratio
+MOBILE_METRICS_ANNUAL <- c("CHS")
 MOBILE_METRICS_SITE   <- c("MTT", "Fyw", "DR")  # Site-level from isotopes
 
 # Extended dynamic storage metrics (from water balance - annual)
-EXTENDED_DYNAMIC_METRICS <- c("DS_sum")
+# WB = Water Balance (extended dynamic storage)
+EXTENDED_DYNAMIC_METRICS <- c("WB")
 
 # All storage metrics
 ALL_STORAGE_METRICS <- c(DYNAMIC_METRICS, MOBILE_METRICS_ANNUAL, MOBILE_METRICS_SITE, EXTENDED_DYNAMIC_METRICS)

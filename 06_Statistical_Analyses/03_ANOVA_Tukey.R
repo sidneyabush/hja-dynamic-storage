@@ -84,19 +84,19 @@ HJA_annual <- read_csv(
 # =============================================================================
 # 3. SELECT STORAGE METRICS FOR ANOVA
 # =============================================================================
-# NOTE: Q5norm, CV_Q5norm are NOT storage metrics - removed
-# Storage metrics by type:
-#   Dynamic: RBI, RCS (recession_curve_slope), FDC (fdc_slope), SD (S_annual_mm)
-#   Mobile: CHS (mean_bf) - note: MTT, Fyw, DR are site-level only
-#   Extended Dynamic: WB (DS_sum)
+# NOTE: Q5norm, CV_Q5norm are NOT storage metrics - they are response variables
+# Storage metrics by type (using method abbreviations):
+#   Dynamic: RBI, RCS, FDC, SD
+#   Mobile: CHS - note: MTT, Fyw, DR are site-level only
+#   Extended Dynamic: WB
 
 storage_metrics <- c(
-  "recession_curve_slope",  # RCS - Dynamic
-  "RBI",                    # RBI - Dynamic
-  "fdc_slope",              # FDC - Dynamic
-  "S_annual_mm",            # SD  - Dynamic
-  "mean_bf",                # CHS - Mobile
-  "DS_sum"                  # WB  - Extended Dynamic
+  "RCS",   # RCS - Recession Curve Slope - Dynamic
+  "RBI",   # RBI - Richards-Baker Index - Dynamic
+  "FDC",   # FDC - Flow Duration Curve - Dynamic
+  "SD",    # SD  - Storage-Discharge - Dynamic
+  "CHS",   # CHS - Chemical Hydrograph Separation - Mobile
+  "WB"     # WB  - Water Balance - Extended Dynamic
 )
 
 # =============================================================================

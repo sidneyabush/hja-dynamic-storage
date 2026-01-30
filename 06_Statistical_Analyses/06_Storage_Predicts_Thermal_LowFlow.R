@@ -99,16 +99,15 @@ merged_data <- read_csv(
 # 5. DEFINE PREDICTOR AND RESPONSE VARIABLES
 # =============================================================================
 
-# Storage metrics (predictors)
-# Note: mean_bf excluded - no data overlap with thermal metrics
+# Storage metrics (predictors) - using method abbreviations
+# Note: CHS excluded - no data overlap with thermal metrics
+# Q5norm and CV_Q5norm are response variables, not storage predictors
 storage_predictors <- c(
-  "recession_curve_slope",
-  "RBI",
-  "Q5norm",
-  "CV_Q5norm",
-  "fdc_slope",
-  "S_annual_mm",
-  "DS_sum"
+  "RCS",   # Recession Curve Slope
+  "RBI",   # Richards-Baker Index
+  "FDC",   # Flow Duration Curve
+  "SD",    # Storage-Discharge
+  "WB"     # Water Balance
 )
 
 # Thermal/low-flow responses

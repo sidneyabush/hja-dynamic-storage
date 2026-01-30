@@ -202,7 +202,7 @@ DS_compute <- DS_dat_cropped %>%
   group_by(SITECODE, waterYear) %>%
   mutate(
     DS_daily = P_mm_d - Q_mm_d - ET_mm_d,
-    DS_sum = cumsum(DS_daily)
+    WB = cumsum(DS_daily)
   ) %>%
   ungroup()
 
@@ -212,8 +212,8 @@ DS_compute <- DS_dat_cropped %>%
 
 DS_max <- DS_compute %>%
   group_by(SITECODE, waterYear) %>%
-  slice_min(DS_sum, n = 1) %>%
-  select(SITECODE, waterYear, DS_sum) %>%
+  slice_min(WB, n = 1) %>%
+  select(SITECODE, waterYear, WB) %>%
   ungroup()
 
 # Save annual drawdown
@@ -241,7 +241,7 @@ ggsave(
 )
 
 # Plot 2: Drawdown timeseries by site and year
-p2 <- ggplot(DS_compute, aes(x = get_water_year_day(DATE), y = DS_sum)) +
+p2 <- ggplot(DS_compute, aes(x = get_water_year_day(DATE), y = WB)) +
   geom_line(aes(color = waterYear, group = waterYear)) +
   facet_wrap(~SITECODE, ncol = 3, scales = "free_y") +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -260,7 +260,7 @@ ggsave(
 )
 
 # Plot 3: Annual maximum drawdown distribution
-p3 <- ggplot(DS_max, aes(x = SITECODE, y = DS_sum)) +
+p3 <- ggplot(DS_max, aes(x = SITECODE, y = WB)) +
   geom_boxplot(fill = "lightblue") +
   geom_jitter(width = 0.2, alpha = 0.4, size = 2) +
   labs(

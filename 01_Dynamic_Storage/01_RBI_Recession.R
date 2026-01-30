@@ -298,9 +298,10 @@ ggsave(
 )
 
 # Save annual metrics for aggregation script
+# RCS = Recession Curve Slope (method name)
 annual_metrics %>%
-  rename(recession_curve_slope = slope) %>%
-  select(site, year, recession_curve_slope, RBI) %>%
+  rename(RCS = slope) %>%
+  select(site, year, RCS, RBI) %>%
   write_csv(file.path(output_dir, "RBI_RecessionCurve_Annual.csv"))
 
 # End of script

@@ -99,7 +99,7 @@ rbi_recession <- read_csv(
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, recession_curve_slope, RBI)
+  select(site, year, RCS, RBI)
 
 # Storage-Discharge, FDC, Q percentiles (SD, FDC)
 storage_fdc <- read_csv(
@@ -107,29 +107,29 @@ storage_fdc <- read_csv(
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, S_annual_mm, fdc_slope, Q99, Q50, Q01, Q5norm, CV_Q5norm)
+  select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 
 # --- MOBILE STORAGE METRICS ---
 
-# Chemical hydrograph separation (CHS -> mean_bf)
+# Chemical hydrograph separation (CHS = mean baseflow fraction)
 baseflow <- read_csv(
   file.path(output_dir, "Annual_GW_Prop.csv"),
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, mean_bf)
+  select(site, year, CHS)
 
 # --- EXTENDED DYNAMIC STORAGE METRICS ---
 
-# Dynamic storage drawdown (WB -> DS_sum)
-ds_drawdown <- read_csv(
+# Water Balance (WB = extended dynamic storage)
+wb_storage <- read_csv(
   file.path(output_dir, "DS_drawdown_annual.csv"),
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, DS_sum)
+  select(site, year, WB)
 
 # --- RESPONSE VARIABLES ---
 
@@ -149,7 +149,7 @@ thermal_lowflow <- read_csv(
 HJA_annual <- rbi_recession %>%
   full_join(storage_fdc, by = c("site", "year")) %>%
   full_join(baseflow, by = c("site", "year")) %>%
-  full_join(ds_drawdown, by = c("site", "year")) %>%
+  full_join(wb_storage, by = c("site", "year")) %>%
   full_join(thermal_lowflow, by = c("site", "year")) %>%
   # Filter to keep only sites in our analysis
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
@@ -246,10 +246,10 @@ cat("Saved: HJA_Ave_StorageMetrics_CatCharacter.csv\n")
 # 7. SAMPLE SIZE TRACKING
 # =============================================================================
 
-# Define all storage metrics by type
-dynamic_metrics <- c("RBI", "recession_curve_slope", "fdc_slope", "S_annual_mm")
-mobile_metrics <- c("mean_bf", "MTT", "Fyw", "DR")
-extended_metrics <- c("DS_sum")
+# Define all storage metrics by type (using method abbreviations)
+dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
+mobile_metrics <- c("CHS", "MTT", "Fyw", "DR")
+extended_metrics <- c("WB")
 response_metrics <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_at_min_Q_7d_C")
 
 # Count non-NA values for annual metrics
@@ -258,11 +258,11 @@ annual_sample_sizes <- HJA_annual %>%
   summarise(
     n_years_total = n(),
     n_RBI = sum(!is.na(RBI)),
-    n_RCS = sum(!is.na(recession_curve_slope)),
-    n_FDC = sum(!is.na(fdc_slope)),
-    n_SD = sum(!is.na(S_annual_mm)),
-    n_CHS = sum(!is.na(mean_bf)),
-    n_WB = sum(!is.na(DS_sum)),
+    n_RCS = sum(!is.na(RCS)),
+    n_FDC = sum(!is.na(FDC)),
+    n_SD = sum(!is.na(SD)),
+    n_CHS = sum(!is.na(CHS)),
+    n_WB = sum(!is.na(WB)),
     n_max_temp = sum(!is.na(max_temp_7d_C)),
     n_min_Q = sum(!is.na(min_Q_7d_mm_d)),
     .groups = "drop"
@@ -317,18 +317,18 @@ cat(sprintf("Extended     | WB     | %d     | %d\n",
 
 # Storage metrics by type (Q5norm, CV_Q5norm are NOT storage metrics)
 #   Dynamic: RBI, RCS, FDC, SD
-#   Mobile: CHS (mean_bf), MTT, Fyw, DR
-#   Extended Dynamic: WB (DS_sum)
+#   Mobile: CHS, MTT, Fyw, DR
+#   Extended Dynamic: WB
 storage_vars <- c(
-  "recession_curve_slope_mean",  # RCS - Dynamic
-  "RBI_mean",                    # RBI - Dynamic
-  "fdc_slope_mean",              # FDC - Dynamic
-  "S_annual_mm_mean",            # SD  - Dynamic
-  "mean_bf_mean",                # CHS - Mobile
-  "MTT",                         # MTT - Mobile (site-level)
-  "Fyw",                         # Fyw - Mobile (site-level)
-  "DR",                          # DR  - Mobile (site-level)
-  "DS_sum_mean"                  # WB  - Extended Dynamic
+  "RCS_mean",   # RCS - Recession Curve Slope - Dynamic
+  "RBI_mean",   # RBI - Richards-Baker Index - Dynamic
+  "FDC_mean",   # FDC - Flow Duration Curve - Dynamic
+  "SD_mean",    # SD  - Storage-Discharge - Dynamic
+  "CHS_mean",   # CHS - Chemical Hydrograph Separation - Mobile
+  "MTT",        # MTT - Mean Transit Time - Mobile (site-level)
+  "Fyw",        # Fyw - Young Water Fraction - Mobile (site-level)
+  "DR",         # DR  - Damping Ratio - Mobile (site-level)
+  "WB_mean"     # WB  - Water Balance - Extended Dynamic
 )
 
 # Filter to available columns
@@ -367,8 +367,7 @@ no_se_smoother <- function(data, mapping, ...) {
 }
 
 # Subset to key storage metrics (exclude _mean suffix for cleaner labels)
-key_vars <- c("RBI_mean", "fdc_slope_mean", "S_annual_mm_mean",
-              "DS_sum_mean", "mean_bf_mean", "DR")
+key_vars <- c("RBI_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean", "DR")
 key_vars <- key_vars[key_vars %in% colnames(HJA_avg)]
 
 key_metrics <- HJA_avg %>%

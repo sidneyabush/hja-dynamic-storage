@@ -87,22 +87,22 @@ HJA_Ave <- read_csv(
 # =============================================================================
 # 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
 # =============================================================================
-# NOTE: Q5norm and CV_Q5norm are NOT storage metrics - removed
-# Storage metrics by type:
+# NOTE: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
+# Storage metrics by type (using method abbreviations):
 #   Dynamic: RBI, RCS, FDC, SD
-#   Mobile: CHS (mean_bf), MTT, Fyw, DR
-#   Extended Dynamic: WB (DS_sum)
+#   Mobile: CHS, MTT, Fyw, DR
+#   Extended Dynamic: WB
 
 outcome_vars <- c(
-  "recession_curve_slope_mean",  # RCS - Dynamic
-  "RBI_mean",                    # RBI - Dynamic
-  "fdc_slope_mean",              # FDC - Dynamic
-  "S_annual_mm_mean",            # SD  - Dynamic
-  "mean_bf_mean",                # CHS - Mobile
-  "MTT",                         # MTT - Mobile
-  "Fyw",                         # Fyw - Mobile
-  "DR",                          # DR  - Mobile
-  "DS_sum_mean"                  # WB  - Extended Dynamic
+  "RCS_mean",   # RCS - Recession Curve Slope - Dynamic
+  "RBI_mean",   # RBI - Richards-Baker Index - Dynamic
+  "FDC_mean",   # FDC - Flow Duration Curve - Dynamic
+  "SD_mean",    # SD  - Storage-Discharge - Dynamic
+  "CHS_mean",   # CHS - Chemical Hydrograph Separation - Mobile
+  "MTT",        # MTT - Mean Transit Time - Mobile
+  "Fyw",        # Fyw - Young Water Fraction - Mobile
+  "DR",         # DR  - Damping Ratio - Mobile
+  "WB_mean"     # WB  - Water Balance - Extended Dynamic
 )
 
 # =============================================================================

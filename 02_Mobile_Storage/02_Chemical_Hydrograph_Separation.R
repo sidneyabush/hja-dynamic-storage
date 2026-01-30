@@ -168,10 +168,12 @@ EC_Q <- EC_Q %>%
 # 7. AGGREGATE TO ANNUAL MEAN BASEFLOW
 # =============================================================================
 
+# CHS = Chemical Hydrograph Separation (method name)
+# The metric measured is mean baseflow fraction
 annual_bf_prop <- EC_Q %>%
   group_by(SITECODE, waterYear) %>%
   summarise(
-    mean_bf = mean(GW_prop, na.rm = TRUE),
+    CHS = mean(GW_prop, na.rm = TRUE),  # CHS = mean baseflow fraction
     median_bf = median(GW_prop, na.rm = TRUE),
     sd_bf = sd(GW_prop, na.rm = TRUE),
     n_days = n(),
@@ -216,7 +218,7 @@ ggsave(
 # Plot 2: Annual mean baseflow by site and year
 p2 <- ggplot(
   annual_bf_prop,
-  aes(x = mean_bf, y = SITECODE, color = waterYear)
+  aes(x = CHS, y = SITECODE, color = waterYear)
 ) +
   geom_point(size = 3, alpha = 0.8) +
   scale_color_viridis_c() +
@@ -237,7 +239,7 @@ ggsave(
 )
 
 # Plot 3: Distribution of annual mean baseflow by site
-p3 <- ggplot(annual_bf_prop, aes(x = SITECODE, y = mean_bf)) +
+p3 <- ggplot(annual_bf_prop, aes(x = SITECODE, y = CHS)) +
   geom_boxplot(fill = "lightblue", alpha = 0.6) +
   geom_jitter(width = 0.2, alpha = 0.5, size = 2) +
   labs(
@@ -264,9 +266,9 @@ summary_stats <- annual_bf_prop %>%
   group_by(SITECODE) %>%
   summarise(
     n_years = n(),
-    mean_bf_overall = mean(mean_bf, na.rm = TRUE),
-    sd_bf_overall = sd(mean_bf, na.rm = TRUE),
-    min_bf = min(mean_bf, na.rm = TRUE),
-    max_bf = max(mean_bf, na.rm = TRUE),
+    CHS_overall = mean(CHS, na.rm = TRUE),
+    sd_CHS = sd(CHS, na.rm = TRUE),
+    min_CHS = min(CHS, na.rm = TRUE),
+    max_CHS = max(CHS, na.rm = TRUE),
     .groups = "drop"
   )

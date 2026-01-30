@@ -97,15 +97,14 @@ site_cols <- c(
 site_cols <- lighten(site_cols, amount = 0.1)
 
 # Axis-label mappings
+# Axis labels using method abbreviations
 axis_labels <- c(
-  fdc_slope = "Flow Duration Curve Slope",
-  mean_bf = "Mean Baseflow",
-  Q5norm = "Normalized Q5",
-  CV_Q5norm = "Normalized CV_Q5",
-  RBI = "Richards-Baker Index",
-  recession_curve_slope = "Recession-curve Slope",
-  S_annual_mm = "DS Storage-Discharge (mm)",
-  DS_sum = "DS Drawdown (mm)"
+  FDC = "Flow Duration Curve Slope (FDC)",
+  CHS = "Baseflow Fraction (CHS)",
+  RBI = "Richards-Baker Index (RBI)",
+  RCS = "Recession Curve Slope (RCS)",
+  SD = "Storage-Discharge (SD, mm)",
+  WB = "Water Balance (WB, mm)"
 )
 
 # =============================================================================
@@ -161,7 +160,7 @@ ds_discharge_file <- file.path(
 
 if (file.exists(ds_discharge_file)) {
   ds_discharge_long <- read_csv(ds_discharge_file, show_col_types = FALSE) %>%
-    select(site = site, year = wateryear, S_annual_mm) %>%
+    select(site = site, year = wateryear, SD = S_annual_mm) %>%
     mutate(
       site = case_when(
         site == "GSLOOK_FULL" ~ "GSLOOK",
@@ -169,7 +168,7 @@ if (file.exists(ds_discharge_file)) {
         TRUE ~ site
       )
     ) %>%
-    pivot_longer(cols = S_annual_mm, names_to = "metric", values_to = "value") %>%
+    pivot_longer(cols = SD, names_to = "metric", values_to = "value") %>%
     mutate(site = factor(site, levels = site_order))
 } else {
   ds_discharge_long <- tibble()
@@ -191,7 +190,7 @@ if (file.exists(ds_draw_file)) {
   }
 
   ds_draw_long <- ds_draw_long %>%
-    rename(site = SITECODE, year = waterYear, DS_sum = DS_sum) %>%
+    rename(site = SITECODE, year = waterYear) %>%
     mutate(
       site = case_when(
         site == "Mack" ~ "Mack",
@@ -199,7 +198,7 @@ if (file.exists(ds_draw_file)) {
         TRUE ~ site
       )
     ) %>%
-    pivot_longer(cols = DS_sum, names_to = "metric", values_to = "value") %>%
+    pivot_longer(cols = WB, names_to = "metric", values_to = "value") %>%
     mutate(site = factor(site, levels = site_order))
 } else {
   ds_draw_long <- tibble()
@@ -349,9 +348,9 @@ summary_all <- storage_long %>%
   }) %>%
   ungroup()
 
-# Filter to storage metrics only (exclude response variables)
-storage_metrics_to_plot <- c("RBI", "recession_curve_slope", "fdc_slope",
-                              "S_annual_mm", "DS_sum", "mean_bf", "Q5norm", "CV_Q5norm")
+# Filter to storage metrics only (exclude response variables like Q5norm, CV_Q5norm)
+# Using method abbreviations: RBI, RCS, FDC, SD, WB, CHS
+storage_metrics_to_plot <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS")
 summary_all <- summary_all %>% filter(metric %in% storage_metrics_to_plot)
 
 p_grid <- ggplot(summary_all, aes(site, mean_val, color = site)) +
