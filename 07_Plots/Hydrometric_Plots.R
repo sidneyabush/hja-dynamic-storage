@@ -78,7 +78,7 @@ if (!dir.exists(output_dir)) {
 # Site order & color palette (from config.R)
 site_order <- c(
   "GSWS09", "GSWS10", "GSLOOK", "GSWS01", "GSWS02",
-  "GSWS03", "GSMACK", "GSWS06", "GSWS07", "GSWS08"
+  "GSWS03", "Mack", "GSWS06", "GSWS07", "GSWS08"
 )
 
 # Use SITE_COLORS from config, adjusted for plot order
@@ -89,7 +89,7 @@ site_cols <- c(
   "GSWS01" = "#CC6677",
   "GSWS02" = "#999933",
   "GSWS03" = "#117733",
-  "GSMACK" = "#332288",
+  "Mack" = "#332288",
   "GSWS06" = "#44AA99",
   "GSWS07" = "#88CCEE",
   "GSWS08" = "#6699CC"
@@ -135,7 +135,7 @@ if ("rbfi" %in% names(hydrometric_storage)) {
 hydrometric_storage <- hydrometric_storage %>%
   mutate(
     site = case_when(
-      site == "GSWSMC" ~ "GSMACK",
+      site == "Mack" ~ "Mack",
       site == "GSLOOK_FULL" ~ "GSLOOK",
       TRUE ~ site
     )
@@ -165,7 +165,7 @@ if (file.exists(ds_discharge_file)) {
     mutate(
       site = case_when(
         site == "GSLOOK_FULL" ~ "GSLOOK",
-        site == "GSWSMC" ~ "GSMACK",
+        site == "Mack" ~ "Mack",
         TRUE ~ site
       )
     ) %>%
@@ -194,7 +194,7 @@ if (file.exists(ds_draw_file)) {
     rename(site = SITECODE, year = waterYear, DS_sum = DS_sum) %>%
     mutate(
       site = case_when(
-        site == "GSWSMA" ~ "GSMACK",
+        site == "Mack" ~ "Mack",
         site == "GSLOOK_FULL" ~ "GSLOOK",
         TRUE ~ site
       )

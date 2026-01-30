@@ -120,7 +120,7 @@ if (file.exists(wb_file)) {
 q_data <- q_data %>%
   mutate(
     site = case_when(
-      site == "GSWSMC" ~ "GSMACK",
+      site %in% c("GSWSMC", "GSMACK") ~ "Mack",
       site == "GSLOOK_FULL" ~ "GSLOOK",
       TRUE ~ site
     )

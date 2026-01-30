@@ -121,7 +121,11 @@ if (!file.exists(annual_file)) {
 
 if (file.exists(annual_file)) {
   annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
-    filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%
+    mutate(site = case_when(
+      site %in% c("GSWSMC", "GSMACK") ~ "Mack",
+      TRUE ~ site
+    )) %>%
+    filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF")) %>%
     mutate(site = factor(site, levels = site_order))
   cat("  Loaded annual data:", nrow(annual_data), "rows\n")
 } else {
@@ -136,7 +140,11 @@ if (!file.exists(avg_file)) {
 
 if (file.exists(avg_file)) {
   avg_data <- read_csv(avg_file, show_col_types = FALSE) %>%
-    filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%
+    mutate(site = case_when(
+      site %in% c("GSWSMC", "GSMACK") ~ "Mack",
+      TRUE ~ site
+    )) %>%
+    filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF")) %>%
     mutate(site = factor(site, levels = site_order))
   cat("  Loaded site-averaged data:", nrow(avg_data), "rows\n")
 } else {

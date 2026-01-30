@@ -59,7 +59,7 @@ if (!dir.exists(OUTPUT_DIR)) {
 # Hydrometric sites with continuous streamflow data (for Dynamic metrics)
 # Order: GSWS06 grouped with 07 and 08 for plotting
 SITE_ORDER_HYDROMETRIC <- c(
-"GSWS09",   # Watershed 09
+  "GSWS09",   # Watershed 09
   "GSWS10",   # Watershed 10
   "GSWS01",   # Watershed 01
   "GSLOOK",   # Lookout Creek
@@ -68,7 +68,7 @@ SITE_ORDER_HYDROMETRIC <- c(
   "GSWS06",   # Watershed 06 (no chemistry/isotope data)
   "GSWS07",   # Watershed 07
   "GSWS08",   # Watershed 08
-  "GSWSMC"    # Mack Creek
+  "Mack"      # Mack Creek
 )
 
 # Sites with chemistry data (for CHS/mean_bf) - excludes GSWS06, GSWS09, GSLOOK
@@ -80,7 +80,7 @@ SITE_ORDER_CHEMISTRY <- c(
   "GSWS06",   # Watershed 06 (limited: 2017-2019)
   "GSWS07",   # Watershed 07
   "GSWS08",   # Watershed 08
-  "GSWSMC"    # Mack Creek
+  "Mack"      # Mack Creek
 )
 
 # All sites including isotope-only sites (for MTT, Fyw, DR)
@@ -96,7 +96,7 @@ SITE_ORDER_ALL <- c(
   "GSWS07",   # Watershed 07
   "GSWS08",   # Watershed 08
   "NC",       # Nostoc Creek (isotope-only)
-  "GSWSMC",   # Mack Creek
+  "Mack",     # Mack Creek
   "LC",       # Longer Creek (isotope-only)
   "LO2",      # Upper Lookout 2 (isotope-only)
   "CC",       # Cold Creek (isotope-only)
@@ -114,7 +114,7 @@ SITE_NAMES <- c(
   "GSWS06" = "Watershed 06",
   "GSWS07" = "Watershed 07",
   "GSWS08" = "Watershed 08",
-  "GSWSMC" = "Mack",
+  "Mack"   = "Mack",
   "MR"     = "McRae",
   "NC"     = "Nostoc",
   "LC"     = "Longer",
@@ -162,7 +162,7 @@ SITE_COLORS <- c(
   "GSWS06" = "#44AA99",
   "GSWS07" = "#88CCEE",
   "GSWS08" = "#6699CC",
-  "GSWSMC" = "#332288"
+  "Mack"   = "#332288"
 )
 
 # =============================================================================
@@ -193,7 +193,8 @@ get_water_year_day <- function(date) {
 standardize_site_code <- function(site_code) {
   site_code <- trimws(site_code)
   dplyr::case_when(
-    site_code == "GSMACK"  ~ "GSWSMC",
+    site_code == "GSWSMC"  ~ "Mack",
+    site_code == "GSMACK"  ~ "Mack",
     site_code == "MCRAEC"  ~ "MR",
     site_code == "NCCREC"  ~ "NC",
     site_code == "LCCREC"  ~ "LC",
