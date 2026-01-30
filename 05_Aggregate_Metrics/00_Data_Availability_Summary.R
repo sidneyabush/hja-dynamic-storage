@@ -22,43 +22,48 @@ library(lubridate)
 
 rm(list = ls())
 
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
+
 # =============================================================================
-# SITE DEFINITIONS
+# SITE DEFINITIONS (extends config.R definitions with metadata)
 # =============================================================================
 
 # Complete site list with descriptions
-# Site naming conventions:
-#   GSWSMC = GSMACK = Mack Creek
-#   NC = Nostoc Creek
-#   MR = McRae Creek (also MCRAE, MCRAEC in data files)
-#   LC = Longer Creek
-#   LO1, LO2 = Sample sites along upper Lookout Creek
+# Uses SITE_NAMES from config.R, with additional metadata
 site_info <- tribble(
   ~site_code,   ~site_name,                    ~hydrometric, ~chemistry, ~isotopes, ~notes,
   "GSWS09",     "Watershed 09",                TRUE,         TRUE,       TRUE,      "",
   "GSWS10",     "Watershed 10",                TRUE,         TRUE,       TRUE,      "",
   "GSWS01",     "Watershed 01",                TRUE,         TRUE,       TRUE,      "",
-  "GSLOOK",     "Lookout Creek",               TRUE,         TRUE,       TRUE,      "",
+  "GSLOOK",     "Lookout",                     TRUE,         TRUE,       TRUE,      "",
   "GSWS02",     "Watershed 02",                TRUE,         TRUE,       TRUE,      "",
   "GSWS03",     "Watershed 03",                TRUE,         TRUE,       TRUE,      "",
-  "MR",         "McRae Creek",                 FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
+  "MR",         "McRae",                       FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
   "GSWS06",     "Watershed 06",                TRUE,         FALSE,      FALSE,     "No chemistry/isotope data",
   "GSWS07",     "Watershed 07",                TRUE,         TRUE,       TRUE,      "",
   "GSWS08",     "Watershed 08",                TRUE,         TRUE,       TRUE,      "",
-  "NC",         "Nostoc Creek",                FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "GSWSMC",     "Mack Creek",                  TRUE,         TRUE,       TRUE,      "Also: GSMACK",
-  "LC",         "Longer Creek",                FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "LO2",        "Upper Lookout Creek 2",       FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
+  "NC",         "Nostoc",                      FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
+  "GSWSMC",     "Mack",                        TRUE,         TRUE,       TRUE,      "Also: GSMACK",
+  "LC",         "Longer",                      FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
+  "LO2",        "Upper Lookout 2",             FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
   "CC",         "Cold Creek",                  FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "LO1",        "Upper Lookout Creek 1",       FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)"
+  "LO1",        "Upper Lookout 1",             FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)"
 )
 
 # =============================================================================
-# DIRECTORIES
+# DIRECTORIES (from config.R)
 # =============================================================================
 
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+base_dir    <- BASE_DATA_DIR
+output_dir  <- OUTPUT_DIR
 
 # =============================================================================
 # 1. STORAGE METRICS AVAILABILITY TABLE

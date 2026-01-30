@@ -30,11 +30,13 @@ if (USE_LOCAL_DATA) {
   # Local data paths (relative to repo root)
   BASE_DATA_DIR <- file.path(REPO_DIR, "data")
   OUTPUT_DIR    <- file.path(REPO_DIR, "outputs")
+  FIGURES_DIR   <- file.path(REPO_DIR, "figures")
 } else {
   # Box cloud storage paths (update these for your system)
   BOX_BASE_DIR  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
   BASE_DATA_DIR <- file.path(BOX_BASE_DIR, "03_Data")
   OUTPUT_DIR    <- file.path(BOX_BASE_DIR, "05_Outputs")
+  FIGURES_DIR   <- file.path(BOX_BASE_DIR, "figures")
 }
 
 # Subdirectories

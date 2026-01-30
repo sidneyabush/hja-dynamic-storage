@@ -35,9 +35,6 @@
 #   - HJA_Ave_StorageMetrics_CatCharacter.csv: Site-averaged metrics + catchment
 #   - Sample_Size_by_Metric.csv: Sample size tracking for each metric
 #   - QA correlation plots and scatterplot matrices
-#
-# Author: Keira Johnson (original), Sidney Bush (adapted)
-# Date: 2026-01-30
 # =============================================================================
 
 # Load libraries
@@ -53,49 +50,22 @@ theme_set(theme_classic(base_size = 12))
 # Clear environment
 rm(list = ls())
 
-# =============================================================================
-# SITE ORDERING CONSTANTS
-# =============================================================================
-
-# Hydrometric sites (continuous streamflow - for Dynamic metrics: RBI, RCS, FDC, SD, WB)
-SITE_ORDER_HYDROMETRIC <- c(
-  "GSWS09",   # WS 09
-  "GSWS10",   # WS 10
-  "GSWS01",   # WS 01
-  "GSLOOK",   # Lookout Creek
-  "GSWS02",   # WS 02
-  "GSWS03",   # WS 03
-  "GSWS06",   # WS 06 (no chemistry data - exclude from CHS)
-  "GSWS07",   # WS 07
-  "GSWS08",   # WS 08
-  "GSWSMC"    # Mack Creek
-)
-
-# Sites with chemistry data (for CHS/mean_bf)
-SITE_ORDER_CHEMISTRY <- c(
-  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
-  "GSWS07", "GSWS08", "GSWSMC"
-  # GSWS06 excluded - no chemistry data
-)
-
-# All sites including isotope-only sites (for MTT, Fyw, DR)
-# Site naming: GSWSMC=GSMACK=Mack, NC=Nostoc, MR=McRae, LC=Longer, LO1/LO2=Upper Lookout
-SITE_ORDER_ALL <- c(
-  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
-  "MR", "GSWS06", "GSWS07", "GSWS08", "NC", "GSWSMC",
-  "LC", "LO2", "CC", "LO1"
-)
-
-# Water year range
-WY_START <- 1997
-WY_END   <- 2020
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
 
 # =============================================================================
-# 1. SETUP: Directories
+# 1. SETUP: Directories (from config.R)
 # =============================================================================
 
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+base_dir    <- BASE_DATA_DIR
+output_dir  <- OUTPUT_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

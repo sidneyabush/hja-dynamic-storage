@@ -36,24 +36,31 @@ theme_set(theme_classic(base_size = 12))
 # Clear environment
 rm(list = ls())
 
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
+
 # =============================================================================
-# 1. SETUP: Directories and site list
+# 1. SETUP: Directories and site list (from config.R)
 # =============================================================================
 
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
-temp_dir    <- file.path(base_dir, "Stream_T")
-discharge_dir <- file.path(base_dir, "Q")
+base_dir      <- BASE_DATA_DIR
+output_dir    <- OUTPUT_DIR
+temp_dir      <- STREAM_TEMP_DIR
+discharge_dir <- DISCHARGE_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# Target sites and years
-sites_keep <- c(
-  "GSLOOK", "GSWS01", "GSWS02", "GSWS03", "GSWS06",
-  "GSWS07", "GSWS08", "GSWS09", "GSWS10", "GSWSMC"
-)
-target_years <- 1997:2020
+# Target sites and years (from config.R)
+sites_keep   <- SITE_ORDER_HYDROMETRIC
+target_years <- WY_START:WY_END
 
 # =============================================================================
 # 2. LOAD & PROCESS STREAM TEMPERATURE DATA

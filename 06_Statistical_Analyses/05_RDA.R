@@ -39,20 +39,20 @@ theme_set(theme_bw(base_size = 12))
 # Clear environment
 rm(list = ls())
 
-# =============================================================================
-# SITE ORDERING (consistent across all analyses)
-# =============================================================================
-site_order <- c(
-  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
-  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
-)
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
 
-# =============================================================================
-# 1. SETUP: Directories
-# =============================================================================
-
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+# Use configuration values
+site_order <- SITE_ORDER_HYDROMETRIC
+base_dir   <- BASE_DATA_DIR
+output_dir <- OUTPUT_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

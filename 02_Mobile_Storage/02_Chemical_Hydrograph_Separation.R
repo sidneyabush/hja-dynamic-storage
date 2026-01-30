@@ -34,7 +34,9 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 script_dir <- dirname(sys.frame(1)$ofile)
-if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+if (is.null(script_dir) || script_dir == "") {
+  script_dir <- getwd()
+}
 config_path <- file.path(dirname(script_dir), "config.R")
 if (file.exists(config_path)) {
   source(config_path)
@@ -46,14 +48,16 @@ if (file.exists(config_path)) {
 # 1. SETUP: Directories (from config.R)
 # =============================================================================
 
-base_dir    <- BASE_DATA_DIR
-output_dir  <- OUTPUT_DIR
+base_dir <- BASE_DATA_DIR
+output_dir <- OUTPUT_DIR
 
 discharge_dir <- DISCHARGE_DIR
-ec_dir        <- EC_DIR
+ec_dir <- EC_DIR
 
 # Create output directory if needed
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
 # =============================================================================
 # 2. LOAD DISCHARGE DATA
@@ -62,8 +66,11 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(date = as.Date(DATE, "%m/%d/%Y")) %>%
   # Filter to chemistry sites and water year range
-  filter(SITECODE %in% SITE_ORDER_CHEMISTRY,
-         WATERYEAR >= WY_START, WATERYEAR <= WY_END) %>%
+  filter(
+    SITECODE %in% SITE_ORDER_CHEMISTRY,
+    WATERYEAR >= WY_START,
+    WATERYEAR <= WY_END
+  ) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
 # =============================================================================
@@ -125,8 +132,8 @@ EC_Q <- EC_Q %>%
 EC_Q <- EC_Q %>%
   group_by(SITECODE) %>%
   mutate(
-    SC_runoff = quantile(daily_SC, 0.01, na.rm = TRUE),      # 1st percentile = quick runoff
-    SC_groundwater = quantile(daily_SC, 0.99, na.rm = TRUE)  # 99th percentile = groundwater
+    SC_runoff = quantile(daily_SC, 0.01, na.rm = TRUE), # 1st percentile = quick runoff
+    SC_groundwater = quantile(daily_SC, 0.99, na.rm = TRUE) # 99th percentile = groundwater
   ) %>%
   ungroup()
 
@@ -185,11 +192,17 @@ p1 <- ggplot(EC_Q, aes(x = date, y = GW_prop)) +
 
 ggsave(
   file.path(output_dir, "QA_Continuous_Baseflow_Prop.png"),
-  p1, width = 12, height = 10, dpi = 300
+  p1,
+  width = 12,
+  height = 10,
+  dpi = 300
 )
 
 # Plot 2: Annual mean baseflow by site and year
-p2 <- ggplot(annual_bf_prop, aes(x = mean_bf, y = SITECODE, color = waterYear)) +
+p2 <- ggplot(
+  annual_bf_prop,
+  aes(x = mean_bf, y = SITECODE, color = waterYear)
+) +
   geom_point(size = 3, alpha = 0.8) +
   scale_color_viridis_c() +
   labs(
@@ -202,7 +215,10 @@ p2 <- ggplot(annual_bf_prop, aes(x = mean_bf, y = SITECODE, color = waterYear)) 
 
 ggsave(
   file.path(output_dir, "QA_WY_Mean_Baseflow_Prop.png"),
-  p2, width = 10, height = 6, dpi = 300
+  p2,
+  width = 10,
+  height = 6,
+  dpi = 300
 )
 
 # Plot 3: Distribution of annual mean baseflow by site
@@ -219,7 +235,10 @@ p3 <- ggplot(annual_bf_prop, aes(x = SITECODE, y = mean_bf)) +
 
 ggsave(
   file.path(output_dir, "QA_Baseflow_Distribution_by_Site.png"),
-  p3, width = 10, height = 6, dpi = 300
+  p3,
+  width = 10,
+  height = 6,
+  dpi = 300
 )
 
 # =============================================================================

@@ -10,8 +10,6 @@
 #   3. Calculate cumulative drawdown (ΔS_sum)
 #   4. Extract minimum (maximum drawdown) for each site-year
 #
-# Timeline: Water Years 1998-2019
-#
 # Inputs:
 #   - HF00402_v14.csv: Daily discharge
 #   - daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv: P, Q, ET
@@ -22,7 +20,6 @@
 #   - QA plots: Last peak visualization, drawdown timeseries
 #
 # Author: Keira Johnson (original), Sidney Bush (adapted)
-# Date: 2026-01-23
 # =============================================================================
 
 # Load libraries
@@ -38,47 +35,25 @@ theme_set(theme_classic(base_size = 12))
 # Clear environment
 rm(list = ls())
 
-# Helper functions to replace EflowStats
-get_waterYear <- function(date) {
-  ifelse(month(date) >= 10, year(date) + 1, year(date))
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-get_waterYearDay <- function(date) {
-  wy <- get_waterYear(date)
-  wy_start <- as.Date(paste0(wy - 1, "-10-01"))
-  as.numeric(date - wy_start) + 1
-}
-
 # =============================================================================
-# SITE AND WATER YEAR CONSTANTS
-# =============================================================================
-# Hydrometric sites in standard order (GSWS06 grouped with 07, 08)
-SITE_ORDER_HYDROMETRIC <- c(
-  "GSWS09",   # WS 09
-  "GSWS10",   # WS 10
-  "GSWS01",   # WS 01
-  "GSLOOK",   # Lookout Creek
-  "GSWS02",   # WS 02
-  "GSWS03",   # WS 03
-  "GSWS06",   # WS 06 (grouped with 07, 08)
-  "GSWS07",   # WS 07
-  "GSWS08",   # WS 08
-  "GSWSMC"    # Mack Creek
-)
-
-# Water year range
-WY_START <- 1997
-WY_END   <- 2020
-
-# =============================================================================
-# 1. SETUP: Directories
+# 1. SETUP: Directories (from config.R)
 # =============================================================================
 
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+base_dir    <- BASE_DATA_DIR
+output_dir  <- OUTPUT_DIR
 
-discharge_dir <- file.path(base_dir, "Q")
-storage_dir   <- file.path(base_dir, "DynamicStorage")
+discharge_dir <- DISCHARGE_DIR
+storage_dir   <- ET_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

@@ -1,8 +1,24 @@
-# ---------------------------------------------
-# Hydrometric Storage & Discharge‐Storage Workflow
-# ---------------------------------------------
+# =============================================================================
+# Hydrometric Storage Metrics - Time Series & Summary Plots
+# =============================================================================
+# Purpose: Create time series and summary (mean ± SD with Tukey letters) plots
+#          for all storage metrics across HJA watersheds
+#
+# Plots generated:
+#   - storage_<metric>_by_site_wy.png: Time series by site for each metric
+#   - storage_summary_<metric>.png: Mean ± SD with Tukey HSD letters
+#   - grid_all_methods.png: Combined grid of all storage metrics
+#
+# Inputs:
+#   - HJA_StorageMetrics_Annual.csv: Annual storage metrics
+#   - storage_discharge_method_annual_mm_metrics_per_site_wateryear.csv
+#   - DS_drawdown_annual.csv
+#
+# Author: Sidney Bush
+# Date: 2026-01-30
+# =============================================================================
 
-# 0) Load libraries and set theme
+# Load libraries
 library(dplyr)
 library(readr)
 library(ggplot2)
@@ -16,228 +32,357 @@ theme_set(theme_classic(base_size = 16))
 # Clear environment
 rm(list = ls())
 
-# Directories
-base_dir   <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/Hydrometric"
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+# =============================================================================
+# SOURCE CONFIGURATION
+# =============================================================================
 
-# Site order & palette
+# Get script directory (works with source() and Rscript)
+script_dir <- tryCatch({
+  dirname(sys.frame(1)$ofile)
+}, error = function(e) {
+  # For Rscript, use command line args
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) > 0) {
+    dirname(normalizePath(sub("^--file=", "", file_arg)))
+  } else {
+    getwd()
+  }
+})
+if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
+  script_dir <- file.path(getwd(), "07_Plots")
+}
+
+config_path <- file.path(dirname(script_dir), "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(getwd(), "config.R")
+}
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
+
+# =============================================================================
+# DIRECTORIES AND SETTINGS
+# =============================================================================
+
+base_dir <- BASE_DATA_DIR
+output_dir <- file.path(FIGURES_DIR, "Hydrometric")
+
+# Create output directory if needed
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+# Site order & color palette (from config.R)
 site_order <- c(
-  "GSWS09","GSWS10","GSLOOK","GSWS01","GSWS02",
-  "GSWS03","GSMACK","GSWS06","GSWS07","GSWS08"
+  "GSWS09", "GSWS10", "GSLOOK", "GSWS01", "GSWS02",
+  "GSWS03", "GSMACK", "GSWS06", "GSWS07", "GSWS08"
 )
-palette10  <- c(
-  "#AA4499", "#882255", "#CC6677", "#DDCC77", "#999933",
-  "#117733", "#44AA99", "#88CCEE", "#6699CC", "#332288"
-)
-site_cols <- setNames(lighten(palette10, amount = 0.1), site_order)
 
-# Axis‐label mappings
+# Use SITE_COLORS from config, adjusted for plot order
+site_cols <- c(
+  "GSWS09" = "#882255",
+  "GSWS10" = "#AA4499",
+  "GSLOOK" = "#DDCC77",
+  "GSWS01" = "#CC6677",
+  "GSWS02" = "#999933",
+  "GSWS03" = "#117733",
+  "GSMACK" = "#332288",
+  "GSWS06" = "#44AA99",
+  "GSWS07" = "#88CCEE",
+  "GSWS08" = "#6699CC"
+)
+site_cols <- lighten(site_cols, amount = 0.1)
+
+# Axis-label mappings
 axis_labels <- c(
-  fdc_slope             = "Flow Duration Curve Slope",
-  mean_bf               = "Mean Baseflow",
-  Q5norm                = "Normalized Q5",
-  CV_Q5norm             = "Normalized CV_Q5",
-  RBI                   = "Richards–Baker Index",
+  fdc_slope = "Flow Duration Curve Slope",
+  mean_bf = "Mean Baseflow",
+  Q5norm = "Normalized Q5",
+  CV_Q5norm = "Normalized CV_Q5",
+  RBI = "Richards-Baker Index",
   recession_curve_slope = "Recession-curve Slope",
-  S_annual_mm           = "DS Storage-Discharge",
-  DS_sum                = "DS Drawdown"
+  S_annual_mm = "DS Storage-Discharge (mm)",
+  DS_sum = "DS Drawdown (mm)"
 )
 
-# ------------------------------------------------------------------
-# 1) Read Storage Metrics and reshape to long
-# ------------------------------------------------------------------
-hydrometric_storage <- read_csv(
-  file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual.csv"),
-  show_col_types = FALSE
-) %>%
-  select(-`...1`) %>%
-  rename(RBI = rbfi) %>%
-  # recode GSWSMC → GSMACK
+# =============================================================================
+# 1. LOAD STORAGE METRICS
+# =============================================================================
+
+cat("Loading storage metrics...\n")
+
+# Primary storage metrics file
+hydrometric_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual.csv")
+if (!file.exists(hydrometric_file)) {
+  # Try output directory
+  hydrometric_file <- file.path(OUTPUT_DIR, "HJA_StorageMetrics_Annual_All.csv")
+}
+
+hydrometric_storage <- read_csv(hydrometric_file, show_col_types = FALSE)
+
+# Clean up columns
+if ("...1" %in% names(hydrometric_storage)) {
+  hydrometric_storage <- hydrometric_storage %>% select(-`...1`)
+}
+if ("rbfi" %in% names(hydrometric_storage)) {
+  hydrometric_storage <- hydrometric_storage %>% rename(RBI = rbfi)
+}
+
+# Standardize site codes
+hydrometric_storage <- hydrometric_storage %>%
   mutate(
-    site = if_else(site == "GSWSMC", "GSMACK", site)
+    site = case_when(
+      site == "GSWSMC" ~ "GSMACK",
+      site == "GSLOOK_FULL" ~ "GSLOOK",
+      TRUE ~ site
+    )
   ) %>%
   filter(site %in% site_order) %>%
   mutate(site = factor(site, levels = site_order))
 
 hydrometric_storage_long <- hydrometric_storage %>%
   pivot_longer(
-    cols      = -c(site, year),
-    names_to  = "metric",
+    cols = -c(site, year),
+    names_to = "metric",
     values_to = "value"
   )
 
-# ------------------------------------------------------------------
-# 2) Read Dynamic Storage Discharge CSV and compute water-year
-# ------------------------------------------------------------------
+# =============================================================================
+# 2. LOAD STORAGE-DISCHARGE DATA
+# =============================================================================
+
 ds_discharge_file <- file.path(
   base_dir, "DynamicStorage",
   "storage_discharge_method_annual_mm_metrics_per_site_wateryear.csv"
 )
 
-ds_discharge_long <- read_csv(ds_discharge_file, show_col_types = FALSE) %>%
-  # rename wateryear → year and keep the discharge column
-  select(
-    site = site,
-    year = wateryear,
-    S_annual_mm
-  ) %>%
-  # recode GSLOOK_FULL → GSLOOK
-  mutate(
-    site = if_else(site == "GSLOOK_FULL", "GSLOOK", site)
-  ) %>%
-  # pivot into long form
-  pivot_longer(
-    cols      = S_annual_mm,
-    names_to  = "metric",
-    values_to = "value"
-  ) %>%
-  # ensure site is a factor in the proper order
-  mutate(site = factor(site, levels = site_order))
+if (file.exists(ds_discharge_file)) {
+  ds_discharge_long <- read_csv(ds_discharge_file, show_col_types = FALSE) %>%
+    select(site = site, year = wateryear, S_annual_mm) %>%
+    mutate(
+      site = case_when(
+        site == "GSLOOK_FULL" ~ "GSLOOK",
+        site == "GSWSMC" ~ "GSMACK",
+        TRUE ~ site
+      )
+    ) %>%
+    pivot_longer(cols = S_annual_mm, names_to = "metric", values_to = "value") %>%
+    mutate(site = factor(site, levels = site_order))
+} else {
+  ds_discharge_long <- tibble()
+  cat("Warning: Storage-discharge file not found\n")
+}
 
-# ------------------------------------------------------------------
-# 3) Read DS Drawdown .csv
-# ------------------------------------------------------------------
-ds_draw_file  <- file.path(
-  base_dir, "DynamicStorage", "DS_drawdown_annual.csv")
+# =============================================================================
+# 3. LOAD DRAWDOWN DATA
+# =============================================================================
 
+ds_draw_file <- file.path(base_dir, "DynamicStorage", "DS_drawdown_annual.csv")
 
-ds_draw_long <- read_csv(ds_draw_file, show_col_types = FALSE) %>%
-  select(-...1) %>%
-  # columns are: SITECODE, waterYear, DS_sum
-  rename(
-    site   = SITECODE,
-    year   = waterYear,
-    DS_sum = DS_sum
-  ) %>%
-  # recode GSWSMA → GSMACK
-  mutate(
-    site = if_else(site == "GSWSMA", "GSMACK", site)
-  ) %>%
-  pivot_longer(
-    cols      = DS_sum,
-    names_to  = "metric",
-    values_to = "value"
-  ) %>%
-  mutate(site = factor(site, levels = site_order))
+if (file.exists(ds_draw_file)) {
+  ds_draw_long <- read_csv(ds_draw_file, show_col_types = FALSE)
 
+  # Clean up columns
+  if ("...1" %in% names(ds_draw_long)) {
+    ds_draw_long <- ds_draw_long %>% select(-`...1`)
+  }
 
-# ------------------------------------------------------------------
-# 4) Combine all metrics into one long table
-# ------------------------------------------------------------------
-storage_long <- bind_rows(hydrometric_storage_long, ds_discharge_long, ds_draw_long)
+  ds_draw_long <- ds_draw_long %>%
+    rename(site = SITECODE, year = waterYear, DS_sum = DS_sum) %>%
+    mutate(
+      site = case_when(
+        site == "GSWSMA" ~ "GSMACK",
+        site == "GSLOOK_FULL" ~ "GSLOOK",
+        TRUE ~ site
+      )
+    ) %>%
+    pivot_longer(cols = DS_sum, names_to = "metric", values_to = "value") %>%
+    mutate(site = factor(site, levels = site_order))
+} else {
+  ds_draw_long <- tibble()
+  cat("Warning: Drawdown file not found\n")
+}
 
-# ------------------------------------------------------------------
-# 5) Per‐metric time‐series & summary plots (loop over every metric)
-# ------------------------------------------------------------------
+# =============================================================================
+# 4. COMBINE ALL METRICS
+# =============================================================================
+
+storage_long <- bind_rows(
+  hydrometric_storage_long,
+  ds_discharge_long,
+  ds_draw_long
+) %>%
+  filter(!is.na(value), site %in% site_order)
+
+cat("Metrics available:", paste(unique(storage_long$metric), collapse = ", "), "\n")
+
+# =============================================================================
+# 5. TIME SERIES & SUMMARY PLOTS (LOOP)
+# =============================================================================
+
+cat("Creating individual metric plots...\n")
+
 for (m in unique(storage_long$metric)) {
-  df         <- filter(storage_long, metric == m)
-  axis_label <- axis_labels[m]
-  
-  # time‐series by site
+  df <- filter(storage_long, metric == m)
+
+  if (nrow(df) < 10) {
+    cat("  Skipping", m, "- insufficient data\n")
+    next
+  }
+
+  axis_label <- ifelse(m %in% names(axis_labels), axis_labels[m], m)
+
+  # Time-series by site
   p_ts <- ggplot(df, aes(year, value, color = site, fill = site)) +
-    geom_line(size = 0.6) +
+    geom_line(linewidth = 0.6) +
     geom_point(size = 1) +
-    facet_wrap(~ site, ncol = 2) +
-    scale_color_manual(values = site_cols, guide = FALSE) +
-    scale_fill_manual(values = alpha(site_cols, 0.3), guide = FALSE) +
+    facet_wrap(~site, ncol = 2) +
+    scale_color_manual(values = site_cols, guide = "none") +
+    scale_fill_manual(values = alpha(site_cols, 0.3), guide = "none") +
     labs(x = "Water Year", y = axis_label) +
     theme(
-      panel.border     = element_rect(color = "black", fill = NA, size = 1),
-      axis.line        = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+      axis.line = element_blank(),
       strip.background = element_rect(fill = "white", colour = NA),
-      strip.text       = element_text(color = "black", hjust = 0)
+      strip.text = element_text(color = "black", hjust = 0)
     )
+
   ggsave(
     paste0("storage_", m, "_by_site_wy.png"),
-    p_ts, path = output_dir, width = 8, height = 9, units = "in", dpi = 300
+    p_ts, path = output_dir,
+    width = 8, height = 9, units = "in", dpi = 300
   )
-  
-  # summary (mean ± SD + Tukey letters)
+
+  # Summary: mean ± SD + Tukey letters
   sum_df <- df %>%
     group_by(site) %>%
     summarise(
       mean_val = mean(value, na.rm = TRUE),
-      sd_val   = sd(value,   na.rm = TRUE),
-      .groups  = "drop"
+      sd_val = sd(value, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(!is.na(mean_val))
+
+  # Check if we have enough groups for ANOVA
+  if (nrow(sum_df) >= 3 && length(unique(df$site)) >= 3) {
+    aov_r <- aov(value ~ site, data = df)
+    tuk <- TukeyHSD(aov_r, "site")$site
+    pvals <- setNames(tuk[, "p adj"], rownames(tuk))
+    lets <- tryCatch(
+      multcompLetters(pvals)$Letters,
+      error = function(e) setNames(rep("a", nrow(sum_df)), sum_df$site)
     )
-  aov_r <- aov(value ~ site, data = df)
-  tuk   <- TukeyHSD(aov_r, "site")$site
-  pvals <- setNames(tuk[, "p adj"], rownames(tuk))
-  lets  <- multcompLetters(pvals)$Letters
-  sum_df$group <- lets[as.character(sum_df$site)]
-  
-  y_max  <- max(sum_df$mean_val + sum_df$sd_val, na.rm = TRUE)
-  y_min  <- min(sum_df$mean_val - sum_df$sd_val, na.rm = TRUE)
+    sum_df$group <- lets[as.character(sum_df$site)]
+  } else {
+    sum_df$group <- "a"
+  }
+
+  y_max <- max(sum_df$mean_val + sum_df$sd_val, na.rm = TRUE)
+  y_min <- min(sum_df$mean_val - sum_df$sd_val, na.rm = TRUE)
   offset <- 0.05 * (y_max - y_min)
   sum_df <- sum_df %>% mutate(label_y = mean_val + sd_val + offset)
-  
+
   p_sum <- ggplot(sum_df, aes(site, mean_val, color = site)) +
     geom_point(size = 2) +
-    geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
-                  width = 0.2) +
+    geom_errorbar(
+      aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
+      width = 0.2
+    ) +
     geom_text(aes(label = group, y = label_y), size = 4, vjust = 0) +
     scale_x_discrete(limits = site_order) +
-    scale_color_manual(values = site_cols, guide = FALSE) +
-    labs(x = NULL, y = paste0("Mean ±1 SD of ", axis_label)) +
+    scale_color_manual(values = site_cols, guide = "none") +
+    labs(x = NULL, y = paste0("Mean ±1 SD of ", axis_label)) +
     theme(
-      axis.text.x      = element_text(angle = 45, hjust = 1),
-      panel.border     = element_rect(color = "black", fill = NA, size = 1),
-      axis.line        = element_blank()
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+      axis.line = element_blank()
     )
+
   ggsave(
     paste0("storage_summary_", m, ".png"),
-    p_sum, path = output_dir, width = 6, height = 4, units = "in", dpi = 300
+    p_sum, path = output_dir,
+    width = 6, height = 4, units = "in", dpi = 300
   )
+
+  cat("  Created plots for:", m, "\n")
 }
 
-# ------------------------------------------------------------------
-# 6) Grid of ALL methods (mean ± SD + letters)
-# ------------------------------------------------------------------
+# =============================================================================
+# 6. GRID OF ALL STORAGE METRICS
+# =============================================================================
+
+cat("Creating combined grid plot...\n")
+
 summary_all <- storage_long %>%
   group_by(metric, site) %>%
   summarise(
     mean_val = mean(value, na.rm = TRUE),
-    sd_val   = sd(value,   na.rm = TRUE),
-    .groups  = "drop"
+    sd_val = sd(value, na.rm = TRUE),
+    .groups = "drop"
   ) %>%
+  filter(!is.na(mean_val)) %>%
   group_by(metric) %>%
   do({
-    dat   <- .
-    dfm   <- filter(storage_long, metric == dat$metric[1])
-    aov_r <- aov(value ~ site, data = dfm)
-    tuk_r <- TukeyHSD(aov_r, "site")$site
-    pv    <- setNames(tuk_r[, "p adj"], rownames(tuk_r))
-    let   <- multcompLetters(pv)$Letters
-    dat$group   <- let[as.character(dat$site)]
-    y_mx        <- max(dat$mean_val + dat$sd_val, na.rm = TRUE)
-    y_mn        <- min(dat$mean_val - dat$sd_val, na.rm = TRUE)
-    dat$label_y <- dat$mean_val + dat$sd_val + 0.05*(y_mx - y_mn)
+    dat <- .
+    dfm <- filter(storage_long, metric == dat$metric[1])
+
+    if (length(unique(dfm$site)) >= 3 && nrow(dfm) >= 10) {
+      aov_r <- aov(value ~ site, data = dfm)
+      tuk_r <- TukeyHSD(aov_r, "site")$site
+      pv <- setNames(tuk_r[, "p adj"], rownames(tuk_r))
+      let <- tryCatch(
+        multcompLetters(pv)$Letters,
+        error = function(e) setNames(rep("a", nrow(dat)), dat$site)
+      )
+      dat$group <- let[as.character(dat$site)]
+    } else {
+      dat$group <- "a"
+    }
+
+    y_mx <- max(dat$mean_val + dat$sd_val, na.rm = TRUE)
+    y_mn <- min(dat$mean_val - dat$sd_val, na.rm = TRUE)
+    dat$label_y <- dat$mean_val + dat$sd_val + 0.05 * (y_mx - y_mn)
     dat
   }) %>%
   ungroup()
 
+# Filter to storage metrics only (exclude response variables)
+storage_metrics_to_plot <- c("RBI", "recession_curve_slope", "fdc_slope",
+                              "S_annual_mm", "DS_sum", "mean_bf", "Q5norm", "CV_Q5norm")
+summary_all <- summary_all %>% filter(metric %in% storage_metrics_to_plot)
+
 p_grid <- ggplot(summary_all, aes(site, mean_val, color = site)) +
   geom_point(size = 2) +
-  geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
-                width = 0.2) +
+  geom_errorbar(
+    aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
+    width = 0.2
+  ) +
   geom_text(aes(label = group, y = label_y), size = 3.5, vjust = 0) +
-  facet_wrap(~ metric, ncol = 2, scales = "free_y",
-             labeller = as_labeller(axis_labels)) +
+  facet_wrap(
+    ~metric,
+    ncol = 2,
+    scales = "free_y",
+    labeller = as_labeller(axis_labels)
+  ) +
   scale_x_discrete(limits = site_order) +
-  scale_color_manual(values = site_cols, guide = FALSE) +
-  labs(x = NULL, y = "Mean ± 1 SD") +
+  scale_color_manual(values = site_cols, guide = "none") +
+  labs(x = NULL, y = "Mean ± 1 SD") +
   theme(
-    axis.text.x      = element_text(angle = 45, hjust = 1),
-    panel.border     = element_rect(color = "black", fill = NA, size = 1),
-    axis.line        = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    axis.line = element_blank(),
     strip.background = element_rect(fill = "white", colour = NA),
-    strip.text       = element_text(color = "black", hjust = 0)
+    strip.text = element_text(color = "black", hjust = 0)
   )
 
 ggsave(
   "grid_all_methods.png",
-  plot  = p_grid,
-  path  = output_dir,
+  plot = p_grid, path = output_dir,
   width = 9, height = 11, units = "in", dpi = 300
 )
+
+cat("\n=== PLOTS COMPLETE ===\n")
+cat("Output directory:", output_dir, "\n")
