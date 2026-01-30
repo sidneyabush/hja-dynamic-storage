@@ -1,5 +1,16 @@
 # =============================================================================
-# Dynamic Storage: Overall + Annual per Site 
+# Dynamic Storage: Storage-Discharge Method + FDC Slope (SD metric)
+# =============================================================================
+# Purpose: Calculate dynamic storage using storage-discharge relationship and
+#          flow duration curve (FDC) slopes for each site and water year
+#
+# Methods:
+#   - Fit recession law: dQ/dt = k*Q^p using rain-free falling limbs
+#   - Storage depth: S = integral of Q/dQ/dt from Qmin to Qmax
+#   - FDC slope: slope of log10(Q) vs exceedance probability (5th-95th)
+#
+# Inputs: Daily water balance data with P, Q, ET
+# Outputs: Annual storage depths and FDC slopes, QA plots
 # =============================================================================
 
 # 0) Load libraries & clear environment
@@ -9,15 +20,23 @@ library(tidyr)
 library(purrr)
 rm(list = ls())
 
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
+}
+
 # 1) Directories & input
-data_dir   <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data/DynamicStorage"
-output_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+data_dir   <- ET_DIR
+output_dir <- OUTPUT_DIR
 input_file <- file.path(data_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
 stopifnot(file.exists(input_file))
 
-# 2) Read data, drop unwanted sites, parse date & compute water-year
-library(lubridate)
-
+# 2) Read data, filter sites, parse date & compute water-year
 df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
   mutate(
     # robustly parse DATE into a Date object
@@ -25,7 +44,7 @@ df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
       DATE,
       orders = c("Ymd", "Y-m-d", "mdy", "dmy")
     ) %>% as.Date(),
-    
+
     # water-year: Oct–Dec → next calendar year, Jan–Sep → same year
     wateryear = if_else(
       month(date) >= 10,
@@ -39,7 +58,11 @@ df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
     Q    = Q_mm_d,
     ET   = ET_mm_d
   ) %>%
-  filter(!site %in% c("COLD", "LONGER")) %>%
+  # Filter to hydrometric sites and water year range
+  filter(site %in% SITE_ORDER_HYDROMETRIC,
+         wateryear >= WY_START, wateryear <= WY_END) %>%
+  # Set factor levels for consistent ordering
+  mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site, date)
 
 

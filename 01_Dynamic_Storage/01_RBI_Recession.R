@@ -1,3 +1,17 @@
+# =============================================================================
+# Dynamic Storage: RBI and Recession Curve Slope
+# =============================================================================
+# Purpose: Calculate Richards-Baker Flashiness Index (RBI) and recession curve
+#          slope for each site and water year
+#
+# Methods:
+#   - RBI: sum(|dQ|) / sum(Q) for each water year
+#   - Recession slope: log-log linear regression of -dQ/dt vs Q
+#
+# Inputs: Daily discharge data (HF00402_v14.csv)
+# Outputs: Annual RBI and recession slopes, QA plots
+# =============================================================================
+
 library(dplyr)
 library(lubridate)
 library(readr)
@@ -11,31 +25,27 @@ theme_set(theme_classic(base_size = 14))
 # Clear environment
 rm(list = ls())
 
-# Directories
-base_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir, recursive = TRUE)
+# Source configuration (paths, site definitions, water year range)
+# Get script directory for relative sourcing
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-# Only these 10 sites
-sites_keep <- c(
-  "GSLOOK",
-  "GSWS01",
-  "GSWS02",
-  "GSWS03",
-  "GSWS09",
-  "GSWS10",
-  "GSWSMC",
-  "GSWS06",
-  "GSWS07",
-  "GSWS08"
-)
+# Use configuration values
+base_dir <- BASE_DATA_DIR
+output_dir <- OUTPUT_DIR
+sites_keep <- SITE_ORDER_HYDROMETRIC
 
 # Read & prep data
-da_df <- read_csv(file.path(base_dir, "Q", "drainage_area.csv"))
-discharge <- read_csv(file.path(base_dir, "Q", "HF00402_v14.csv")) %>%
-  #filter(WATERYEAR > 1997, SITECODE %in% sites_keep) %>%
+da_df <- read_csv(file.path(base_dir, "Q", "drainage_area.csv"), show_col_types = FALSE)
+discharge <- read_csv(file.path(base_dir, "Q", "HF00402_v14.csv"), show_col_types = FALSE) %>%
+  # Filter to water years 1997-2020 and hydrometric sites
+  filter(WATERYEAR >= WY_START, WATERYEAR <= WY_END, SITECODE %in% sites_keep) %>%
   left_join(da_df, by = "SITECODE") %>%
   filter(!is.na(DA_M2)) %>%
   mutate(

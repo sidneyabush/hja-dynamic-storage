@@ -40,18 +40,23 @@ rm(list = ls())
 # =============================================================================
 # SITE ORDERING (consistent across all analyses)
 # =============================================================================
+# Hydrometric sites in standard order (GSWS06 grouped with 07, 08)
 site_order <- c(
-  "GSWS09",      # WS 09
-  "GSWS10",      # WS 10
-  "GSWS01",      # WS 01
-  "GSLOOK",      # Lookout Creek
-  "GSWS02",      # WS 02
-  "GSWS03",      # WS 03
-  "GSWS06",      # WS 06
-  "GSWS07",      # WS 07
-  "GSWS08",      # WS 08
-  "GSWSMC"       # Mack Creek
+  "GSWS09",   # WS 09
+  "GSWS10",   # WS 10
+  "GSWS01",   # WS 01
+  "GSLOOK",   # Lookout Creek
+  "GSWS02",   # WS 02
+  "GSWS03",   # WS 03
+  "GSWS06",   # WS 06 (grouped with 07, 08; no chemistry data)
+  "GSWS07",   # WS 07
+  "GSWS08",   # WS 08
+  "GSWSMC"    # Mack Creek
 )
+
+# Water year range
+WY_START <- 1997
+WY_END   <- 2020
 
 # =============================================================================
 # 1. SETUP: Directories

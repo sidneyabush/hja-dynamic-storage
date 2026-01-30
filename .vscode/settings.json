@@ -13,7 +13,6 @@
         "**/.history/**": true,
         "**/History_**": true
     },
-    "workbench.colorTheme": "Squirrelsong Light (Dark Terminal)",
     "workbench.editor.enablePreview": false,
     "workbench.startupEditor": "welcomePageInEmptyWorkbench",
     "terminal.integrated.fontSize": 14,

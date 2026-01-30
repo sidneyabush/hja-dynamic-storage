@@ -1,0 +1,153 @@
+Storage Metrics Data Availability Summary
+Generated: 2026-01-30
+
+================================================================================
+TABLE 1: STORAGE METRICS OVERVIEW
+================================================================================
+Storage_Type,Abbreviation,Full_Method_Name,Variable_Name,Data_Required,N_Sites,Years_of_Data
+Dynamic,RBI,Richards-Baker Index,RBI,Hydrometric,10,WY 1997-2020 (24 years annual)
+Dynamic,RCS,Recession Curve Slope,recession_curve_slope,Hydrometric,10,WY 1997-2020 (24 years annual)
+Dynamic,FDC,Flow Duration Curve,fdc_slope,Hydrometric,10,WY 1997-2020 (24 years annual)
+Dynamic,SD,Storage-Discharge,S_annual_mm,Hydrometric,10,WY 1997-2020 (24 years annual)
+Mobile,MTT,Mean Transit Time,MTT,Isotopes,11,Site-level estimate (1 value per site)
+Mobile,Fyw,Young Water Fraction,Fyw,Isotopes,8,Site-level estimate (1 value per site)
+Mobile,CHS,Chemical Hydrograph Separation,mean_bf,Chemistry (EC),8,WY 2013-2019 (varies by site)
+Mobile,DR,Isotopic Damping Ratio,DR,Isotopes,15,Site-level estimate (1 value per site)
+Extended_Dynamic,WB,Water Balance,DS_sum,Hydrometric + ET,10,WY 1997-2020 (24 years annual)
+
+================================================================================
+TABLE 2: SITE x METRIC AVAILABILITY MATRIX
+================================================================================
+Site_Code,Site_Name,Data_Type,RBI,RCS,FDC,SD,MTT,Fyw,CHS,DR,WB
+GSWS09,Watershed 09,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE
+GSWS10,Watershed 10,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE
+GSWS01,Watershed 01,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+GSLOOK,Lookout,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE
+GSWS02,Watershed 02,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+GSWS03,Watershed 03,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,TRUE
+GSWS06,Watershed 06,Hydrometric (no chem/isotope),TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,FALSE,TRUE
+GSWS07,Watershed 07,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+GSWS08,Watershed 08,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+GSWSMC,Mack,Hydrometric,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+MR,McRae,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,TRUE,FALSE
+NC,Nostoc,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE
+LC,Longer,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE
+LO2,Upper Lookout 2,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE
+CC,Cold Creek,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE
+LO1,Upper Lookout 1,Isotope-only (2022-2023),FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE
+
+================================================================================
+TABLE 3: CHS (Chemical Hydrograph Separation) DATA BY SITE
+================================================================================
+Site_Code,Site_Name,Years_Available,N_Years,Notes
+GSWS01,Watershed 01,2014-2019,6,
+GSWS02,Watershed 02,2019,1,Limited data
+GSWS03,Watershed 03,2013-2019,7,
+GSWS06,Watershed 06,2017-2019,3,
+GSWS07,Watershed 07,2013-2019,7,
+GSWS08,Watershed 08,2015-2017,3,
+GSWS10,Watershed 10,2014 and 2017-2019,4,Gap in 2015-2016
+GSWSMC,Mack,2014-2019,6,
+GSWS09,Watershed 09,NA,0,No EC data
+GSLOOK,Lookout,NA,0,No EC data
+
+================================================================================
+TABLE 4: MTT (Mean Transit Time) DATA BY SITE
+================================================================================
+Site_Code,Site_Name,MTT_years,MTT_SD,Has_Data,Notes
+GSWS01,Watershed 01,3.07,NA,TRUE,Mean of 2 methods
+GSWS02,Watershed 02,2.64,NA,TRUE,Mean of 3 methods
+GSWS03,Watershed 03,1.30,0.31,TRUE,Single method (MTT1)
+GSWS06,Watershed 06,NA,NA,FALSE,No isotope data
+GSWS07,Watershed 07,3.05,NA,TRUE,Mean of 2 methods
+GSWS08,Watershed 08,2.51,NA,TRUE,Mean of 3 methods
+GSWS09,Watershed 09,0.80,0.18,TRUE,Single method (MTT1)
+GSWS10,Watershed 10,1.20,0.29,TRUE,Single method (MTT1)
+GSWSMC,Mack,2.81,NA,TRUE,Mean of 3 methods
+GSLOOK,Lookout,2.71,NA,TRUE,Mean of 3 methods
+MR,McRae,3.24,NA,TRUE,Mean of 2 methods (isotope-only site)
+NC,Nostoc,NA,NA,FALSE,No MTT data
+LC,Longer,NA,NA,FALSE,No MTT data
+LO2,Upper Lookout 2,NA,NA,FALSE,No MTT data
+CC,Cold Creek,NA,NA,FALSE,No MTT data
+LO1,Upper Lookout 1,NA,NA,FALSE,No MTT data
+
+================================================================================
+TABLE 5: Fyw (Young Water Fraction) DATA BY SITE
+================================================================================
+Site_Code,Site_Name,Fyw_fraction,Has_Data,Notes
+GSWS01,Watershed 01,0.23,TRUE,Mean of low/high estimates
+GSWS02,Watershed 02,0.22,TRUE,Mean of low/high estimates
+GSWS03,Watershed 03,NA,FALSE,No Fyw data
+GSWS06,Watershed 06,NA,FALSE,No isotope data
+GSWS07,Watershed 07,0.48,TRUE,Mean of low/high estimates
+GSWS08,Watershed 08,0.33,TRUE,Mean of low/high estimates
+GSWS09,Watershed 09,NA,FALSE,No Fyw data (only MTT1)
+GSWS10,Watershed 10,NA,FALSE,No Fyw data (only MTT1)
+GSWSMC,Mack,0.27,TRUE,Mean of low/high estimates
+GSLOOK,Lookout,0.31,TRUE,Mean of low/high estimates
+MR,McRae,0.13,TRUE,Mean of low/high estimates (isotope-only site)
+NC,Nostoc,NA,FALSE,No Fyw data
+LC,Longer,NA,FALSE,No Fyw data
+LO2,Upper Lookout 2,NA,FALSE,No Fyw data
+CC,Cold Creek,NA,FALSE,No Fyw data
+LO1,Upper Lookout 1,NA,FALSE,No Fyw data
+
+================================================================================
+TABLE 6: DR (Isotopic Damping Ratio) DATA BY SITE
+================================================================================
+Site_Code,Site_Name,DR_Overall,DR_err,Has_Data,Methods_Used,Notes
+GSWS09,Watershed 09,0.158,0.015,TRUE,McGuire,
+GSWS10,Watershed 10,0.134,0.013,TRUE,McGuire,
+GSWS01,Watershed 01,0.164,0.014,TRUE,Segura,
+GSLOOK,Lookout,0.103,0.012,TRUE,Segura+McGuire+Ortega,Mean of 3 methods
+GSWS02,Watershed 02,0.127,0.012,TRUE,Segura+McGuire,Mean of 2 methods
+GSWS03,Watershed 03,0.119,0.012,TRUE,McGuire,
+GSWS06,Watershed 06,NA,NA,FALSE,NA,No isotope data
+GSWS07,Watershed 07,0.092,0.009,TRUE,Segura,
+GSWS08,Watershed 08,0.094,0.009,TRUE,Segura+McGuire,Mean of 2 methods
+GSWSMC,Mack,0.100,0.011,TRUE,Segura+McGuire+Ortega,Mean of 3 methods
+MR,McRae,0.092,0.011,TRUE,Segura+Ortega,Mean of 2 methods (isotope-only site)
+NC,Nostoc,0.062,0.010,TRUE,Ortega,Isotope-only site
+LC,Longer,0.030,0.005,TRUE,Ortega,Isotope-only site
+LO2,Upper Lookout 2,0.111,0.018,TRUE,Ortega,Isotope-only site
+CC,Cold Creek,0.085,0.013,TRUE,Ortega,Isotope-only site
+LO1,Upper Lookout 1,0.112,0.018,TRUE,Ortega,Isotope-only site
+
+================================================================================
+TABLE 7: HYDROMETRIC DATA DATE RANGES BY SITE
+================================================================================
+Site_Code,Site_Name,Hydro_Start,Hydro_End,N_Days,Notes
+GSWS09,Watershed 09,1968-10-01,2020-09-30,18993,
+GSWS10,Watershed 10,1968-10-01,2020-09-30,18993,
+GSWS01,Watershed 01,1952-10-01,2020-09-30,24837,
+GSLOOK,Lookout,1949-10-01,2019-08-07,25513,Ends earlier than others
+GSWS02,Watershed 02,1952-10-01,2020-09-30,24837,
+GSWS03,Watershed 03,1952-10-01,2020-09-30,24620,
+GSWS06,Watershed 06,1963-10-01,2020-09-30,20820,
+GSWS07,Watershed 07,1963-10-01,2020-09-30,18263,
+GSWS08,Watershed 08,1963-10-01,2020-09-30,20820,
+GSWSMC,Mack,1995-10-01,2020-09-30,9132,Shorter record
+
+================================================================================
+TABLE 8: METEOROLOGICAL VARIABLES SUMMARY
+================================================================================
+Variable,Description,N_Obs,Pct_Complete,Min_Date,Max_Date
+T_C,Air Temperature (Celsius),94960,100%,1997-10-01,2023-09-30
+P_mm_d,Precipitation (mm/day),94960,100%,1997-10-01,2023-09-30
+Q_mm_d,Discharge (mm/day),84010,88.5%,1997-10-01,2020-09-30
+RH_d_pct,Relative Humidity (%),78441,82.6%,1997-10-01,2019-03-25
+VPD_kPa,Vapor Pressure Deficit (kPa),78136,82.3%,1997-10-01,2019-03-25
+NR_Wm2_d,Net Radiation (W/m2),19302,20.3%,2013-04-17,2018-09-30
+
+================================================================================
+NOTES
+================================================================================
+1. Site-level estimate means ONE value per site (not annual time series)
+2. GSWS06 has hydrometric data but NO chemistry or isotope data
+3. Non-hydrometric sites (MR, NC, LC, LO2, CC, LO1) only have isotope data from 2022-2023 sampling
+4. CHS data availability varies significantly by site (1-7 years)
+5. MTT values are means across available methods (MTT1, MTT2L, MTT2H)
+6. Fyw values are means of low (FYWL) and high (FYWH) estimates
+7. DR values are means across available methods (Segura, McGuire, Ortega)
+8. Water Year (WY) runs October 1 - September 30 (e.g., WY 1997 = Oct 1996 - Sep 1997)

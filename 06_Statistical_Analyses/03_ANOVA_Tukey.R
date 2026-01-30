@@ -38,10 +38,23 @@ rm(list = ls())
 # =============================================================================
 # SITE ORDERING (consistent across all analyses)
 # =============================================================================
+# Hydrometric sites in standard order (GSWS06 grouped with 07, 08)
 site_order <- c(
-  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
-  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
+  "GSWS09",   # WS 09
+  "GSWS10",   # WS 10
+  "GSWS01",   # WS 01
+  "GSLOOK",   # Lookout Creek
+  "GSWS02",   # WS 02
+  "GSWS03",   # WS 03
+  "GSWS06",   # WS 06 (grouped with 07, 08; no chemistry data)
+  "GSWS07",   # WS 07
+  "GSWS08",   # WS 08
+  "GSWSMC"    # Mack Creek
 )
+
+# Water year range
+WY_START <- 1997
+WY_END   <- 2020
 
 # =============================================================================
 # 1. SETUP: Directories
@@ -67,16 +80,19 @@ HJA_annual <- read_csv(
 # =============================================================================
 # 3. SELECT STORAGE METRICS FOR ANOVA
 # =============================================================================
+# NOTE: Q5norm, CV_Q5norm are NOT storage metrics - removed
+# Storage metrics by type:
+#   Dynamic: RBI, RCS (recession_curve_slope), FDC (fdc_slope), SD (S_annual_mm)
+#   Mobile: CHS (mean_bf) - note: MTT, Fyw, DR are site-level only
+#   Extended Dynamic: WB (DS_sum)
 
 storage_metrics <- c(
-  "recession_curve_slope",
-  "RBI",
-  "Q5norm",
-  "CV_Q5norm",
-  "mean_bf",
-  "fdc_slope",
-  "S_annual_mm",
-  "DS_sum"
+  "recession_curve_slope",  # RCS - Dynamic
+  "RBI",                    # RBI - Dynamic
+  "fdc_slope",              # FDC - Dynamic
+  "S_annual_mm",            # SD  - Dynamic
+  "mean_bf",                # CHS - Mobile
+  "DS_sum"                  # WB  - Extended Dynamic
 )
 
 # =============================================================================

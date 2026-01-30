@@ -42,10 +42,23 @@ rm(list = ls())
 # =============================================================================
 # SITE ORDERING (consistent across all analyses)
 # =============================================================================
+# Hydrometric sites in standard order (GSWS06 grouped with 07, 08)
 site_order <- c(
-  "GSWS09", "GSWS10", "GSWS01", "GSLOOK", "GSWS02", "GSWS03",
-  "GSWS06", "GSWS07", "GSWS08", "GSWSMC"
+  "GSWS09",   # WS 09
+  "GSWS10",   # WS 10
+  "GSWS01",   # WS 01
+  "GSLOOK",   # Lookout Creek
+  "GSWS02",   # WS 02
+  "GSWS03",   # WS 03
+  "GSWS06",   # WS 06 (grouped with 07, 08; no chemistry data)
+  "GSWS07",   # WS 07
+  "GSWS08",   # WS 08
+  "GSWSMC"    # Mack Creek
 )
+
+# Water year range
+WY_START <- 1997
+WY_END   <- 2020
 
 # =============================================================================
 # 1. SETUP: Directories
@@ -70,16 +83,22 @@ HJA_Ave <- read_csv(
 # =============================================================================
 # 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
 # =============================================================================
+# NOTE: Q5norm and CV_Q5norm are NOT storage metrics - removed
+# Storage metrics by type:
+#   Dynamic: RBI, RCS, FDC, SD
+#   Mobile: CHS (mean_bf), MTT, Fyw, DR
+#   Extended Dynamic: WB (DS_sum)
 
 outcome_vars <- c(
-  "recession_curve_slope_mean",
-  "RBI_mean",
-  "Q5norm_mean",
-  "CV_Q5norm_mean",
-  "mean_bf_mean",
-  "fdc_slope_mean",
-  "S_annual_mm_mean",
-  "DR_Overall"
+  "recession_curve_slope_mean",  # RCS - Dynamic
+  "RBI_mean",                    # RBI - Dynamic
+  "fdc_slope_mean",              # FDC - Dynamic
+  "S_annual_mm_mean",            # SD  - Dynamic
+  "mean_bf_mean",                # CHS - Mobile
+  "MTT",                         # MTT - Mobile
+  "Fyw",                         # Fyw - Mobile
+  "DR",                          # DR  - Mobile
+  "DS_sum_mean"                  # WB  - Extended Dynamic
 )
 
 # =============================================================================

@@ -14,14 +14,12 @@
 # Inputs:
 #   - CF01201_v3.txt: Continuous specific conductance (EC) data
 #   - HF00402_v14.csv: Daily discharge data
-#   - drainage_area.csv: Drainage areas for normalization
 #
 # Outputs:
 #   - Annual_GW_Prop.csv: Annual mean baseflow proportion by site
 #   - QA plots: Continuous baseflow timeseries and annual summaries
 #
 # Author: Keira Johnson (original), Sidney Bush (adapted)
-# Date: 2026-01-23
 # =============================================================================
 
 # Load libraries
@@ -34,20 +32,25 @@ theme_set(theme_classic(base_size = 12))
 # Clear environment
 rm(list = ls())
 
-# Helper function to replace EflowStats
-get_waterYear <- function(date) {
-  ifelse(month(date) >= 10, year(date) + 1, year(date))
+# Source configuration (paths, site definitions, water year range)
+script_dir <- dirname(sys.frame(1)$ofile)
+if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+config_path <- file.path(dirname(script_dir), "config.R")
+if (file.exists(config_path)) {
+  source(config_path)
+} else {
+  stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
 # =============================================================================
-# 1. SETUP: Directories
+# 1. SETUP: Directories (from config.R)
 # =============================================================================
 
-base_dir    <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-output_dir  <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs"
+base_dir    <- BASE_DATA_DIR
+output_dir  <- OUTPUT_DIR
 
-discharge_dir <- file.path(base_dir, "Q")
-ec_dir        <- file.path(base_dir, "EC")
+discharge_dir <- DISCHARGE_DIR
+ec_dir        <- EC_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -58,6 +61,9 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(date = as.Date(DATE, "%m/%d/%Y")) %>%
+  # Filter to chemistry sites and water year range
+  filter(SITECODE %in% SITE_ORDER_CHEMISTRY,
+         WATERYEAR >= WY_START, WATERYEAR <= WY_END) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
 # =============================================================================
@@ -76,6 +82,8 @@ EC_daily <- EC %>%
       .default = SITECODE
     )
   ) %>%
+  # Filter to chemistry sites
+  filter(SITECODE %in% SITE_ORDER_CHEMISTRY) %>%
   group_by(SITECODE, date) %>%
   summarise(daily_SC = mean(EC_INST, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(daily_SC))

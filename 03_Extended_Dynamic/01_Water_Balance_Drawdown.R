@@ -50,6 +50,27 @@ get_waterYearDay <- function(date) {
 }
 
 # =============================================================================
+# SITE AND WATER YEAR CONSTANTS
+# =============================================================================
+# Hydrometric sites in standard order (GSWS06 grouped with 07, 08)
+SITE_ORDER_HYDROMETRIC <- c(
+  "GSWS09",   # WS 09
+  "GSWS10",   # WS 10
+  "GSWS01",   # WS 01
+  "GSLOOK",   # Lookout Creek
+  "GSWS02",   # WS 02
+  "GSWS03",   # WS 03
+  "GSWS06",   # WS 06 (grouped with 07, 08)
+  "GSWS07",   # WS 07
+  "GSWS08",   # WS 08
+  "GSWSMC"    # Mack Creek
+)
+
+# Water year range
+WY_START <- 1997
+WY_END   <- 2020
+
+# =============================================================================
 # 1. SETUP: Directories
 # =============================================================================
 
@@ -67,19 +88,24 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 # =============================================================================
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
-  mutate(date = as.Date(DATE, "%m/%d/%Y"))
+  mutate(
+    date = as.Date(DATE, "%m/%d/%Y"),
+    waterYear = get_waterYear(date)
+  ) %>%
+  # Filter to hydrometric sites and water year range
+  filter(SITECODE %in% SITE_ORDER_HYDROMETRIC,
+         waterYear >= WY_START, waterYear <= WY_END)
 
-# Filter to complete water years only
+# Filter to complete water years only (>= 365 days)
 goodyears <- discharge %>%
-  filter(!(SITECODE %in% c("GSWSMC", "GSWSMF"))) %>%
-  mutate(waterYear = get_waterYear(date)) %>%
   group_by(SITECODE, waterYear) %>%
   summarise(num_days = n_distinct(date), .groups = "drop") %>%
   filter(num_days >= 365)
 
 discharge <- discharge %>%
-  mutate(waterYear = get_waterYear(date)) %>%
-  semi_join(goodyears, by = c("SITECODE", "waterYear"))
+  semi_join(goodyears, by = c("SITECODE", "waterYear")) %>%
+  # Set factor levels for consistent ordering
+  mutate(SITECODE = factor(SITECODE, levels = SITE_ORDER_HYDROMETRIC))
 
 # Add 7-day smoothed discharge
 discharge <- discharge %>%
