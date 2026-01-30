@@ -1,8 +1,5 @@
 # Data Files Required
 
-This folder should contain the following data files to run the analysis workflow.
-Data files are not included in the repository due to size constraints.
-
 ## Data Sources
 
 All data are available from the H.J. Andrews Experimental Forest Long-Term Ecological Research program:
@@ -37,8 +34,3 @@ All data are available from the H.J. Andrews Experimental Forest Long-Term Ecolo
 - Most files are comma-separated (CSV) or tab-delimited (TXT)
 - Date formats vary: `YYYY-MM-DD` or `MM/DD/YYYY`
 - Site codes use HJA naming convention (e.g., GSWS01, GSLOOK, GSWSMC)
-
-## Contact
-
-For data access questions, contact:
-- H.J. Andrews LTER: hjasci@oregonstate.edu
