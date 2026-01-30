@@ -180,49 +180,19 @@ install.packages(c(
 
 ### Storage Metrics by Type
 
-| Storage Type | Abbreviation | Sites |
-|--------------|--------------|-------|
-| **Dynamic** | RBI | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC (10) |
-| | RCS | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC (10) |
-| | FDC | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC (10) |
-| | SD | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC (10) |
-| **Mobile** | MTT | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS07, GSWS08, GSWSMC, MR (10) |
-| | Fyw | GSWS01, GSWS02, GSWS07, GSWS08, GSWSMC, GSLOOK, MR (7) |
-| | CHS | GSWS10, GSWS01, GSWS02, GSWS03, GSWS06*, GSWS07, GSWS08, GSWSMC (8) |
-| | DR | 15 sites (all hydrometric + MR, NC, LC, LO2, CC, LO1) |
-| **Extended Dynamic** | WB | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC (10) |
+| Storage Type | Abbreviation | n | Sites | Years |
+|--------------|--------------|---|-------|-------|
+| **Dynamic** | RBI | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC | 1950-2020 (varies) |
+| | RCS | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC | 1950-2020 (varies) |
+| | FDC | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC | 1998-2020 |
+| | SD | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC | 1998-2020 |
+| **Mobile** | MTT | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS07, GSWS08, GSWSMC, MR | Site-level |
+| | Fyw | 7 | GSWS01, GSWS02, GSWS07, GSWS08, GSWSMC, GSLOOK, MR | Site-level |
+| | CHS | 8 | GSWS10, GSWS01, GSWS02, GSWS03, GSWS06*, GSWS07, GSWS08, GSWSMC | 2013-2019 (varies) |
+| | DR | 15 | All hydrometric + MR, NC, LC, LO2, CC, LO1 | Site-level |
+| **Extended Dynamic** | WB | 10 | GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC | 1998-2019 |
 
 *GSWS06 has limited CHS data (2017-2019); CHS excludes GSWS09 and GSLOOK (no EC data)
-
-### Mean Transit Time (MTT) and Young Water Fraction (Fyw)
-
-| Site | MTT1 (yr) 2001-2003* | MTT2 (yr) 2015-2018** | Fyw 2015-2018** |
-|--------|----------------------|------------------------|-----------------|
-| GSWS09 | 0.8 (0.18) | - | - |
-| GSWS10 | 1.2 (0.29) | - | - |
-| GSWS01 | - | 1.99 (0.44) – 4.14 (1.1) | 0.14 (0.07) – 0.32 (0.21) |
-| GSLOOK | 2.0 (1.00) | 1.11 (0.15) – 5.01 (0.1) | 0.08 (0.03) – 0.54 (0.15) |
-| GSWS02 | 2.2 (0.56) | 1.3 (0.11) – 4.41 (1.79) | 0.04 (0.01) – 0.39 (0.2) |
-| GSWS03 | 1.3 (0.31) | - | - |
-| GSWS06 | - | - | - |
-| GSWS07 | - | 0.95 (0.08) – 5.14 (0.07) | 0.04 (0) – 0.91 (0.2) |
-| GSWS08 | 3.3 (1.28) | 0.95 (0.04) – 3.28 (1.37) | 0.05 (0.01) – 0.61 (0.16) |
-| GSWSMC | 2.0 (0.49) | 0.89 (0.06) – 5.55 (0.67) | 0.06 (0.02) – 0.47 (0.13) |
-| MR | - | 1.45 (0.32) – 5.03 (1.14) | 0.05 (0) – 0.2 (0.02) |
-
-*McGuire, 2005; **Segura, 2021. Values show mean (SE); ranges indicate different estimation methods.
-
-### Temporal Coverage
-
-| Metric | Sites | Years | Notes |
-|--------|-------|-------|-------|
-| RBI, RCS | 10 | 1950-2020 (varies) | Full hydrometric record |
-| FDC, SD | 10 | 1998-2020 | Water balance period |
-| CHS | 8 | 2013-2019 (varies) | EC data availability |
-| WB | 10 | 1998-2019 | Water balance period |
-| MTT | 11 | Site-level | Single value per site |
-| Fyw | 8 | Site-level | Not all sites have data |
-| DR | 15 | Site-level | Includes isotope-only sites |
 
 ---
 

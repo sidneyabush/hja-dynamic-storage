@@ -51,9 +51,26 @@ theme_set(theme_classic(base_size = 12))
 rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
-script_dir <- dirname(sys.frame(1)$ofile)
-if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+# Get script directory (works with source() and Rscript)
+script_dir <- tryCatch({
+  dirname(sys.frame(1)$ofile)
+}, error = function(e) {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) > 0) {
+    dirname(normalizePath(sub("^--file=", "", file_arg)))
+  } else {
+    getwd()
+  }
+})
+if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
+  script_dir <- getwd()
+}
+
 config_path <- file.path(dirname(script_dir), "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(getwd(), "config.R")
+}
 if (file.exists(config_path)) {
   source(config_path)
 } else {

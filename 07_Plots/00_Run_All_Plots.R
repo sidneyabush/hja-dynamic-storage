@@ -24,9 +24,21 @@ cat("================================================================\n")
 cat("  HJA Dynamic Storage - Generate All Plots\n")
 cat("================================================================\n\n")
 
-# Get script directory
-script_dir <- dirname(sys.frame(1)$ofile)
-if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+# Get script directory (works with source() and Rscript)
+script_dir <- tryCatch({
+  dirname(sys.frame(1)$ofile)
+}, error = function(e) {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) > 0) {
+    dirname(normalizePath(sub("^--file=", "", file_arg)))
+  } else {
+    getwd()
+  }
+})
+if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
+  script_dir <- file.path(getwd(), "07_Plots")
+}
 
 # Verify we're in the right directory
 if (!file.exists(file.path(script_dir, "Hydrometric_Plots.R"))) {

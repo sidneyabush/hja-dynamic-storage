@@ -36,9 +36,26 @@ theme_set(theme_classic(base_size = 12))
 rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
-script_dir <- dirname(sys.frame(1)$ofile)
-if (is.null(script_dir) || script_dir == "") script_dir <- getwd()
+# Get script directory (works with source() and Rscript)
+script_dir <- tryCatch({
+  dirname(sys.frame(1)$ofile)
+}, error = function(e) {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) > 0) {
+    dirname(normalizePath(sub("^--file=", "", file_arg)))
+  } else {
+    getwd()
+  }
+})
+if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
+  script_dir <- getwd()
+}
+
 config_path <- file.path(dirname(script_dir), "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(getwd(), "config.R")
+}
 if (file.exists(config_path)) {
   source(config_path)
 } else {
@@ -65,7 +82,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
     date = as.Date(DATE, "%m/%d/%Y"),
-    waterYear = get_waterYear(date)
+    waterYear = get_water_year(date)
   ) %>%
   # Filter to hydrometric sites and water year range
   filter(SITECODE %in% SITE_ORDER_HYDROMETRIC,
@@ -113,7 +130,7 @@ find_last_peak <- function(data, threshold_pct = 0.08) {
       filter(peak_height >= threshold_value) %>%
       mutate(
         date = data$date[peak_index],
-        wyd = get_waterYearDay(date)
+        wyd = get_water_year_day(date)
       ) %>%
       filter(wyd < 300) %>%  # Before day 300 of water year
       arrange(peak_index)
@@ -140,7 +157,7 @@ last_peak <- discharge %>%
   group_by(SITECODE, waterYear) %>%
   do(find_last_peak(.)) %>%
   ungroup() %>%
-  mutate(wyd = get_waterYearDay(last_peak_date))
+  mutate(wyd = get_water_year_day(last_peak_date))
 
 # Save last peak dates
 write.csv(last_peak,
@@ -159,7 +176,7 @@ DS_dat <- read.csv(file.path(storage_dir, "daily_water_balance_ET_Hamon-Zhang_co
       .default = SITECODE
     ),
     DATE = as.Date(DATE, "%m/%d/%y"),
-    waterYear = get_waterYear(DATE)
+    waterYear = get_water_year(DATE)
   ) %>%
   filter(waterYear > 1997 & waterYear < 2020)
 
@@ -224,7 +241,7 @@ ggsave(
 )
 
 # Plot 2: Drawdown timeseries by site and year
-p2 <- ggplot(DS_compute, aes(x = get_waterYearDay(DATE), y = DS_sum)) +
+p2 <- ggplot(DS_compute, aes(x = get_water_year_day(DATE), y = DS_sum)) +
   geom_line(aes(color = waterYear, group = waterYear)) +
   facet_wrap(~SITECODE, ncol = 3, scales = "free_y") +
   geom_hline(yintercept = 0, linetype = "dashed") +
