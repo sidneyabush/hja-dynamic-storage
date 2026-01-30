@@ -227,20 +227,17 @@ p1 <- ggplot(precip_monthly, aes(x = month_wy, y = mean_P)) +
 
 # Temperature
 p2 <- ggplot(temp_monthly, aes(x = month_wy, y = mean_T)) +
-  geom_line(aes(group = 1), color = "firebrick", linewidth = 1) +
-  geom_point(color = "firebrick", size = 2) +
+  geom_col(fill = "gray70", alpha = 0.8) +
   geom_errorbar(aes(ymin = mean_T - sd_T, ymax = mean_T + sd_T),
-                width = 0.3, linewidth = 0.3, color = "firebrick") +
+                width = 0.3, linewidth = 0.3) +
   labs(title = "Mean Monthly Temperature",
-       x = NULL, y = "Temperature (\u00B0C)") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50")
+       x = NULL, y = "Temperature (\u00B0C)")
 
 # SWE
 p3 <- ggplot(swe_monthly, aes(x = month_wy, y = mean_SWE)) +
-  geom_line(aes(group = 1), color = "dodgerblue3", linewidth = 1) +
-  geom_point(color = "dodgerblue3", size = 2) +
-  geom_ribbon(aes(ymin = pmax(0, mean_SWE - sd_SWE), ymax = mean_SWE + sd_SWE, group = 1),
-              fill = "dodgerblue3", alpha = 0.2) +
+  geom_col(fill = "gray70", alpha = 0.8) +
+  geom_errorbar(aes(ymin = pmax(0, mean_SWE - sd_SWE), ymax = mean_SWE + sd_SWE),
+                width = 0.3, linewidth = 0.3) +
   labs(title = "Mean Monthly SWE",
        x = NULL, y = "SWE (mm)") +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
