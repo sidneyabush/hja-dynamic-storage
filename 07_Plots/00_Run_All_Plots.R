@@ -19,23 +19,21 @@
 # Date: 2026-01-30
 # =============================================================================
 
-cat("\n")
-cat("================================================================\n")
-cat("  HJA Dynamic Storage - Generate All Plots\n")
-cat("================================================================\n\n")
-
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
+script_dir <- tryCatch(
+  {
+    dirname(sys.frame(1)$ofile)
+  },
+  error = function(e) {
+    args <- commandArgs(trailingOnly = FALSE)
+    file_arg <- grep("^--file=", args, value = TRUE)
+    if (length(file_arg) > 0) {
+      dirname(normalizePath(sub("^--file=", "", file_arg)))
+    } else {
+      getwd()
+    }
   }
-})
+)
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- file.path(getwd(), "07_Plots")
 }
@@ -65,12 +63,15 @@ for (script_name in scripts_to_run) {
     cat("Running:", script_name, "\n")
     cat("================================================================\n\n")
 
-    tryCatch({
-      source(script_path)
-      cat("\n[OK]", script_name, "completed successfully\n\n")
-    }, error = function(e) {
-      cat("\n[ERROR]", script_name, "failed:", conditionMessage(e), "\n\n")
-    })
+    tryCatch(
+      {
+        source(script_path)
+        cat("\n[OK]", script_name, "completed successfully\n\n")
+      },
+      error = function(e) {
+        cat("\n[ERROR]", script_name, "failed:", conditionMessage(e), "\n\n")
+      }
+    )
   } else {
     cat("[SKIP]", script_name, "not found\n\n")
   }

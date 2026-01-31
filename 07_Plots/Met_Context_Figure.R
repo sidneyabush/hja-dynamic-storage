@@ -1,13 +1,15 @@
 # =============================================================================
 # Meteorological Context Figure
 # =============================================================================
-# Purpose: Create figure showing mean monthly climate and annual anomalies
-#          for precipitation, temperature, and SWE at CENMET station
+# Purpose: Create figure showing monthly climatology (median with IQR; Jan–Dec)
+#          and annual anomalies (departures from WY 1997–2020 mean; dashed line = 0)
+#          for precipitation, temperature, and SWE at the CENMET station.
 #
 # Output:
 #   - Fig_Met_Context.png/pdf: 2x3 panel figure
-#     Top row: Mean monthly P, T, SWE
-#     Bottom row: Annual anomalies relative to study period mean
+#     Top row: Monthly climatology (median with IQR)
+#     Bottom row: Annual anomalies relative to WY mean
+#   - Panel labels: a)–f)
 #
 # Study Period: Water Years 1997-2020
 #
@@ -28,17 +30,21 @@ rm(list = ls())
 # SOURCE CONFIGURATION
 # =============================================================================
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
+script_dir <- tryCatch(
+  {
+    dirname(sys.frame(1)$ofile)
+  },
+  error = function(e) {
+    args <- commandArgs(trailingOnly = FALSE)
+    file_arg <- grep("^--file=", args, value = TRUE)
+    if (length(file_arg) > 0) {
+      dirname(normalizePath(sub("^--file=", "", file_arg)))
+    } else {
+      getwd()
+    }
   }
-})
+)
+
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- file.path(getwd(), "07_Plots")
 }
@@ -59,19 +65,53 @@ if (file.exists(config_path)) {
 
 met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
 output_dir <- file.path(FIGURES_DIR, "Publication")
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
-# Study period
 wy_start <- 1997
 wy_end <- 2020
 
-# Theme for publication
+# =============================================================================
+# MUTED, COHESIVE PALETTE (consistent across rows)
+# =============================================================================
+# Precipitation — darker, calm blue
+col_precip <- "#4A6FA5"
+
+# Temperature — subdued orange (not yellow, not red)
+col_temp <- "#D08C2F"
+
+# SWE — darker glacier teal
+col_swe <- "#4F9A8A"
+
+# Negative anomaly tints (same hues, much lighter)
+col_precip_neg <- "#C9D7EB"
+col_temp_neg <- "#F0D9B5"
+col_swe_neg <- "#CFE5E1"
+
+# Top row (variable identity by lightness)
+col_precip <- "#4D4D4D" # dark gray
+col_temp <- "#7A7A7A" # medium gray
+col_swe <- "#B0B0B0" # light gray
+
+# Bottom row anomalies (same variable identity)
+# Positive = same gray as top row
+# Negative = lighter tint of same gray
+col_precip_neg <- "#BFBFBF"
+col_temp_neg <- "#D9D9D9"
+col_swe_neg <- "#E6E6E6"
+
+
+# =============================================================================
+# THEME (no bold; centered titles; small panel tags)
+# =============================================================================
+
 theme_pub <- theme_classic(base_size = 11) +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
-    plot.title = element_text(face = "bold", size = 10),
-    axis.title = element_text(size = 9),
+    plot.title = element_text(face = "plain", size = 10, hjust = 0.5),
+    axis.title = element_text(face = "plain", size = 9),
     axis.text = element_text(size = 8)
   )
 
@@ -81,219 +121,214 @@ theme_set(theme_pub)
 # LOAD DATA
 # =============================================================================
 
-cat("Loading meteorological data...\n")
-
-# Temperature
-temp_data <- read_csv(file.path(met_dir, "Temperature_filtered_post1997.csv"),
-                      show_col_types = FALSE) %>%
+temp_data <- read_csv(
+  file.path(met_dir, "Temperature_filtered_post1997.csv"),
+  show_col_types = FALSE
+) %>%
   mutate(
     DATE = as.Date(DATE),
-    year = year(DATE),
     month = month(DATE),
+    year = year(DATE),
     water_year = ifelse(month >= 10, year + 1, year)
   ) %>%
   filter(water_year >= wy_start & water_year <= wy_end) %>%
-  select(DATE, year, month, water_year, T_C = CENMET)
+  select(month, water_year, T_C = CENMET)
 
-# Precipitation
-precip_data <- read_csv(file.path(met_dir, "Precipitation_filtered_post1997.csv"),
-                        show_col_types = FALSE) %>%
+precip_data <- read_csv(
+  file.path(met_dir, "Precipitation_filtered_post1997.csv"),
+  show_col_types = FALSE
+) %>%
   mutate(
     DATE = as.Date(DATE),
-    year = year(DATE),
     month = month(DATE),
+    year = year(DATE),
     water_year = ifelse(month >= 10, year + 1, year)
   ) %>%
   filter(water_year >= wy_start & water_year <= wy_end) %>%
-  select(DATE, year, month, water_year, P_mm = CENMET)
+  select(month, water_year, P_mm = CENMET)
 
-# SWE
-swe_data <- read_csv(file.path(met_dir, "SWE_original_&_filled_1997_2023_v5.csv"),
-                     show_col_types = FALSE) %>%
+swe_data <- read_csv(
+  file.path(met_dir, "SWE_original_&_filled_1997_2023_v5.csv"),
+  show_col_types = FALSE
+) %>%
   mutate(
     DATE = as.Date(DATE, format = "%m/%d/%Y"),
-    year = year(DATE),
     month = month(DATE),
+    year = year(DATE),
     water_year = ifelse(month >= 10, year + 1, year)
   ) %>%
   filter(water_year >= wy_start & water_year <= wy_end) %>%
-  select(DATE, year, month, water_year, SWE_mm = CENMET)
-
-cat("  Temperature records:", nrow(temp_data), "\n")
-cat("  Precipitation records:", nrow(precip_data), "\n")
-cat("  SWE records:", nrow(swe_data), "\n")
+  select(month, water_year, SWE_mm = CENMET)
 
 # =============================================================================
-# CALCULATE MONTHLY MEANS (CLIMATOLOGY)
+# MONTHLY CLIMATOLOGY (median + IQR), ORDERED BY CALENDAR MONTH
 # =============================================================================
 
-cat("Calculating monthly climatology...\n")
-
-# Monthly means across all years
 temp_monthly <- temp_data %>%
   group_by(month) %>%
   summarise(
-    mean_T = mean(T_C, na.rm = TRUE),
-    sd_T = sd(T_C, na.rm = TRUE),
+    med = median(T_C, na.rm = TRUE),
+    q25 = quantile(T_C, 0.25, na.rm = TRUE),
+    q75 = quantile(T_C, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
 precip_monthly <- precip_data %>%
   group_by(month) %>%
   summarise(
-    mean_P = mean(P_mm, na.rm = TRUE),
-    sd_P = sd(P_mm, na.rm = TRUE),
+    med = median(P_mm, na.rm = TRUE),
+    q25 = quantile(P_mm, 0.25, na.rm = TRUE),
+    q75 = quantile(P_mm, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
-# For SWE, use monthly mean (typically reported as point-in-time)
 swe_monthly <- swe_data %>%
   group_by(month) %>%
   summarise(
-    mean_SWE = mean(SWE_mm, na.rm = TRUE),
-    sd_SWE = sd(SWE_mm, na.rm = TRUE),
+    med = median(SWE_mm, na.rm = TRUE),
+    q25 = quantile(SWE_mm, 0.25, na.rm = TRUE),
+    q75 = quantile(SWE_mm, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
-# Reorder months for water year (Oct-Sep)
-month_order <- c(10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-month_labels <- c("Oct", "Nov", "Dec", "Jan", "Feb", "Mar",
-                  "Apr", "May", "Jun", "Jul", "Aug", "Sep")
+month_labels <- c(
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec"
+)
 
-temp_monthly <- temp_monthly %>%
-  mutate(month_wy = factor(month, levels = month_order, labels = month_labels))
-
-precip_monthly <- precip_monthly %>%
-  mutate(month_wy = factor(month, levels = month_order, labels = month_labels))
-
-swe_monthly <- swe_monthly %>%
-  mutate(month_wy = factor(month, levels = month_order, labels = month_labels))
+temp_monthly$month <- factor(
+  temp_monthly$month,
+  levels = 1:12,
+  labels = month_labels
+)
+precip_monthly$month <- factor(
+  precip_monthly$month,
+  levels = 1:12,
+  labels = month_labels
+)
+swe_monthly$month <- factor(
+  swe_monthly$month,
+  levels = 1:12,
+  labels = month_labels
+)
 
 # =============================================================================
-# CALCULATE ANNUAL ANOMALIES
+# ANNUAL ANOMALIES (WY aggregates)
 # =============================================================================
 
-cat("Calculating annual anomalies...\n")
-
-# Annual means
 temp_annual <- temp_data %>%
   group_by(water_year) %>%
-  summarise(annual_T = mean(T_C, na.rm = TRUE), .groups = "drop")
+  summarise(val = mean(T_C, na.rm = TRUE), .groups = "drop") %>%
+  mutate(anom = val - mean(val, na.rm = TRUE))
 
 precip_annual <- precip_data %>%
   group_by(water_year) %>%
-  summarise(annual_P = sum(P_mm, na.rm = TRUE), .groups = "drop")
+  summarise(val = sum(P_mm, na.rm = TRUE), .groups = "drop") %>%
+  mutate(anom = val - mean(val, na.rm = TRUE))
 
-# For SWE, use peak SWE (April 1 or max)
 swe_annual <- swe_data %>%
   group_by(water_year) %>%
-  summarise(annual_SWE = max(SWE_mm, na.rm = TRUE), .groups = "drop")
-
-# Calculate long-term means
-mean_T <- mean(temp_annual$annual_T, na.rm = TRUE)
-mean_P <- mean(precip_annual$annual_P, na.rm = TRUE)
-mean_SWE <- mean(swe_annual$annual_SWE, na.rm = TRUE)
-
-# Calculate anomalies
-temp_annual <- temp_annual %>%
-  mutate(anomaly_T = annual_T - mean_T)
-
-precip_annual <- precip_annual %>%
-  mutate(anomaly_P = annual_P - mean_P)
-
-swe_annual <- swe_annual %>%
-  mutate(anomaly_SWE = annual_SWE - mean_SWE)
-
-cat("  Mean annual T:", round(mean_T, 1), "C\n")
-cat("  Mean annual P:", round(mean_P, 0), "mm\n")
-cat("  Mean peak SWE:", round(mean_SWE, 0), "mm\n")
+  summarise(val = max(SWE_mm, na.rm = TRUE), .groups = "drop") %>%
+  mutate(anom = val - mean(val, na.rm = TRUE))
 
 # =============================================================================
-# CREATE PLOTS
+# PLOTS
 # =============================================================================
 
-cat("Creating plots...\n")
-
-# --- Top Row: Monthly Climatology ---
-
-# Precipitation
-p1 <- ggplot(precip_monthly, aes(x = month_wy, y = mean_P)) +
-  geom_col(fill = "steelblue", alpha = 0.8) +
-  geom_errorbar(aes(ymin = mean_P - sd_P, ymax = mean_P + sd_P),
-                width = 0.3, linewidth = 0.3) +
-  labs(title = "Mean Monthly Precipitation",
-       x = NULL, y = "Precipitation (mm)") +
+# Top row: Monthly climatology (median + IQR); ONLY these have titles
+p1 <- ggplot(precip_monthly, aes(month, med)) +
+  geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
+  geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
+  labs(title = "Precipitation", y = "Precipitation (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
-# Temperature
-p2 <- ggplot(temp_monthly, aes(x = month_wy, y = mean_T)) +
-  geom_col(fill = "gray70", alpha = 0.8) +
-  geom_errorbar(aes(ymin = mean_T - sd_T, ymax = mean_T + sd_T),
-                width = 0.3, linewidth = 0.3) +
-  labs(title = "Mean Monthly Temperature",
-       x = NULL, y = "Temperature (\u00B0C)")
+p2 <- ggplot(temp_monthly, aes(month, med)) +
+  geom_col(fill = col_temp, color = "black", linewidth = 0.15, alpha = 0.8) +
+  geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
+  labs(title = "Temperature", y = "Temperature (°C)", x = NULL)
 
-# SWE
-p3 <- ggplot(swe_monthly, aes(x = month_wy, y = mean_SWE)) +
-  geom_col(fill = "gray70", alpha = 0.8) +
-  geom_errorbar(aes(ymin = pmax(0, mean_SWE - sd_SWE), ymax = mean_SWE + sd_SWE),
-                width = 0.3, linewidth = 0.3) +
-  labs(title = "Mean Monthly SWE",
-       x = NULL, y = "SWE (mm)") +
+p3 <- ggplot(swe_monthly, aes(month, med)) +
+  geom_col(fill = col_swe, color = "black", linewidth = 0.15, alpha = 0.8) +
+  geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
+  labs(title = "SWE", y = "SWE (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
-# --- Bottom Row: Annual Anomalies ---
-
-# Precipitation anomaly
-p4 <- ggplot(precip_annual, aes(x = water_year, y = anomaly_P)) +
-  geom_col(aes(fill = anomaly_P > 0), show.legend = FALSE) +
-  scale_fill_manual(values = c("TRUE" = "steelblue", "FALSE" = "coral")) +
+# Bottom row: Anomalies (no titles; no legends)
+p4 <- ggplot(precip_annual, aes(water_year, anom)) +
+  geom_col(
+    aes(fill = anom > 0),
+    color = "black",
+    linewidth = 0.15,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("TRUE" = col_precip, "FALSE" = col_precip_neg)) +
+  guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = "Annual Precipitation Anomaly",
-       x = "Water Year", y = "Anomaly (mm)") +
+  labs(title = NULL, x = "Water Year", y = "Anomaly (mm)") +
   scale_x_continuous(breaks = seq(1998, 2020, by = 4))
 
-# Temperature anomaly
-p5 <- ggplot(temp_annual, aes(x = water_year, y = anomaly_T)) +
-  geom_col(aes(fill = anomaly_T > 0), show.legend = FALSE) +
-  scale_fill_manual(values = c("TRUE" = "firebrick", "FALSE" = "steelblue")) +
+p5 <- ggplot(temp_annual, aes(water_year, anom)) +
+  geom_col(
+    aes(fill = anom > 0),
+    color = "black",
+    linewidth = 0.15,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("TRUE" = col_temp, "FALSE" = col_temp_neg)) +
+  guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = "Annual Temperature Anomaly",
-       x = "Water Year", y = "Anomaly (\u00B0C)") +
+  labs(title = NULL, x = "Water Year", y = "Anomaly (°C)") +
   scale_x_continuous(breaks = seq(1998, 2020, by = 4))
 
-# SWE anomaly
-p6 <- ggplot(swe_annual, aes(x = water_year, y = anomaly_SWE)) +
-  geom_col(aes(fill = anomaly_SWE > 0), show.legend = FALSE) +
-  scale_fill_manual(values = c("TRUE" = "dodgerblue3", "FALSE" = "coral")) +
+p6 <- ggplot(swe_annual, aes(water_year, anom)) +
+  geom_col(
+    aes(fill = anom > 0),
+    color = "black",
+    linewidth = 0.15,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("TRUE" = col_swe, "FALSE" = col_swe_neg)) +
+  guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = "Annual Peak SWE Anomaly",
-       x = "Water Year", y = "Anomaly (mm)") +
+  labs(title = NULL, x = "Water Year", y = "Anomaly (mm)") +
   scale_x_continuous(breaks = seq(1998, 2020, by = 4))
 
 # =============================================================================
-# COMBINE AND SAVE
+# COMBINE AND SAVE (no overall title; no caption; panel labels a)–f))
 # =============================================================================
 
-# Combine into 2x3 grid
-fig_combined <- (p1 | p2 | p3) / (p4 | p5 | p6) +
+fig_combined <- (p1 | p2 | p3) /
+  (p4 | p5 | p6) +
   plot_annotation(
-    title = paste0("Meteorological Context: CENMET Station (WY ", wy_start, "-", wy_end, ")"),
-    caption = paste0("Top: Mean monthly values (\u00B1 1 SD). Bottom: Annual anomalies relative to ",
-                     wy_start, "-", wy_end, " mean (dashed line)."),
+    tag_levels = "a",
+    tag_suffix = ")",
     theme = theme(
-      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
-      plot.caption = element_text(size = 8, hjust = 0)
+      plot.tag = element_text(size = 7, face = "plain"), # smaller, journal-like
+      plot.tag.position = c(0.02, 0.985)
     )
   )
 
-# Save
-ggsave(file.path(output_dir, "Fig_Met_Context.png"),
-       fig_combined, width = 12, height = 7, dpi = 300)
+ggsave(
+  file.path(output_dir, "Fig_Met_Context.png"),
+  fig_combined,
+  width = 12,
+  height = 7,
+  dpi = 300
+)
 
-ggsave(file.path(output_dir, "Fig_Met_Context.pdf"),
-       fig_combined, width = 12, height = 7)
-
-cat("\n=== FIGURE COMPLETE ===\n")
-cat("Saved to:", file.path(output_dir, "Fig_Met_Context.png"), "\n")
-cat("Study period: WY", wy_start, "-", wy_end, "\n")
+ggsave(
+  file.path(output_dir, "Fig_Met_Context.pdf"),
+  fig_combined,
+  width = 12,
+  height = 7
+)
