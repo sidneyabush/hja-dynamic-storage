@@ -57,70 +57,70 @@ if (!dir.exists(OUTPUT_DIR)) {
 # =============================================================================
 
 # Hydrometric sites with continuous streamflow data (for Dynamic metrics)
-# Order: GSWS06 grouped with 07 and 08 for plotting
+# Order: WS06 grouped with 07 and 08 for plotting
 SITE_ORDER_HYDROMETRIC <- c(
-  "GSWS09",   # Watershed 09
-  "GSWS10",   # Watershed 10
-  "GSWS01",   # Watershed 01
-  "GSLOOK",   # Lookout Creek
-  "GSWS02",   # Watershed 02
-  "GSWS03",   # Watershed 03
-  "GSWS06",   # Watershed 06 (no chemistry/isotope data)
-  "GSWS07",   # Watershed 07
-  "GSWS08",   # Watershed 08
-  "Mack"      # Mack Creek
+  "WS09",   # Watershed 09
+  "WS10",   # Watershed 10
+  "WS01",   # Watershed 01
+  "Look",   # Lookout Creek
+  "WS02",   # Watershed 02
+  "WS03",   # Watershed 03
+  "WS06",   # Watershed 06 (no chemistry/isotope data)
+  "WS07",   # Watershed 07
+  "WS08",   # Watershed 08
+  "Mack"    # Mack Creek
 )
 
-# Sites with chemistry data (for CHS) - excludes GSWS06, GSWS09, GSLOOK
+# Sites with chemistry data (for CHS) - excludes WS06, WS09, Look
 SITE_ORDER_CHEMISTRY <- c(
-  "GSWS10",   # Watershed 10
-  "GSWS01",   # Watershed 01
-  "GSWS02",   # Watershed 02
-  "GSWS03",   # Watershed 03
-  "GSWS06",   # Watershed 06 (limited: 2017-2019)
-  "GSWS07",   # Watershed 07
-  "GSWS08",   # Watershed 08
-  "Mack"      # Mack Creek
+  "WS10",   # Watershed 10
+  "WS01",   # Watershed 01
+  "WS02",   # Watershed 02
+  "WS03",   # Watershed 03
+  "WS06",   # Watershed 06 (limited: 2017-2019)
+  "WS07",   # Watershed 07
+  "WS08",   # Watershed 08
+  "Mack"    # Mack Creek
 )
 
 # All sites including isotope-only sites (for MTT, Fyw, DR)
 SITE_ORDER_ALL <- c(
-  "GSWS09",   # Watershed 09
-  "GSWS10",   # Watershed 10
-  "GSWS01",   # Watershed 01
-  "GSLOOK",   # Lookout Creek
-  "GSWS02",   # Watershed 02
-  "GSWS03",   # Watershed 03
-  "MR",       # McRae Creek (isotope-only)
-  "GSWS06",   # Watershed 06 (hydrometric only)
-  "GSWS07",   # Watershed 07
-  "GSWS08",   # Watershed 08
-  "NC",       # Nostoc Creek (isotope-only)
-  "Mack",     # Mack Creek
-  "LC",       # Longer Creek (isotope-only)
-  "LO2",      # Upper Lookout 2 (isotope-only)
-  "CC",       # Cold Creek (isotope-only)
-  "LO1"       # Upper Lookout 1 (isotope-only)
+  "WS09",   # Watershed 09
+  "WS10",   # Watershed 10
+  "WS01",   # Watershed 01
+  "Look",   # Lookout Creek
+  "WS02",   # Watershed 02
+  "WS03",   # Watershed 03
+  "MR",     # McRae Creek (isotope-only)
+  "WS06",   # Watershed 06 (hydrometric only)
+  "WS07",   # Watershed 07
+  "WS08",   # Watershed 08
+  "NC",     # Nostoc Creek (isotope-only)
+  "Mack",   # Mack Creek
+  "LC",     # Longer Creek (isotope-only)
+  "LO2",    # Upper Lookout 2 (isotope-only)
+  "CC",     # Cold Creek (isotope-only)
+  "LO1"     # Upper Lookout 1 (isotope-only)
 )
 
 # Site name lookup table
 SITE_NAMES <- c(
-  "GSWS09" = "Watershed 09",
-  "GSWS10" = "Watershed 10",
-  "GSWS01" = "Watershed 01",
-  "GSLOOK" = "Lookout",
-  "GSWS02" = "Watershed 02",
-  "GSWS03" = "Watershed 03",
-  "GSWS06" = "Watershed 06",
-  "GSWS07" = "Watershed 07",
-  "GSWS08" = "Watershed 08",
-  "Mack"   = "Mack",
-  "MR"     = "McRae",
-  "NC"     = "Nostoc",
-  "LC"     = "Longer",
-  "LO2"    = "Upper Lookout 2",
-  "CC"     = "Cold Creek",
-  "LO1"    = "Upper Lookout 1"
+  "WS09" = "Watershed 09",
+  "WS10" = "Watershed 10",
+  "WS01" = "Watershed 01",
+  "Look" = "Lookout",
+  "WS02" = "Watershed 02",
+  "WS03" = "Watershed 03",
+  "WS06" = "Watershed 06",
+  "WS07" = "Watershed 07",
+  "WS08" = "Watershed 08",
+  "Mack" = "Mack",
+  "MR"   = "McRae",
+  "NC"   = "Nostoc",
+  "LC"   = "Longer",
+  "LO2"  = "Upper Lookout 2",
+  "CC"   = "Cold Creek",
+  "LO1"  = "Upper Lookout 1"
 )
 
 # =============================================================================
@@ -158,16 +158,16 @@ ALL_STORAGE_METRICS <- c(DYNAMIC_METRICS, MOBILE_METRICS_ANNUAL, MOBILE_METRICS_
 
 # 10-color palette for hydrometric sites (colorblind-friendly)
 SITE_COLORS <- c(
-  "GSWS09" = "#882255",
-  "GSWS10" = "#AA4499",
-  "GSWS01" = "#CC6677",
-  "GSLOOK" = "#DDCC77",
-  "GSWS02" = "#999933",
-  "GSWS03" = "#117733",
-  "GSWS06" = "#44AA99",
-  "GSWS07" = "#88CCEE",
-  "GSWS08" = "#6699CC",
-  "Mack"   = "#332288"
+  "WS09" = "#882255",
+  "WS10" = "#AA4499",
+  "WS01" = "#CC6677",
+  "Look" = "#DDCC77",
+  "WS02" = "#999933",
+  "WS03" = "#117733",
+  "WS06" = "#44AA99",
+  "WS07" = "#88CCEE",
+  "WS08" = "#6699CC",
+  "Mack" = "#332288"
 )
 
 # =============================================================================
@@ -198,15 +198,19 @@ get_water_year_day <- function(date) {
 standardize_site_code <- function(site_code) {
   site_code <- trimws(site_code)
   dplyr::case_when(
-    site_code == "GSWSMC"  ~ "Mack",
-    site_code == "GSMACK"  ~ "Mack",
-    site_code == "MCRAEC"  ~ "MR",
-    site_code == "NCCREC"  ~ "NC",
-    site_code == "LCCREC"  ~ "LC",
-    site_code == "LO2CRE"  ~ "LO2",
-    site_code == "CCCREE"  ~ "CC",
-    site_code == "LO1CRE"  ~ "LO1",
-    site_code == "GSLOOK " ~ "GSLOOK",  # Remove trailing space
+    # Named sites
+    site_code == "GSWSMC"      ~ "Mack",
+    site_code == "GSMACK"      ~ "Mack",
+    site_code == "GSLOOK_FULL" ~ "Look",
+    site_code == "GSLOOK"      ~ "Look",
+    site_code == "MCRAEC"      ~ "MR",
+    site_code == "NCCREC"      ~ "NC",
+    site_code == "LCCREC"      ~ "LC",
+    site_code == "LO2CRE"      ~ "LO2",
+    site_code == "CCCREE"      ~ "CC",
+    site_code == "LO1CRE"      ~ "LO1",
+    # Numbered watersheds: GSWS## -> WS##
+    grepl("^GSWS[0-9]+$", site_code) ~ gsub("^GSWS", "WS", site_code),
     TRUE ~ site_code
   )
 }

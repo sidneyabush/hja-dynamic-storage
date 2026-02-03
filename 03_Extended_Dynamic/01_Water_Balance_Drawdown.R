@@ -81,6 +81,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
+    SITECODE = standardize_site_code(SITECODE),
     date = as.Date(DATE, "%m/%d/%Y"),
     waterYear = get_water_year(date)
   ) %>%
@@ -170,11 +171,7 @@ write.csv(last_peak,
 
 DS_dat <- read.csv(file.path(storage_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")) %>%
   mutate(
-    SITECODE = case_when(
-      SITECODE == "GSLOOK_FULL" ~ "GSLOOK",
-      SITECODE == "GSMACK" ~ "GSWSMA",
-      .default = SITECODE
-    ),
+    SITECODE = standardize_site_code(SITECODE),
     DATE = as.Date(DATE, "%m/%d/%y"),
     waterYear = get_water_year(DATE)
   ) %>%

@@ -117,6 +117,7 @@ baseflow <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
+  mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, CHS)
 
@@ -128,6 +129,7 @@ wb_storage <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
+  mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, WB)
 
@@ -139,6 +141,7 @@ thermal_lowflow <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = wateryear) %>%
+  mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, Q5_CV)
 
@@ -189,14 +192,7 @@ mtt_fyw <- read_csv(
   file.path(base_dir, "Isotopes", "MTT_FYW.csv"),
   show_col_types = FALSE
 ) %>%
-  mutate(
-    site = trimws(site),
-    site = case_when(
-      site == "MCRAEC" ~ "MR",        # McRae Creek
-      site == "GSLOOK " ~ "GSLOOK",   # Remove trailing space
-      TRUE ~ site
-    )
-  ) %>%
+  mutate(site = standardize_site_code(site)) %>%
   select(site, MTT = MTTM, Fyw = FYWM) %>%
   filter(!is.na(site), site != "")
 
@@ -205,13 +201,7 @@ damping_ratios <- read_csv(
   file.path(base_dir, "Isotopes", "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
 ) %>%
-  mutate(
-    site = trimws(site),
-    site = case_when(
-      site == "GSMACK" ~ "GSWSMC",
-      TRUE ~ site
-    )
-  ) %>%
+  mutate(site = standardize_site_code(site)) %>%
   select(site, DR = DR_Overall, DR_err = DR__err)
 
 # Merge isotope metrics
@@ -230,7 +220,8 @@ catchment_chars <- read_csv(
   file.path(base_dir, "DynamicStorage", "Catchment_Charc.csv"),
   show_col_types = FALSE
 ) %>%
-  rename(site = Site)
+  rename(site = Site) %>%
+  mutate(site = standardize_site_code(site))
 
 HJA_avg <- HJA_avg %>%
   left_join(catchment_chars, by = "site")
@@ -375,17 +366,21 @@ key_metrics <- HJA_avg %>%
   rename_with(~gsub("_mean$", "", .x))
 
 if (ncol(key_metrics) >= 3) {
-  p_pairs <- ggpairs(
-    key_metrics,
-    lower = list(continuous = no_se_smoother)
-  ) +
-    theme_bw()
+  tryCatch({
+    p_pairs <- ggpairs(
+      key_metrics,
+      lower = list(continuous = wrap("smooth", se = FALSE, method = "lm"))
+    ) +
+      theme_bw()
 
-  ggsave(
-    file.path(output_dir, "QA_Storage_Metrics_Scatterplot_Matrix.png"),
-    p_pairs, width = 14, height = 14, dpi = 300
-  )
-  cat("Saved: QA_Storage_Metrics_Scatterplot_Matrix.png\n")
+    ggsave(
+      file.path(output_dir, "QA_Storage_Metrics_Scatterplot_Matrix.png"),
+      p_pairs, width = 14, height = 14, dpi = 300
+    )
+    cat("Saved: QA_Storage_Metrics_Scatterplot_Matrix.png\n")
+  }, error = function(e) {
+    cat("Warning: Could not create scatterplot matrix:", e$message, "\n")
+  })
 }
 
 # =============================================================================

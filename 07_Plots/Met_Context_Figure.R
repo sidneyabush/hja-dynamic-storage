@@ -64,7 +64,7 @@ if (file.exists(config_path)) {
 # =============================================================================
 
 met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
-output_dir <- file.path(FIGURES_DIR, "Publication")
+output_dir <- file.path(FIGURES_DIR, "Main_Text")
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -103,16 +103,18 @@ col_swe_neg <- "#E6E6E6"
 
 
 # =============================================================================
-# THEME (no bold; centered titles; small panel tags)
+# THEME
 # =============================================================================
 
-theme_pub <- theme_classic(base_size = 11) +
+theme_pub <- theme_classic(base_size = 12) +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
-    plot.title = element_text(face = "plain", size = 10, hjust = 0.5),
-    axis.title = element_text(face = "plain", size = 9),
-    axis.text = element_text(size = 8)
+    plot.title = element_blank(),
+    plot.subtitle = element_blank(),
+    plot.caption = element_blank(),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 9)
   )
 
 theme_set(theme_pub)
@@ -245,22 +247,22 @@ swe_annual <- swe_data %>%
 # PLOTS
 # =============================================================================
 
-# Top row: Monthly climatology (median + IQR); ONLY these have titles
+# Top row: Monthly climatology (median + IQR)
 p1 <- ggplot(precip_monthly, aes(month, med)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(title = "Precipitation", y = "Precipitation (mm)", x = NULL) +
+  labs(y = "Precipitation (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
 p2 <- ggplot(temp_monthly, aes(month, med)) +
   geom_col(fill = col_temp, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(title = "Temperature", y = "Temperature (°C)", x = NULL)
+  labs(y = "Temperature (°C)", x = NULL)
 
 p3 <- ggplot(swe_monthly, aes(month, med)) +
   geom_col(fill = col_swe, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(title = "SWE", y = "SWE (mm)", x = NULL) +
+  labs(y = "SWE (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
 # Bottom row: Anomalies (no titles; no legends)

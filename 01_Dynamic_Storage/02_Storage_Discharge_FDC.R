@@ -75,6 +75,8 @@ df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
     Q    = Q_mm_d,
     ET   = ET_mm_d
   ) %>%
+  # Standardize site codes (e.g., GSLOOK_FULL -> Look, GSWSMC -> Mack)
+  mutate(site = standardize_site_code(site)) %>%
   # Filter to hydrometric sites and water year range
   filter(site %in% SITE_ORDER_HYDROMETRIC,
          wateryear >= WY_START, wateryear <= WY_END) %>%
@@ -188,7 +190,7 @@ annual <- df %>%
 # 7) Add catchment areas & convert mm → m³
 areas_ha <- tibble(
   SITECODE = c("GSWS01","GSWS02","GSWS03","GSWS06","GSWS07",
-               "GSWS08","GSWS09","GSWS10", "GSMACK", "GSLOOK_FULL"),
+               "GSWS08","GSWS09","GSWS10", "Mack", "Look"),
   area_ha  = c(96, 60, 101, 13.0, 15.4, 21.4, 8.5, 10.2, 580, 6242)
 )
 add_vol <- function(df_in) {

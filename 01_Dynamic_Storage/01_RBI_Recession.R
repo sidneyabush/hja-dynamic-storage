@@ -59,8 +59,11 @@ output_dir <- OUTPUT_DIR
 sites_keep <- SITE_ORDER_HYDROMETRIC
 
 # Read & prep data
-da_df <- read_csv(file.path(base_dir, "Q", "drainage_area.csv"), show_col_types = FALSE)
+da_df <- read_csv(file.path(base_dir, "Q", "drainage_area.csv"), show_col_types = FALSE) %>%
+  mutate(SITECODE = standardize_site_code(SITECODE))
 discharge <- read_csv(file.path(base_dir, "Q", "HF00402_v14.csv"), show_col_types = FALSE) %>%
+  # Standardize site codes (e.g., GSWSMC -> Mack, GSLOOK -> Look)
+  mutate(SITECODE = standardize_site_code(SITECODE)) %>%
   # Filter to water years 1997-2020 and hydrometric sites
   filter(WATERYEAR >= WY_START, WATERYEAR <= WY_END, SITECODE %in% sites_keep) %>%
   left_join(da_df, by = "SITECODE") %>%

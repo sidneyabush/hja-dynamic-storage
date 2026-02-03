@@ -76,8 +76,9 @@ mtt_fyw <- read_csv(
   mutate(
     site = trimws(site),
     site = case_when(
-      site == "MCRAEC" ~ "MR",        # McRae Creek
-      site == "GSLOOK " ~ "GSLOOK",   # Remove trailing space
+      site == "MCRAEC"  ~ "MR",    # McRae Creek
+      site == "GSLOOK " ~ "Look",  # Remove trailing space
+      site == "GSLOOK"  ~ "Look",  # Lookout Creek
       TRUE ~ site
     )
   ) %>%
