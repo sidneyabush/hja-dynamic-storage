@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Hydrometric Data Processing Utilities
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Helper functions for processing meteorological and hydrometric data
 #
 # Functions:
@@ -15,7 +15,7 @@
 #   - create_watershed_datasets(): Aggregate station data to watershed level
 #
 # Author: Sidney Bush
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 library(readr)
 library(dplyr)
@@ -23,9 +23,9 @@ library(lubridate)
 library(tidyr)
 library(ggplot2)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # DATE PARSING
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 #' Parse dates robustly (handles Excel serials and various string formats)
 #' @param d Vector of dates (character, numeric, or Date)
@@ -56,9 +56,9 @@ parse_my_date <- function(d) {
   return(out)
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # DATA LOADING HELPERS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 #' Read interpolated meteorological data and convert to long format
 #' @param fname Filename of CSV with *_inter columns
@@ -103,9 +103,9 @@ read_mack_precip <- function(fname, met_dir) {
     rename(P_mm_d = PRECIP_TOT_DAY)
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # METEOROLOGICAL CALCULATIONS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 #' Calculate vapor pressure deficit (VPD) from temperature and relative humidity
 #' @param temp_celsius Temperature in Celsius
@@ -118,9 +118,9 @@ calculate_vpd <- function(temp_celsius, rh_percent) {
   return(vpd)
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # STATION INTERPOLATION
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 #' Extract station pairs and triplets that need interpolation from site mapping
 #' @param site_mapping Named list of watershed -> station mappings
@@ -360,9 +360,9 @@ constrain_interpolated_values <- function(data) {
   return(data)
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # MAIN PROCESSING FUNCTIONS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 #' Process all station pairs and triplets, apply interpolation
 #' @param data Combined meteorological data

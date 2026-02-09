@@ -6,59 +6,13 @@ Analysis of dynamic, mobile, and extended dynamic storage across watersheds at t
 
 This repository contains R code for calculating storage metrics from streamflow, stream chemistry, and stream isotope data, and analyzing relationships between storage, catchment characteristics, and ecological responses (stream temperature, low-flow).
 
-**Timeline:** Water Years 1997-2020 (Oct 1, 1996 - Sep 30, 2020)
+**Storage metrics calculated:**
+- **Dynamic** — RBI (flashiness), recession curve slope, flow duration curve slope, storage-discharge
+- **Mobile** — chemical hydrograph separation (EC-based), mean transit time, young water fraction, damping ratio
+- **Extended dynamic** — water balance drawdown
 
-### Storage Metrics
+**Sites:** 10 hydrometric watersheds (GSWS01–10, GSLOOK, GSWSMC) + 6 isotope-only sites
 
-| Type | Metric | Description | Data Source |
-|------|--------|-------------|-------------|
-| **Dynamic** | RBI | Richards-Baker Flashiness Index | Daily discharge |
-| **Dynamic** | RCS | Recession Curve Slope | Daily discharge |
-| **Dynamic** | FDC | Flow Duration Curve Slope | Daily discharge |
-| **Dynamic** | SD | Storage-Discharge (S_annual_mm) | Daily P, Q, ET |
-| **Mobile** | CHS | Chemical Hydrograph Separation (mean_bf) | Specific conductance |
-| **Mobile** | MTT | Mean Transit Time | Isotopes |
-| **Mobile** | Fyw | Young Water Fraction | Isotopes |
-| **Mobile** | DR | Isotopic Damping Ratio | Isotopes |
-| **Extended Dynamic** | WB | Water Balance Drawdown (DS_sum) | Daily P, Q, ET |
-
-### Study Sites
-
-- **Hydrometric sites (10):** GSWS09, GSWS10, GSWS01, GSLOOK, GSWS02, GSWS03, GSWS06, GSWS07, GSWS08, GSWSMC
-- **Isotope-only sites (6):** MR (McRae), NC (Nostoc), LC (Longer), LO1, LO2, CC (Cold Creek)
-
----
-
-### Required Data Files
-
-See `data/README.md` for complete list. Key files:
-
-| Folder | File | Description |
-|--------|------|-------------|
-| Q/ | `HF00402_v14.csv` | Daily mean discharge for all watersheds |
-| Q/ | `drainage_area.csv` | Drainage areas for each site |
-| DynamicStorage/ | `daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv` | Daily P, Q, ET |
-| DynamicStorage/ | `Catchment_Charc.csv` | Catchment characteristics |
-| EC/ | `CF01201_v3.txt` | Continuous specific conductance |
-| Isotopes/ | `MTT_FYW.csv` | Mean transit times and young water fractions |
-| Isotopes/ | `DampingRatios_2025-07-07.csv` | Isotopic damping ratios |
-| Stream_T/ | `HT002*.csv` | Stream temperature files |
-
-Raw data available from the [H.J. Andrews LTER Data Portal](https://andrewsforest.oregonstate.edu/data).
-
----
-
-## Required R Packages
-
-```r
-install.packages(c(
-  "dplyr", "readr", "tidyr", "lubridate", "ggplot2",
-  "zoo", "pracma", "colorspace", "scales", "patchwork",
-  "GGally", "ggcorrplot", "vegan", "MASS", "car", "ggrepel"
-))
-```
-
----
 
 ## Data Availability Summary
 
@@ -80,3 +34,13 @@ install.packages(c(
 
 ---
 
+## Requirements
+
+```r
+install.packages(c(
+  "dplyr", "readr", "tidyr", "lubridate", "ggplot2",
+  "zoo", "pracma", "colorspace", "scales", "patchwork",
+  "GGally", "ggcorrplot", "vegan", "MASS", "car", "ggrepel"
+))
+```
+---

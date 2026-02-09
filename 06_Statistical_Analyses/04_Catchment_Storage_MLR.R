@@ -1,6 +1,6 @@
-# =============================================================================
-# Multiple Linear Regression: Catchment Characteristics → Storage Metrics
-# =============================================================================
+# -----------------------------------------------------------------------------
+# Multiple Linear Regression: Catchment Characteristics -> Storage Metrics
+# -----------------------------------------------------------------------------
 # Purpose: Use stepwise regression to identify which catchment attributes
 #          best predict hydrometric storage metrics
 #
@@ -23,7 +23,7 @@
 #
 # Author: Based on Pamela Sullivan/Keira Johnson code, adapted by Sidney Bush
 # Date: 2026-01-23
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Load libraries
 library(dplyr)
@@ -74,9 +74,9 @@ output_dir <- OUTPUT_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 2. LOAD SITE-AVERAGED DATA
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 HJA_Ave <- read_csv(
   file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
@@ -84,9 +84,9 @@ HJA_Ave <- read_csv(
 ) %>%
   filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
-# =============================================================================
+# -----------------------------------------------------------------------------
 # NOTE: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
 # Storage metrics by type (using method abbreviations):
 #   Dynamic: RBI, RCS, FDC, SD
@@ -105,9 +105,9 @@ outcome_vars <- c(
   "WB_mean"     # WB  - Water Balance - Extended Dynamic
 )
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 4. DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Note: Reduced predictor set to avoid overfitting (N=10 sites)
 # Selected key predictors based on theoretical importance
 
@@ -119,9 +119,9 @@ predictor_vars <- c(
   "Pyro_per"
 )
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 5. RUN STEPWISE REGRESSION FOR EACH STORAGE METRIC
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 results_list <- list()
 
@@ -212,9 +212,9 @@ for (outcome in outcome_vars) {
   results_list[[outcome]] <- result_df
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 6. COMBINE RESULTS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 results_combined <- bind_rows(results_list)
 
@@ -223,9 +223,9 @@ write.csv(results_combined,
           file.path(output_dir, "MLR_Storage_Catchment_Results.csv"),
           row.names = FALSE)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 7. QA PLOTS: PREDICTED VS OBSERVED
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 plot_list <- list()
 

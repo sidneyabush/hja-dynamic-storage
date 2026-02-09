@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Stream Temperature & Low-Flow Metrics for Storage Manuscript
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Calculate ecologically-relevant thermal and low-flow metrics:
 #   1. Maximum 7-day moving average stream temperature (per water year)
 #   2. Minimum 7-day moving average discharge (per water year)
@@ -20,7 +20,7 @@
 #
 # Author: Sidney Bush
 # Date: 2026-01-23
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Load libraries
 library(dplyr)
@@ -63,9 +63,9 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 1. SETUP: Directories and site list (from config.R)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUTPUT_DIR
@@ -79,9 +79,9 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 sites_keep   <- SITE_ORDER_HYDROMETRIC
 target_years <- WY_START:WY_END
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 2. LOAD & PROCESS STREAM TEMPERATURE DATA
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Find all HT002 stream temperature files
 temp_files <- list.files(temp_dir, pattern = "^HT002.*\\.(csv|txt)$",
@@ -117,9 +117,9 @@ temp_daily <- temp_raw %>%
   ) %>%
   filter(!is.na(temp_mean_C))
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 3. LOAD & PROCESS DISCHARGE DATA
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Load drainage areas
 da_df <- read_csv(file.path(discharge_dir, "drainage_area.csv"),
@@ -138,9 +138,9 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"),
   select(SITECODE, date, Q_cms, Q_mm_d, WATERYEAR) %>%
   arrange(SITECODE, date)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 4. CALCULATE 7-DAY MOVING AVERAGES
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Function to calculate 7-day rolling mean
 calc_7day_rolling <- function(df, value_col) {
@@ -171,9 +171,9 @@ discharge_rolling <- discharge %>%
   ungroup() %>%
   rename(Q_7d_avg_mm_d = rolling_7d)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 5. EXTRACT ANNUAL METRICS (PER WATER YEAR)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # 5.1 Maximum 7-day average temperature per water year
 max_temp_7d <- temp_rolling %>%
@@ -234,9 +234,9 @@ temp_cv_lowflow <- temp_daily %>%
   mutate(Q5_CV = temp_sd / temp_mean) %>%
   select(STREAM, wateryear, Q5_CV)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 6. COMBINE METRICS INTO MASTER TABLE
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Merge all metrics
 # Note: Stream names and SITECODE may not match perfectly, handle carefully
@@ -259,9 +259,9 @@ master_metrics <- max_temp_7d %>%
 output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv")
 write_csv(master_metrics, output_file)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 7. QA PLOTS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Plot 1: Time series of 7-day rolling metrics
 p1_temp <- temp_rolling %>%
@@ -321,9 +321,9 @@ p2 <- master_metrics %>%
 ggsave(file.path(output_dir, "QA_annual_metrics_timeseries.png"),
        p2, width = 12, height = 10, dpi = 300)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 8. SUMMARY STATISTICS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 summary_stats <- master_metrics %>%
   group_by(SITECODE) %>%

@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Dynamic Storage: Storage-Discharge Method + FDC Slope (SD metric)
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Calculate dynamic storage using storage-discharge relationship and
 #          flow duration curve (FDC) slopes for each site and water year
 #
@@ -11,7 +11,7 @@
 #
 # Inputs: Daily water balance data with P, Q, ET
 # Outputs: Annual storage depths and FDC slopes, QA plots
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # 0) Load libraries & clear environment
 library(dplyr)

@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Correlation Analysis: Storage Metrics & Catchment Attributes
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Generate correlation matrices for storage metrics and catchment
 #          attributes to explore relationships
 #
@@ -20,7 +20,7 @@
 #
 # Author: Sidney Bush
 # Date: 2026-01-24
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Load libraries
 library(dplyr)
@@ -67,9 +67,9 @@ output_dir <- OUTPUT_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 2. LOAD SITE-AVERAGED DATA
-# =============================================================================
+# -----------------------------------------------------------------------------
 # This file was created by 06_Aggregate_All_Metrics.R and contains:
 # - Storage metrics (averaged across years)
 # - Catchment characteristics
@@ -82,9 +82,9 @@ HJA_Ave <- read_csv(
 ) %>%
   filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 3. CORRELATION ANALYSIS: STORAGE METRICS ONLY
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # NOTE: Q5norm_mean, CV_Q5norm_mean are response variables, not storage metrics
 # Using method abbreviations: RBI, RCS, FDC, SD, CHS, WB
@@ -106,9 +106,9 @@ ggsave(
   p_storage, width = 10, height = 10, dpi = 300
 )
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 4. CORRELATION ANALYSIS: CATCHMENT ATTRIBUTES ONLY
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 vars_catchment <- c(
   "Area_km2", "Elevation_mean_m", "Slope_mean", "Aspec_Mean_deg",
@@ -130,9 +130,9 @@ ggsave(
   p_catchment, width = 10, height = 10, dpi = 300
 )
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 5. CORRELATION ANALYSIS: COMBINED (STORAGE + CATCHMENT)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 vars_combined <- c(storage_vars, vars_catchment)
 

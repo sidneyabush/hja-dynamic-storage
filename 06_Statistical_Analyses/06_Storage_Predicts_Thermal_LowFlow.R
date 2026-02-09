@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Storage Metrics Predict Thermal & Low-Flow Responses
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Test whether hydrometric storage metrics can predict ecological
 #          thermal and low-flow responses
 #
@@ -30,7 +30,7 @@
 #
 # Author: Sidney Bush
 # Date: 2026-01-23
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Load libraries
 library(dplyr)
@@ -82,9 +82,9 @@ output_dir <- OUTPUT_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 2. LOAD STORAGE & THERMAL METRICS (ANNUAL)
-# =============================================================================
+# -----------------------------------------------------------------------------
 # This file already contains storage metrics AND thermal/low-flow metrics
 # (merged by 06_Aggregate_All_Metrics.R)
 
@@ -95,9 +95,9 @@ merged_data <- read_csv(
   filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%  # Exclude non-analysis sites
   filter(!is.na(max_temp_7d_C))  # Keep only years with thermal data
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 5. DEFINE PREDICTOR AND RESPONSE VARIABLES
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Storage metrics (predictors) - using method abbreviations
 # Note: CHS excluded - no data overlap with thermal metrics
@@ -117,9 +117,9 @@ response_vars <- c(
   "temp_at_min_Q_7d_C"       # Temperature at time of minimum discharge
 )
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 6. EXPLORATORY CORRELATIONS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Calculate correlation matrix
 cor_data <- merged_data %>%
@@ -133,9 +133,9 @@ cor_response_storage <- cor_matrix[response_vars, storage_predictors]
 write.csv(cor_response_storage,
           file.path(output_dir, "Correlations_Storage_Thermal_LowFlow.csv"))
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 7. BUILD MLR MODELS FOR EACH RESPONSE
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 model_results <- list()
 
@@ -224,9 +224,9 @@ write.csv(model_results_combined,
           file.path(output_dir, "Storage_Thermal_LowFlow_Models.csv"),
           row.names = FALSE)
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 8. VISUALIZE: BIVARIATE RELATIONSHIPS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 # Create scatterplots for each response vs top storage predictors
 plot_list <- list()
@@ -269,9 +269,9 @@ if (length(plot_list) > 0) {
   )
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # 9. MODEL DIAGNOSTICS: RESIDUAL PLOTS
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 diag_plots <- list()
 

@@ -1,6 +1,6 @@
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Dynamic Storage: RBI and Recession Curve Slope
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Purpose: Calculate Richards-Baker Flashiness Index (RBI) and recession curve
 #          slope for each site and water year
 #
@@ -10,7 +10,7 @@
 #
 # Inputs: Daily discharge data (HF00402_v14.csv)
 # Outputs: Annual RBI and recession slopes, QA plots
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 library(dplyr)
 library(lubridate)
