@@ -29,17 +29,20 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
+script_dir <- tryCatch(
+  {
+    dirname(sys.frame(1)$ofile)
+  },
+  error = function(e) {
+    args <- commandArgs(trailingOnly = FALSE)
+    file_arg <- grep("^--file=", args, value = TRUE)
+    if (length(file_arg) > 0) {
+      dirname(normalizePath(sub("^--file=", "", file_arg)))
+    } else {
+      getwd()
+    }
   }
-})
+)
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
@@ -55,17 +58,19 @@ if (file.exists(config_path)) {
 }
 
 # -----------------------------------------------------------------------------
-# 1. SETUP: Directories (from config.R)
+# SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
 
-base_dir    <- BASE_DATA_DIR
-output_dir  <- OUTPUT_DIR
+base_dir <- BASE_DATA_DIR
+output_dir <- OUTPUT_DIR
 
 # Create output directory if needed
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
 
 # -----------------------------------------------------------------------------
-# 2. LOAD MTT AND FYW DATA
+# LOAD MTT AND FYW DATA
 # -----------------------------------------------------------------------------
 
 mtt_fyw <- read_csv(
@@ -76,23 +81,23 @@ mtt_fyw <- read_csv(
   mutate(
     site = trimws(site),
     site = case_when(
-      site == "MCRAEC"  ~ "MR",    # McRae Creek
-      site == "GSLOOK " ~ "Look",  # Remove trailing space
-      site == "GSLOOK"  ~ "Look",  # Lookout Creek
+      site == "MCRAEC" ~ "MR", # McRae Creek
+      site == "GSLOOK " ~ "Look", # Remove trailing space
+      site == "GSLOOK" ~ "Look", # Lookout Creek
       TRUE ~ site
     )
   ) %>%
   # Select key columns: use mean values (M suffix) for MTT and Fyw
   select(
     site,
-    MTT = MTTM,           # Mean Transit Time (mean of methods)
-    Fyw = FYWM            # Young Water Fraction (mean of methods)
+    MTT = MTTM, # Mean Transit Time (mean of methods)
+    Fyw = FYWM # Young Water Fraction (mean of methods)
   ) %>%
   # Remove empty rows
   filter(!is.na(site), site != "")
 
 # -----------------------------------------------------------------------------
-# 3. LOAD DAMPING RATIOS
+# LOAD DAMPING RATIOS
 # -----------------------------------------------------------------------------
 
 damping <- read_csv(
@@ -111,12 +116,12 @@ damping <- read_csv(
   # Select key columns
   select(
     site,
-    DR = DR_Overall,      # Overall damping ratio (average of methods)
-    DR_err = DR__err      # Error estimate
+    DR = DR_Overall, # Overall damping ratio (average of methods)
+    DR_err = DR__err # Error estimate
   )
 
 # -----------------------------------------------------------------------------
-# 4. MERGE ISOTOPE METRICS
+# MERGE ISOTOPE METRICS
 # -----------------------------------------------------------------------------
 
 isotope_metrics <- mtt_fyw %>%
@@ -126,10 +131,8 @@ isotope_metrics <- mtt_fyw %>%
   arrange(site)
 
 # -----------------------------------------------------------------------------
-# 5. SUMMARY: DATA AVAILABILITY
+# SUMMARY: DATA AVAILABILITY
 # -----------------------------------------------------------------------------
-
-cat("\n=== Isotope Metrics Data Availability ===\n\n")
 
 availability <- isotope_metrics %>%
   mutate(
@@ -142,14 +145,9 @@ availability <- isotope_metrics %>%
 
 print(availability)
 
-cat("\n\nSummary:\n")
-cat("  Sites with MTT:", sum(availability$has_MTT), "\n")
-cat("  Sites with Fyw:", sum(availability$has_Fyw), "\n")
-cat("  Sites with DR:", sum(availability$has_DR), "\n")
-cat("  Hydrometric sites:", sum(availability$in_hydrometric), "\n")
 
 # -----------------------------------------------------------------------------
-# 6. SAVE OUTPUT
+# SAVE OUTPUT
 # -----------------------------------------------------------------------------
 
 write.csv(
@@ -158,11 +156,4 @@ write.csv(
   row.names = FALSE
 )
 
-cat("\n\nSaved: Isotope_Metrics_Site.csv\n")
-
-# -----------------------------------------------------------------------------
-# 7. DISPLAY FINAL TABLE
-# -----------------------------------------------------------------------------
-
-cat("\n=== Isotope Metrics by Site ===\n\n")
-print(isotope_metrics, n = 20)
+# End----
