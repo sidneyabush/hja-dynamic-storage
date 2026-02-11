@@ -24,17 +24,20 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
+script_dir <- tryCatch(
+  {
+    dirname(sys.frame(1)$ofile)
+  },
+  error = function(e) {
+    args <- commandArgs(trailingOnly = FALSE)
+    file_arg <- grep("^--file=", args, value = TRUE)
+    if (length(file_arg) > 0) {
+      dirname(normalizePath(sub("^--file=", "", file_arg)))
+    } else {
+      getwd()
+    }
   }
-})
+)
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
@@ -52,63 +55,58 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 # SITE DEFINITIONS (extends config.R definitions with metadata)
 # -----------------------------------------------------------------------------
-
 # Complete site list with descriptions
 # Uses SITE_NAMES from config.R, with additional metadata
 site_info <- tribble(
-  ~site_code,   ~site_name,                    ~hydrometric, ~chemistry, ~isotopes, ~notes,
-  "GSWS09",     "Watershed 09",                TRUE,         TRUE,       TRUE,      "",
-  "GSWS10",     "Watershed 10",                TRUE,         TRUE,       TRUE,      "",
-  "GSWS01",     "Watershed 01",                TRUE,         TRUE,       TRUE,      "",
-  "Look",       "Lookout",                     TRUE,         TRUE,       TRUE,      "",
-  "GSWS02",     "Watershed 02",                TRUE,         TRUE,       TRUE,      "",
-  "GSWS03",     "Watershed 03",                TRUE,         TRUE,       TRUE,      "",
-  "MR",         "McRae",                       FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "GSWS06",     "Watershed 06",                TRUE,         FALSE,      FALSE,     "No chemistry/isotope data",
-  "GSWS07",     "Watershed 07",                TRUE,         TRUE,       TRUE,      "",
-  "GSWS08",     "Watershed 08",                TRUE,         TRUE,       TRUE,      "",
-  "NC",         "Nostoc",                      FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "Mack",       "Mack",                        TRUE,         TRUE,       TRUE,      "",
-  "LC",         "Longer",                      FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "LO2",        "Upper Lookout 2",             FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "CC",         "Cold Creek",                  FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)",
-  "LO1",        "Upper Lookout 1",             FALSE,        FALSE,      TRUE,      "Isotope only (2022-2023)"
+  ~site_code , ~site_name        , ~hydrometric , ~chemistry , ~isotopes , ~notes                      ,
+  "GSWS09"   , "Watershed 09"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "GSWS10"   , "Watershed 10"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "GSWS01"   , "Watershed 01"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "Look"     , "Lookout"         , TRUE         , TRUE       , TRUE      , ""                          ,
+  "GSWS02"   , "Watershed 02"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "GSWS03"   , "Watershed 03"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "MR"       , "McRae"           , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"  ,
+  "GSWS06"   , "Watershed 06"    , TRUE         , FALSE      , FALSE     , "No chemistry/isotope data" ,
+  "GSWS07"   , "Watershed 07"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "GSWS08"   , "Watershed 08"    , TRUE         , TRUE       , TRUE      , ""                          ,
+  "NC"       , "Nostoc"          , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"  ,
+  "Mack"     , "Mack"            , TRUE         , TRUE       , TRUE      , ""                          ,
+  "LC"       , "Longer"          , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"  ,
+  "LO2"      , "Upper Lookout 2" , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"  ,
+  "CC"       , "Cold Creek"      , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"  ,
+  "LO1"      , "Upper Lookout 1" , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"
 )
 
 # -----------------------------------------------------------------------------
 # DIRECTORIES (from config.R)
 # -----------------------------------------------------------------------------
-
-base_dir    <- BASE_DATA_DIR
-output_dir  <- OUTPUT_DIR
+base_dir <- BASE_DATA_DIR
+output_dir <- OUTPUT_DIR
 
 # -----------------------------------------------------------------------------
-# 1. STORAGE METRICS AVAILABILITY TABLE
+# STORAGE METRICS AVAILABILITY TABLE
 # -----------------------------------------------------------------------------
-
-cat("\n=== GENERATING STORAGE METRICS AVAILABILITY ===\n\n")
-
 # Storage metrics definitions
 # NOTE: Q5norm, CV_Q5norm, and temperature are NOT storage metrics
 metrics_info <- tribble(
-  ~storage_type,      ~method,                        ~abbreviation, ~variable_name,          ~requires,
-  "Dynamic",          "Richards-Baker Index",         "RBI",         "RBI",                   "hydrometric",
-  "Dynamic",          "Recession Curve Slope",        "RCS",         "recession_curve_slope", "hydrometric",
-  "Dynamic",          "Flow Duration Curve",          "FDC",         "fdc_slope",             "hydrometric",
-  "Dynamic",          "Storage-Discharge",            "SD",          "S_annual_mm",           "hydrometric",
-  "Mobile",           "Mean Transit Time",            "MTT",         "MTT",                   "isotopes",
-  "Mobile",           "Young Water Fraction",         "Fyw",         "Fyw",                   "isotopes",
-  "Mobile",           "Chemical Hydrograph Sep.",     "CHS",         "mean_bf",               "chemistry",
-  "Mobile",           "Isotopic Damping Ratio",       "DR",          "DR",                    "isotopes",
-  "Extended Dynamic", "Water Balance",                "WB",          "DS_sum",                "hydrometric"
+  ~storage_type      , ~method                    , ~abbreviation , ~variable_name          , ~requires     ,
+  "Dynamic"          , "Richards-Baker Index"     , "RBI"         , "RBI"                   , "hydrometric" ,
+  "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "recession_curve_slope" , "hydrometric" ,
+  "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "fdc_slope"             , "hydrometric" ,
+  "Dynamic"          , "Storage-Discharge"        , "SD"          , "S_annual_mm"           , "hydrometric" ,
+  "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"    ,
+  "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
+  "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "mean_bf"               , "chemistry"   ,
+  "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
+  "Extended Dynamic" , "Water Balance"            , "WB"          , "DS_sum"                , "hydrometric"
 )
 
 # Response variables (NOT storage metrics, but used in analyses)
 response_vars <- tribble(
-  ~type,              ~method,                        ~abbreviation, ~variable_name,          ~requires,
-  "Response",         "Max 7-day Stream Temp",        "max_temp_7d", "max_temp_7d_C",         "stream_temp",
-  "Response",         "Min 7-day Discharge",          "min_Q_7d",    "min_Q_7d_mm_d",         "hydrometric",
-  "Response",         "Temp at Min Discharge",        "temp_minQ",   "temp_at_min_Q_7d_C",    "stream_temp"
+  ~type      , ~method                 , ~abbreviation , ~variable_name       , ~requires     ,
+  "Response" , "Max 7-day Stream Temp" , "max_temp_7d" , "max_temp_7d_C"      , "stream_temp" ,
+  "Response" , "Min 7-day Discharge"   , "min_Q_7d"    , "min_Q_7d_mm_d"      , "hydrometric" ,
+  "Response" , "Temp at Min Discharge" , "temp_minQ"   , "temp_at_min_Q_7d_C" , "stream_temp"
 )
 
 # Create site × metric availability matrix
@@ -128,15 +126,10 @@ site_metric_matrix <- site_info %>%
   # Reorder columns
   select(site_code, site_name, RBI, RCS, FDC, SD, MTT, Fyw, CHS, DR, WB)
 
-cat("Site × Metric Availability Matrix:\n")
-print(site_metric_matrix, n = 20)
 
 # -----------------------------------------------------------------------------
-# 2. DATE RANGES BY METRIC
+# DATE RANGES BY METRIC
 # -----------------------------------------------------------------------------
-
-cat("\n\n=== LOADING DATA TO DETERMINE DATE RANGES ===\n\n")
-
 # Load discharge data for hydrometric date ranges
 discharge <- read_csv(
   file.path(base_dir, "Q", "HF00402_v14.csv"),
@@ -179,7 +172,11 @@ if (file.exists(ec_file)) {
 }
 
 # Load water balance data
-wb_file <- file.path(base_dir, "DynamicStorage", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
+wb_file <- file.path(
+  base_dir,
+  "DynamicStorage",
+  "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"
+)
 if (file.exists(wb_file)) {
   wb_data <- read_csv(wb_file, show_col_types = FALSE) %>%
     mutate(Date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y")))
@@ -204,15 +201,10 @@ date_ranges <- site_info %>%
   left_join(chem_ranges, by = "site_code") %>%
   left_join(wb_ranges, by = "site_code")
 
-cat("Date Ranges by Site:\n")
-print(date_ranges, n = 20, width = Inf)
 
 # -----------------------------------------------------------------------------
-# 3. METEOROLOGICAL VARIABLES SUMMARY
+# METEOROLOGICAL VARIABLES SUMMARY
 # -----------------------------------------------------------------------------
-
-cat("\n\n=== METEOROLOGICAL DATA SUMMARY ===\n\n")
-
 # Load master met dataset
 met_file <- file.path(output_dir, "MET", "data", "watersheds_met_data_q.csv")
 if (!file.exists(met_file)) {
@@ -223,45 +215,67 @@ if (file.exists(met_file)) {
   met_data <- read_csv(met_file, show_col_types = FALSE)
 
   # Get list of met variables (exclude date/site columns)
-  exclude_cols <- c("DATE", "Date", "date", "SITECODE", "site", "WATERYEAR", "wateryear")
+  exclude_cols <- c(
+    "DATE",
+    "Date",
+    "date",
+    "SITECODE",
+    "site",
+    "WATERYEAR",
+    "wateryear"
+  )
   met_vars <- setdiff(names(met_data), exclude_cols)
 
   # Parse date
   if ("DATE" %in% names(met_data)) {
-    met_data$Date <- as.Date(met_data$DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y"))
+    met_data$Date <- as.Date(
+      met_data$DATE,
+      tryFormats = c("%Y-%m-%d", "%m/%d/%Y")
+    )
   }
 
   # Calculate coverage for each variable separately
   met_summary <- data.frame(
     variable = met_vars,
     n_obs = sapply(met_vars, function(v) sum(!is.na(met_data[[v]]))),
-    pct_complete = sapply(met_vars, function(v) round(100 * sum(!is.na(met_data[[v]])) / nrow(met_data), 1)),
+    pct_complete = sapply(met_vars, function(v) {
+      round(100 * sum(!is.na(met_data[[v]])) / nrow(met_data), 1)
+    }),
     min_date = sapply(met_vars, function(v) {
       valid <- !is.na(met_data[[v]])
-      if (any(valid)) as.character(min(met_data$Date[valid], na.rm = TRUE)) else NA_character_
+      if (any(valid)) {
+        as.character(min(met_data$Date[valid], na.rm = TRUE))
+      } else {
+        NA_character_
+      }
     }),
     max_date = sapply(met_vars, function(v) {
       valid <- !is.na(met_data[[v]])
-      if (any(valid)) as.character(max(met_data$Date[valid], na.rm = TRUE)) else NA_character_
+      if (any(valid)) {
+        as.character(max(met_data$Date[valid], na.rm = TRUE))
+      } else {
+        NA_character_
+      }
     }),
     stringsAsFactors = FALSE
   ) %>%
     arrange(desc(n_obs))
 
-  cat("Meteorological Variables Summary:\n")
-  print(as_tibble(met_summary), n = 30)
-
   # Save met summary
-  write.csv(met_summary,
-            file.path(output_dir, "Met_Variables_Summary.csv"),
-            row.names = FALSE)
-  cat("\nSaved: Met_Variables_Summary.csv\n")
-
+  write.csv(
+    met_summary,
+    file.path(output_dir, "Met_Variables_Summary.csv"),
+    row.names = FALSE
+  )
 } else {
   cat("Met data file not found.\n")
 
   # Check ET calculation outputs
-  et_file <- file.path(output_dir, "ET", "daily_water_balance_all_ET_methods_1997_present.csv")
+  et_file <- file.path(
+    output_dir,
+    "ET",
+    "daily_water_balance_all_ET_methods_1997_present.csv"
+  )
   if (file.exists(et_file)) {
     et_data <- read_csv(et_file, show_col_types = FALSE)
     et_vars <- names(et_data)
@@ -270,18 +284,24 @@ if (file.exists(met_file)) {
 
     # Get date range
     if ("DATE" %in% names(et_data)) {
-      et_data$Date <- as.Date(et_data$DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y"))
-      cat("\nDate range:", min(et_data$Date, na.rm = TRUE), "to", max(et_data$Date, na.rm = TRUE), "\n")
+      et_data$Date <- as.Date(
+        et_data$DATE,
+        tryFormats = c("%Y-%m-%d", "%m/%d/%Y")
+      )
+      cat(
+        "\nDate range:",
+        min(et_data$Date, na.rm = TRUE),
+        "to",
+        max(et_data$Date, na.rm = TRUE),
+        "\n"
+      )
     }
   }
 }
 
 # -----------------------------------------------------------------------------
-# 4. CREATE COMPREHENSIVE SUMMARY TABLE
+# CREATE COMPREHENSIVE SUMMARY TABLE
 # -----------------------------------------------------------------------------
-
-cat("\n\n=== COMPREHENSIVE DATA AVAILABILITY SUMMARY ===\n\n")
-
 # Merge all information
 comprehensive_summary <- site_info %>%
   left_join(
@@ -293,62 +313,31 @@ comprehensive_summary <- site_info %>%
     by = "site_code"
   )
 
-cat("Comprehensive Site Summary:\n")
-print(comprehensive_summary, n = 20, width = Inf)
 
 # -----------------------------------------------------------------------------
-# 5. SAVE OUTPUT TABLES
+# SAVE OUTPUT TABLES
 # -----------------------------------------------------------------------------
+write.csv(
+  site_metric_matrix,
+  file.path(output_dir, "Site_Metric_Availability.csv"),
+  row.names = FALSE
+)
 
-# Save site × metric availability
-write.csv(site_metric_matrix,
-          file.path(output_dir, "Site_Metric_Availability.csv"),
-          row.names = FALSE)
-cat("\nSaved: Site_Metric_Availability.csv\n")
+write.csv(
+  date_ranges,
+  file.path(output_dir, "Metric_Date_Ranges.csv"),
+  row.names = FALSE
+)
 
-# Save date ranges
-write.csv(date_ranges,
-          file.path(output_dir, "Metric_Date_Ranges.csv"),
-          row.names = FALSE)
-cat("Saved: Metric_Date_Ranges.csv\n")
-
-# Save comprehensive summary
-write.csv(comprehensive_summary,
-          file.path(output_dir, "Comprehensive_Data_Summary.csv"),
-          row.names = FALSE)
-cat("Saved: Comprehensive_Data_Summary.csv\n")
+write.csv(
+  comprehensive_summary,
+  file.path(output_dir, "Comprehensive_Data_Summary.csv"),
+  row.names = FALSE
+)
 
 # Save metrics info
-write.csv(metrics_info,
-          file.path(output_dir, "Storage_Metrics_Definitions.csv"),
-          row.names = FALSE)
-cat("Saved: Storage_Metrics_Definitions.csv\n")
-
-# -----------------------------------------------------------------------------
-# 6. PRINT SUMMARY TABLES
-# -----------------------------------------------------------------------------
-
-cat("\n")
-cat("="
-, rep("=", 70), "\n", sep = "")
-cat("STORAGE METRICS REFERENCE TABLE\n")
-cat("=", rep("=", 70), "\n\n", sep = "")
-
-print(metrics_info, n = 20)
-
-cat("\n")
-cat("=", rep("=", 70), "\n", sep = "")
-cat("SITE DATA REQUIREMENTS\n")
-cat("=", rep("=", 70), "\n\n", sep = "")
-
-cat("HYDROMETRIC sites (RBI, RCS, FDC, SD, WB):\n")
-cat("  ", paste(site_info$site_code[site_info$hydrometric], collapse = ", "), "\n\n")
-
-cat("CHEMISTRY sites (CHS/mean_bf):\n")
-cat("  ", paste(site_info$site_code[site_info$chemistry], collapse = ", "), "\n\n")
-
-cat("ISOTOPE sites (MTT, Fyw, DR):\n")
-cat("  ", paste(site_info$site_code[site_info$isotopes], collapse = ", "), "\n\n")
-
-cat("NON-HYDROMETRIC sites (isotope only, 2022-2023):\n")
-cat("  ", paste(site_info$site_code[!site_info$hydrometric], collapse = ", "), "\n")
+write.csv(
+  metrics_info,
+  file.path(output_dir, "Storage_Metrics_Definitions.csv"),
+  row.names = FALSE
+)
