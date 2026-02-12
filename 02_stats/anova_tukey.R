@@ -147,6 +147,9 @@ for (metric in storage_metrics) {
 }
 
 # Save ANOVA results
+anova_results <- anova_results %>%
+  arrange(metric)
+
 write.csv(anova_results,
           file.path(output_dir, "anova_results.csv"),
           row.names = FALSE)
@@ -196,12 +199,18 @@ for (metric in storage_metrics) {
 
 # Save Tukey HSD results
 if (nrow(tukey_results) > 0) {
+  tukey_results <- tukey_results %>%
+    arrange(metric, comparison)
   write.csv(tukey_results,
             file.path(output_dir, "tukey_hsd_results.csv"),
             row.names = FALSE)
 }
 
 if (nrow(tukey_group_letters) > 0) {
+  tukey_group_letters <- tukey_group_letters %>%
+    mutate(site = factor(site, levels = site_order)) %>%
+    arrange(metric, site) %>%
+    mutate(site = as.character(site))
   write.csv(tukey_group_letters,
             file.path(output_dir, "tukey_group_letters.csv"),
             row.names = FALSE)
@@ -220,7 +229,10 @@ site_means <- HJA_annual %>%
       .names = "{.col}_{.fn}"
     ),
     .groups = "drop"
-  )
+  ) %>%
+  mutate(site = factor(site, levels = site_order)) %>%
+  arrange(site) %>%
+  mutate(site = as.character(site))
 
 write.csv(site_means,
           file.path(output_dir, "site_means_storage_metrics.csv"),

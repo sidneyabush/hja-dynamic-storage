@@ -163,6 +163,6 @@ site_cols <- setNames(lighten(palette10, amount = 0.1), sites_keep)
 annual_metrics %>%
   rename(RCS = slope) %>%
   select(site, year, RCS, RBI) %>%
-  write_csv(file.path(output_dir, "RBI_RecessionCurve_Annual.csv"))
+  write_csv(file.path(output_dir, "rbi_rcs_annual.csv"))
 
 # End of script

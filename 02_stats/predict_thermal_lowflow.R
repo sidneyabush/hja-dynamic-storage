@@ -4,9 +4,9 @@
 # Purpose: Fit stepwise-AIC linear models for annual eco response metrics.
 #
 # Response metrics:
-#   1) max_temp_7d_C
-#   2) min_Q_7d_mm_d
-#   3) temp_during_min_Q_7d_C
+#   1) T_7DMax
+#   2) Q_7Q5
+#   3) T_Q7Q5
 #
 # Inputs:
 #   - master_annual.csv
@@ -78,12 +78,35 @@ merged_data <- read_csv(
 ) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
-if (!("temp_during_min_Q_7d_C" %in% names(merged_data)) && ("temp_at_min_Q_7d_C" %in% names(merged_data))) {
+if (!("T_7DMax" %in% names(merged_data)) && ("max_temp_7d_C" %in% names(merged_data))) {
   merged_data <- merged_data %>%
-    mutate(temp_during_min_Q_7d_C = temp_at_min_Q_7d_C)
+    mutate(T_7DMax = max_temp_7d_C)
 }
 
-response_vars_required <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_during_min_Q_7d_C")
+if (!("Q_7Q5" %in% names(merged_data)) && ("q5_7d_mm_d" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(Q_7Q5 = q5_7d_mm_d)
+}
+if (!("Q_7Q5" %in% names(merged_data)) && ("min_Q_7d_mm_d" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(Q_7Q5 = min_Q_7d_mm_d)
+}
+
+if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_during_q5_7d_C" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(T_Q7Q5 = temp_during_q5_7d_C)
+}
+if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_during_min_Q_7d_C" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(T_Q7Q5 = temp_during_min_Q_7d_C)
+}
+
+if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_at_min_Q_7d_C" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(T_Q7Q5 = temp_at_min_Q_7d_C)
+}
+
+response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 missing_response_vars <- setdiff(response_vars_required, names(merged_data))
 if (length(missing_response_vars) > 0) {
   stop(

@@ -125,12 +125,32 @@ HJA_Yr <- read_csv(
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-if (!("temp_during_min_Q_7d_C" %in% names(HJA_Yr)) && ("temp_at_min_Q_7d_C" %in% names(HJA_Yr))) {
+if (!("q5_7d_mm_d" %in% names(HJA_Yr)) && ("min_Q_7d_mm_d" %in% names(HJA_Yr))) {
   HJA_Yr <- HJA_Yr %>%
-    mutate(temp_during_min_Q_7d_C = temp_at_min_Q_7d_C)
+    mutate(q5_7d_mm_d = min_Q_7d_mm_d)
+}
+if (!("T_7DMax" %in% names(HJA_Yr)) && ("max_temp_7d_C" %in% names(HJA_Yr))) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(T_7DMax = max_temp_7d_C)
+}
+if (!("Q_7Q5" %in% names(HJA_Yr)) && ("q5_7d_mm_d" %in% names(HJA_Yr))) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(Q_7Q5 = q5_7d_mm_d)
+}
+if (!("temp_during_q5_7d_C" %in% names(HJA_Yr)) && ("temp_during_min_Q_7d_C" %in% names(HJA_Yr))) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(temp_during_q5_7d_C = temp_during_min_Q_7d_C)
+}
+if (!("temp_during_q5_7d_C" %in% names(HJA_Yr)) && ("temp_at_min_Q_7d_C" %in% names(HJA_Yr))) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(temp_during_q5_7d_C = temp_at_min_Q_7d_C)
+}
+if (!("T_Q7Q5" %in% names(HJA_Yr)) && ("temp_during_q5_7d_C" %in% names(HJA_Yr))) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(T_Q7Q5 = temp_during_q5_7d_C)
 }
 
-eco_response_vars <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_during_min_Q_7d_C")
+eco_response_vars <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
 storage_predictor_vars <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "MTT", "Fyw", "DR")

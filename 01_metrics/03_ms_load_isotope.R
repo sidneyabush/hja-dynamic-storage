@@ -144,7 +144,7 @@ print(availability)
 
 write.csv(
   isotope_metrics,
-  file.path(output_dir, "Isotope_Metrics_Site.csv"),
+  file.path(output_dir, "isotope_metrics_site.csv"),
   row.names = FALSE
 )
 

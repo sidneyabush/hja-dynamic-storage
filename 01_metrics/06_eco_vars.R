@@ -3,8 +3,8 @@
 # -----------------------------------------------------------------------------
 # Purpose: Calculate ecologically-relevant thermal and low-flow metrics:
 #   1. Maximum 7-day moving average stream temperature (per calendar year)
-#   2. Minimum 7-day moving average discharge (per calendar year)
-#   3. Stream temperature at time of minimum 7-day discharge
+#   2. Q5 of 7-day moving average discharge (per calendar year)
+#   3. Stream temperature during Q5 low-flow period
 #   4. Q5_CV: Coefficient of variation of stream temp during low-flow period
 #
 # Timeline: Calendar Years 1997-2020
@@ -181,7 +181,7 @@ discharge_rolling <- discharge %>%
 # -----------------------------------------------------------------------------
 
 # 5.1 Maximum 7-day average temperature per calendar year
-max_temp_7d <- temp_rolling %>%
+t_7dmax <- temp_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
   filter(!is.na(temp_7d_avg_C)) %>%
@@ -189,55 +189,62 @@ max_temp_7d <- temp_rolling %>%
   select(
     site,
     year,
-    date_max_temp_7d = date,
-    max_temp_7d_C = temp_7d_avg_C
+    date_t_7dmax = date,
+    T_7DMax = temp_7d_avg_C
   ) %>%
   ungroup()
 
-# 5.2 Minimum 7-day average discharge per calendar year
-min_Q_7d <- discharge_rolling %>%
+# 5.2 Q5 of 7-day average discharge per calendar year
+q_7q5 <- discharge_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
-  filter(!is.na(Q_7d_avg_mm_d)) %>%
-  slice_min(Q_7d_avg_mm_d, n = 1, with_ties = FALSE) %>%
+  summarise(
+    Q_7Q5 = quantile(Q_7d_avg_mm_d, probs = 0.05, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Representative date at Q5 threshold (closest 7-day Q to annual Q5)
+q_7q5_date <- discharge_rolling %>%
+  filter(year %in% target_years, !is.na(Q_7d_avg_mm_d)) %>%
+  inner_join(q_7q5, by = c("site", "year")) %>%
+  group_by(site, year) %>%
+  slice_min(abs(Q_7d_avg_mm_d - Q_7Q5), n = 1, with_ties = FALSE) %>%
   select(
     site,
     year,
-    date_min_Q_7d = date,
-    min_Q_7d_mm_d = Q_7d_avg_mm_d
+    date_q_7q5 = date
   ) %>%
   ungroup()
 
-# 5.3 Temperature during minimum 7-day discharge window
-# - temp_at_min_Q_7d_C: center-day temperature at minimum 7-day Q
-# - temp_during_min_Q_7d_C: mean temperature across the same 7-day window
-temp_at_min_Q <- min_Q_7d %>%
+# 5.3 Temperature at and during Q5 low-flow period
+# - T_at_Q7Q5: temperature on representative Q5 date
+# - T_Q7Q5: mean temperature across all days with 7-day Q <= annual Q5
+temp_at_q5 <- q_7q5_date %>%
   left_join(
     temp_daily %>%
       select(site, date, temp_mean_C) %>%
-      rename(temp_at_min_Q_7d_C = temp_mean_C),
-    by = c("site", "date_min_Q_7d" = "date")
+      rename(T_at_Q7Q5 = temp_mean_C),
+    by = c("site", "date_q_7q5" = "date")
+  )
+
+q5_period_temp <- discharge_rolling %>%
+  filter(year %in% target_years, !is.na(Q_7d_avg_mm_d)) %>%
+  inner_join(q_7q5, by = c("site", "year")) %>%
+  filter(Q_7d_avg_mm_d <= Q_7Q5) %>%
+  select(site, year, date) %>%
+  inner_join(temp_daily %>% select(site, date, temp_mean_C), by = c("site", "date")) %>%
+  group_by(site, year) %>%
+  summarise(
+    T_Q7Q5 = mean(temp_mean_C, na.rm = TRUE),
+    .groups = "drop"
   ) %>%
-  rowwise() %>%
   mutate(
-    temp_during_min_Q_7d_C = mean(
-      temp_daily$temp_mean_C[
-        temp_daily$site == site &
-          temp_daily$date >= (date_min_Q_7d - 3) &
-          temp_daily$date <= (date_min_Q_7d + 3)
-      ],
-      na.rm = TRUE
-    )
-  ) %>%
-  ungroup() %>%
-  mutate(
-    temp_during_min_Q_7d_C = if_else(
-      is.nan(temp_during_min_Q_7d_C),
+    T_Q7Q5 = if_else(
+      is.nan(T_Q7Q5),
       as.numeric(NA),
-      temp_during_min_Q_7d_C
+      T_Q7Q5
     )
-  ) %>%
-  select(site, year, date_min_Q_7d, temp_at_min_Q_7d_C, temp_during_min_Q_7d_C)
+  )
 
 # 5.4 Q5_CV: Coefficient of variation of stream temp during low-flow period
 # CV of daily mean stream temperature during Aug-Oct (late-summer recession)
@@ -263,10 +270,22 @@ temp_cv_lowflow <- temp_daily %>%
 # -----------------------------------------------------------------------------
 
 # Merge all metrics by standardized site-year keys
-master_metrics <- max_temp_7d %>%
-  full_join(min_Q_7d, by = c("site", "year")) %>%
-  left_join(temp_at_min_Q, by = c("site", "year", "date_min_Q_7d")) %>%
+master_metrics <- t_7dmax %>%
+  full_join(q_7q5, by = c("site", "year")) %>%
+  left_join(q_7q5_date, by = c("site", "year")) %>%
+  left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
+  left_join(q5_period_temp, by = c("site", "year")) %>%
   left_join(temp_cv_lowflow, by = c("site", "year")) %>%
+  # Keep compatibility aliases while names transition.
+  mutate(
+    max_temp_7d_C = T_7DMax,
+    q5_7d_mm_d = Q_7Q5,
+    temp_during_q5_7d_C = T_Q7Q5,
+    min_Q_7d_mm_d = Q_7Q5,
+    temp_at_q5_7d_C = T_at_Q7Q5,
+    temp_at_min_Q_7d_C = T_at_Q7Q5,
+    temp_during_min_Q_7d_C = T_Q7Q5
+  ) %>%
   mutate(
     SITECODE = site,
     wateryear = year
@@ -285,12 +304,12 @@ summary_stats <- master_metrics %>%
   group_by(site) %>%
   summarise(
     n_years = n(),
-    max_temp_7d_mean = mean(max_temp_7d_C, na.rm = TRUE),
-    max_temp_7d_sd   = sd(max_temp_7d_C, na.rm = TRUE),
-    min_Q_7d_mean    = mean(min_Q_7d_mm_d, na.rm = TRUE),
-    min_Q_7d_sd      = sd(min_Q_7d_mm_d, na.rm = TRUE),
-    temp_at_min_Q_mean = mean(temp_during_min_Q_7d_C, na.rm = TRUE),
-    temp_at_min_Q_sd   = sd(temp_during_min_Q_7d_C, na.rm = TRUE),
+    t_7dmax_mean = mean(T_7DMax, na.rm = TRUE),
+    t_7dmax_sd   = sd(T_7DMax, na.rm = TRUE),
+    q_7q5_mean   = mean(Q_7Q5, na.rm = TRUE),
+    q_7q5_sd     = sd(Q_7Q5, na.rm = TRUE),
+    t_q7q5_mean  = mean(T_Q7Q5, na.rm = TRUE),
+    t_q7q5_sd    = sd(T_Q7Q5, na.rm = TRUE),
     Q5_CV_mean = mean(Q5_CV, na.rm = TRUE),
     Q5_CV_sd   = sd(Q5_CV, na.rm = TRUE),
     .groups = "drop"

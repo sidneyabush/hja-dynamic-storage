@@ -1,0 +1,255 @@
+---
+title: "update: preprocessing, pca, correlations, and mlr"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    df_print: paged
+params:
+  out_dir: "temp_outputs"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(stringr)
+library(knitr)
+library(ggplot2)
+
+out_dir <- params$out_dir
+stopifnot(dir.exists(out_dir))
+
+path <- function(...) file.path(out_dir, ...)
+```
+
+## quick status
+
+This report summarizes the current end-to-end run in `r out_dir`.
+
+- aggregation and model scripts completed
+- outputs verified
+- strict and non-strict MLR methods were both run for both model families
+- correlation matrices and PCA outputs are included below
+
+## preprocessing and aggregation overview
+
+### workflow summary
+
+The preprocessing pipeline run for this update:
+
+1. Build daily watershed meteorology + discharge master data (including interpolation across assigned station pairs/triplets).
+2. Compute dynamic storage metrics (RBI, RCS, FDC, SD).
+3. Compute mobile storage metrics (CHS + site isotope metrics).
+4. Compute extended dynamic storage metric (WB drawdown).
+5. Compute annual eco response metrics from 7-day windows.
+6. Aggregate to annual and site-level master datasets.
+
+### key aggregated outputs
+
+```{r preprocessing-outputs}
+pre_files <- c(
+  path("master", "master_annual.csv"),
+  path("master", "master_site.csv"),
+  path("metrics", "support", "watersheds_met_q.csv"),
+  path("metrics", "support", "site_metric_availability.csv"),
+  path("metrics", "support", "metric_date_ranges.csv")
+)
+
+pre_tbl <- tibble(file = pre_files, exists = file.exists(pre_files))
+kable(pre_tbl)
+
+annual <- read_csv(path("master", "master_annual.csv"), show_col_types = FALSE)
+site <- read_csv(path("master", "master_site.csv"), show_col_types = FALSE)
+
+summary_tbl <- tibble(
+  metric = c("annual rows", "site rows", "annual unique sites", "annual year min", "annual year max"),
+  value = c(
+    nrow(annual),
+    nrow(site),
+    n_distinct(annual$site),
+    min(annual$year, na.rm = TRUE),
+    max(annual$year, na.rm = TRUE)
+  )
+)
+kable(summary_tbl)
+```
+
+## correlations and PCA used for model context
+
+### correlation matrix figures used
+
+- `temp_outputs/figs/supp/stats/correlations/catch_chars_storage_mlr_corr.png`
+- `temp_outputs/figs/supp/stats/correlations/storage_eco_mlr_corr.png`
+
+### PCA summary
+
+```{r pca-summary}
+pca_var <- read_csv(path("stats", "pca", "pca_variance_explained.csv"), show_col_types = FALSE)
+pca_load <- read_csv(path("stats", "pca", "pca_loadings.csv"), show_col_types = FALSE)
+
+pca_var <- pca_var %>%
+  mutate(cum_var = cumsum(Variance_Explained))
+
+kable(pca_var)
+
+# show top loading magnitude contributors for pc1 and pc2
+load_top <- pca_load %>%
+  mutate(abs_pc1 = abs(PC1), abs_pc2 = abs(PC2)) %>%
+  select(feature, PC1, PC2, abs_pc1, abs_pc2) %>%
+  arrange(desc(abs_pc1))
+
+kable(load_top)
+```
+
+PCA figures:
+
+- Main biplot: `temp_outputs/figs/main/pca_biplot.png`
+- Scree plot: `temp_outputs/figs/supp/stats/pca/pca_scree.png`
+
+## MLR family 1: catch_chars -> storage
+
+### strict vs non-strict comparison
+
+```{r mlr1-compare}
+mlr1_strict <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_summary_strict.csv"), show_col_types = FALSE)
+mlr1_non <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_summary_non_strict.csv"), show_col_types = FALSE)
+mlr1_cmp <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_strict_vs_non_strict.csv"), show_col_types = FALSE)
+
+max_delta_tbl <- tibble(
+  metric = c("max |delta R2_adj|", "max |delta RMSE|", "max |delta RMSE_LOOCV|", "max |delta AICc|"),
+  value = c(
+    max(abs(mlr1_cmp$delta_R2_adj), na.rm = TRUE),
+    max(abs(mlr1_cmp$delta_RMSE), na.rm = TRUE),
+    max(abs(mlr1_cmp$delta_RMSE_LOOCV), na.rm = TRUE),
+    max(abs(mlr1_cmp$delta_AICc), na.rm = TRUE)
+  )
+)
+
+kable(max_delta_tbl)
+```
+
+### selected strict models (final predictors + fit)
+
+```{r mlr1-models}
+mlr1_selected <- mlr1_strict %>%
+  transmute(
+    response = Outcome,
+    n = N,
+    predictors_final = Predictors_Final,
+    r2_adj = round(R2_adj, 3),
+    rmse = signif(RMSE, 4),
+    rmse_loocv = signif(RMSE_LOOCV, 4),
+    aicc = round(AICc, 3)
+  ) %>%
+  arrange(desc(r2_adj))
+
+kable(mlr1_selected)
+```
+
+Key files for this MLR family:
+
+- stats summary: `temp_outputs/stats/mlr_catch_chars_storage/catch_chars_storage_mlr_summary_strict.csv`
+- strict/non-strict comparison: `temp_outputs/stats/mlr_catch_chars_storage/catch_chars_storage_mlr_strict_vs_non_strict.csv`
+- coefficient table export: `temp_outputs/tables/mlr/catch_chars_storage_mlr_coef.csv`
+- beta plot: `temp_outputs/figs/supp/stats/mlr/catch_chars_storage_mlr_beta.png`
+
+## MLR family 2: storage -> eco responses
+
+### strict vs non-strict comparison
+
+```{r mlr2-compare}
+mlr2_strict <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_summary_strict.csv"), show_col_types = FALSE)
+mlr2_non <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_summary_non_strict.csv"), show_col_types = FALSE)
+mlr2_cmp <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_strict_vs_non_strict.csv"), show_col_types = FALSE)
+
+max_delta_tbl2 <- tibble(
+  metric = c("max |delta R2_adj|", "max |delta RMSE|", "max |delta RMSE_LOOCV|", "max |delta AICc|"),
+  value = c(
+    max(abs(mlr2_cmp$delta_R2_adj), na.rm = TRUE),
+    max(abs(mlr2_cmp$delta_RMSE), na.rm = TRUE),
+    max(abs(mlr2_cmp$delta_RMSE_LOOCV), na.rm = TRUE),
+    max(abs(mlr2_cmp$delta_AICc), na.rm = TRUE)
+  )
+)
+
+kable(max_delta_tbl2)
+```
+
+### selected strict models (final predictors + fit)
+
+```{r mlr2-models}
+mlr2_selected <- mlr2_strict %>%
+  transmute(
+    response = Response,
+    n = n,
+    predictors_final = Predictors_Final,
+    r2_adj = round(R2_adj, 3),
+    rmse = signif(RMSE, 4),
+    rmse_loocv = signif(RMSE_LOOCV, 4),
+    aicc = round(AICc, 3)
+  ) %>%
+  arrange(desc(r2_adj))
+
+kable(mlr2_selected)
+```
+
+Key files for this MLR family:
+
+- stats summary: `temp_outputs/stats/mlr_storage_eco/storage_eco_mlr_summary_strict.csv`
+- strict/non-strict comparison: `temp_outputs/stats/mlr_storage_eco/storage_eco_mlr_strict_vs_non_strict.csv`
+- coefficient table export: `temp_outputs/tables/mlr/storage_eco_mlr_coef.csv`
+- beta plot: `temp_outputs/figs/supp/stats/mlr/storage_eco_mlr_beta.png`
+
+## decisions from this run
+
+```{r decisions}
+flags1 <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_corr_flags.csv"), show_col_types = FALSE)
+flags2 <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_corr_flags.csv"), show_col_types = FALSE)
+
+decisions <- tibble(
+  decision = c(
+    "strict vs non-strict behavior",
+    "known high-correlation combo flags (lava+ash, landslide_total+young)",
+    "use strict outputs for reporting"
+  ),
+  status = c(
+    "effectively identical in this run",
+    paste0("catch_chars flagged rows: ", nrow(flags1), "; storage_eco flagged rows: ", nrow(flags2)),
+    "recommended"
+  )
+)
+
+kable(decisions)
+```
+
+## figures and tables to use in update
+
+### figures
+
+- PCA: `temp_outputs/figs/main/pca_biplot.png`
+- Correlations (supp):
+  - `temp_outputs/figs/supp/stats/correlations/catch_chars_storage_mlr_corr.png`
+  - `temp_outputs/figs/supp/stats/correlations/storage_eco_mlr_corr.png`
+- MLR beta plots (supp):
+  - `temp_outputs/figs/supp/stats/mlr/catch_chars_storage_mlr_beta.png`
+  - `temp_outputs/figs/supp/stats/mlr/storage_eco_mlr_beta.png`
+
+### tables
+
+- MLR performance and coefficients:
+  - `temp_outputs/tables/mlr/catch_chars_storage_mlr_model_perf.csv`
+  - `temp_outputs/tables/mlr/catch_chars_storage_mlr_coef.csv`
+  - `temp_outputs/tables/mlr/storage_eco_mlr_model_perf.csv`
+  - `temp_outputs/tables/mlr/storage_eco_mlr_coef.csv`
+- PCA tables:
+  - `temp_outputs/tables/pca/pca_variance_table.csv`
+  - `temp_outputs/tables/pca/pca_loading_table.csv`
+
+## short interpretation 
+
+- The updated workflow ran end-to-end and produced complete MLR/PCA/correlation outputs.
+- Strict and non-strict MLR methods produced the same selected models and fit metrics (differences are numerical noise only).
+- For storage -> eco models, strongest fit was for Q5 low flow from the 7-day series; weaker fits were found for maximum 7-day temperature and temperature during low-flow.
+- For catch_chars -> storage models, model performance varies by response; DR and SD show stronger fits than WB/MTT/Fyw.

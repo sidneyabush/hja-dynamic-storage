@@ -65,3 +65,6 @@ tmp_outputs*/
 tmp_figures*/
 00_data_preprocessing/legacy_preprocessing_reference_raw.txt
 *.txt
+
+# Local temporary run outputs
+temp_outputs/

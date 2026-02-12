@@ -187,7 +187,7 @@ annual_bf_prop <- EC_Q %>%
 # -----------------------------------------------------------------------------
 
 # Save annual baseflow proportions
-output_file <- file.path(output_dir, "Annual_GW_Prop.csv")
+output_file <- file.path(output_dir, "annual_gw_prop.csv")
 write.csv(annual_bf_prop, output_file, row.names = FALSE)
 
 # -----------------------------------------------------------------------------

@@ -164,7 +164,7 @@ last_peak <- discharge %>%
 
 # Save last peak dates
 write.csv(last_peak,
-          file.path(output_dir, "DS_Drawdown_Date.csv"),
+          file.path(output_dir, "ds_drawdown_date.csv"),
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
@@ -217,5 +217,5 @@ DS_max <- DS_compute %>%
 
 # Save annual drawdown
 write.csv(DS_max,
-          file.path(output_dir, "DS_drawdown_annual.csv"),
+          file.path(output_dir, "ds_drawdown_annual.csv"),
           row.names = FALSE)

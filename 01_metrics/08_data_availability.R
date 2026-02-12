@@ -109,9 +109,9 @@ metrics_info <- tribble(
 # Response variables (NOT storage metrics, but used in analyses)
 response_vars <- tribble(
   ~type      , ~method                 , ~abbreviation , ~variable_name       , ~requires     ,
-  "Response" , "Max 7-day Stream Temp" , "max_temp_7d" , "max_temp_7d_C"      , "stream_temp" ,
-  "Response" , "Min 7-day Discharge"   , "min_Q_7d"    , "min_Q_7d_mm_d"      , "hydrometric" ,
-  "Response" , "Temp at Min Discharge" , "temp_minQ"   , "temp_at_min_Q_7d_C" , "stream_temp"
+  "Response" , "Max 7-day Stream Temp" , "T_7DMax"     , "T_7DMax"            , "stream_temp" ,
+  "Response" , "Q5 of 7-day Discharge" , "Q_7Q5"       , "Q_7Q5"              , "hydrometric" ,
+  "Response" , "Temp during Q5 Period" , "T_Q7Q5"      , "T_Q7Q5"             , "stream_temp"
 )
 
 # Create site × metric availability matrix
@@ -269,7 +269,7 @@ if (file.exists(met_file)) {
   # Save met summary
   write.csv(
     met_summary,
-    file.path(support_dir, "Met_Variables_Summary.csv"),
+    file.path(support_dir, "met_variables_summary.csv"),
     row.names = FALSE
   )
 } else {
@@ -324,25 +324,25 @@ comprehensive_summary <- site_info %>%
 # -----------------------------------------------------------------------------
 write.csv(
   site_metric_matrix,
-  file.path(support_dir, "Site_Metric_Availability.csv"),
+  file.path(support_dir, "site_metric_availability.csv"),
   row.names = FALSE
 )
 
 write.csv(
   date_ranges,
-  file.path(support_dir, "Metric_Date_Ranges.csv"),
+  file.path(support_dir, "metric_date_ranges.csv"),
   row.names = FALSE
 )
 
 write.csv(
   comprehensive_summary,
-  file.path(support_dir, "Comprehensive_Data_Summary.csv"),
+  file.path(support_dir, "comprehensive_data_summary.csv"),
   row.names = FALSE
 )
 
 # Save metrics info
 write.csv(
   metrics_info,
-  file.path(support_dir, "Storage_Metrics_Definitions.csv"),
+  file.path(support_dir, "storage_metrics_definitions.csv"),
   row.names = FALSE
 )

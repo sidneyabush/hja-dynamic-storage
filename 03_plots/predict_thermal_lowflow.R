@@ -66,7 +66,7 @@ if (!file.exists(summary_file)) {
 model_coefs <- read_csv(models_file, show_col_types = FALSE)
 model_summary <- read_csv(summary_file, show_col_types = FALSE)
 
-response_order <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_during_min_Q_7d_C")
+response_order <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 
 beta_plot_df <- model_coefs %>%
   filter(!is.na(Beta_Std)) %>%

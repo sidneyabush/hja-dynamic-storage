@@ -20,10 +20,11 @@
 USE_LOCAL_DATA <- FALSE
 
 # Get the repo root directory (where this config.R file lives)
-REPO_DIR <- normalizePath(dirname(sys.frame(1)$ofile), mustWork = FALSE)
-if (is.na(REPO_DIR) || REPO_DIR == "") {
-  # Fallback if sourced interactively
+repo_ofile <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
+if (is.null(repo_ofile) || !is.character(repo_ofile) || length(repo_ofile) == 0 || is.na(repo_ofile[1]) || repo_ofile[1] == "") {
   REPO_DIR <- getwd()
+} else {
+  REPO_DIR <- normalizePath(dirname(repo_ofile[1]), mustWork = FALSE)
 }
 
 if (USE_LOCAL_DATA) {

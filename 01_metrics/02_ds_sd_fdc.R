@@ -301,10 +301,10 @@ write.csv(annual_vol,
                            "storage_discharge_method_annual_vol_per_site_wateryear.csv"),
           row.names = FALSE)
 write.csv(fdc_curves_overall,
-          file = file.path(output_dir, "FDC_slopes_overall.csv"),
+          file = file.path(output_dir, "fdc_slopes_overall.csv"),
           row.names = FALSE)
 write.csv(fdc_curves_WY,
-          file = file.path(output_dir, "FDC_slopes_WY.csv"),
+          file = file.path(output_dir, "fdc_slopes_wy.csv"),
           row.names = FALSE)
 
 # Save annual FDC metrics for aggregation script
@@ -313,6 +313,6 @@ write.csv(
   annual %>%
     rename(SD = S_annual_mm, FDC = fdc_slope) %>%
     select(site, year = wateryear, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm),
-  file.path(output_dir, "StorageDischarge_FDC_Annual.csv"),
+  file.path(output_dir, "storage_discharge_fdc_annual.csv"),
   row.names = FALSE
 )

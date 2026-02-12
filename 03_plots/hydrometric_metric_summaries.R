@@ -144,8 +144,13 @@ for (m in metric_order) {
     next
   }
 
+  df_line <- df %>%
+    group_by(site) %>%
+    filter(sum(!is.na(value)) >= 2) %>%
+    ungroup()
+
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
-    geom_line(linewidth = 0.5) +
+    geom_line(data = df_line, linewidth = 0.5) +
     geom_point(size = 1) +
     facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE) +
     scale_color_manual(values = site_cols, guide = "none") +
@@ -186,6 +191,9 @@ for (m in metric_order) {
 
 summary_sel <- bind_rows(summary_all)
 if (nrow(summary_sel) > 0) {
+  summary_sel <- summary_sel %>%
+    filter(is.finite(label_y), !is.na(group))
+
   summary_sel <- summary_sel %>%
     mutate(
       metric = factor(metric, levels = metric_order),

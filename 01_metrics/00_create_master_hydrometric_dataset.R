@@ -216,7 +216,7 @@ for (triplet_name in names(station_groups$triplets)) {
 # Clean duplicates
 combined_met_clean <- combined_met %>%
   group_by(DATE, SITECODE) %>%
-  summarise(across(everything(), mean, na.rm = TRUE), .groups = "drop")
+  summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
 # Variables to process (VPD computed internally)
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")

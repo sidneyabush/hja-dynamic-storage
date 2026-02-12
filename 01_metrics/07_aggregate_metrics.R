@@ -104,16 +104,24 @@ if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
 # --- DYNAMIC STORAGE METRICS ---
 
 # RBI & Recession Slope (RBI, RCS)
+rbi_path <- file.path(dynamic_dir, "rbi_rcs_annual.csv")
+if (!file.exists(rbi_path)) {
+  rbi_path <- file.path(dynamic_dir, "RBI_RecessionCurve_Annual.csv")
+}
 rbi_recession <- read_csv(
-  file.path(dynamic_dir, "RBI_RecessionCurve_Annual.csv"),
+  rbi_path,
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, RCS, RBI)
 
 # Storage-Discharge, FDC, Q percentiles (SD, FDC)
+fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
+if (!file.exists(fdc_path)) {
+  fdc_path <- file.path(dynamic_dir, "StorageDischarge_FDC_Annual.csv")
+}
 storage_fdc <- read_csv(
-  file.path(dynamic_dir, "StorageDischarge_FDC_Annual.csv"),
+  fdc_path,
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
@@ -122,8 +130,12 @@ storage_fdc <- read_csv(
 # --- MOBILE STORAGE METRICS ---
 
 # Chemical hydrograph separation (CHS = mean baseflow fraction)
+chs_path <- file.path(mobile_dir, "annual_gw_prop.csv")
+if (!file.exists(chs_path)) {
+  chs_path <- file.path(mobile_dir, "Annual_GW_Prop.csv")
+}
 baseflow <- read_csv(
-  file.path(mobile_dir, "Annual_GW_Prop.csv"),
+  chs_path,
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
@@ -134,8 +146,12 @@ baseflow <- read_csv(
 # --- EXTENDED DYNAMIC STORAGE METRICS ---
 
 # Water Balance (WB = extended dynamic storage)
+wb_path <- file.path(extended_dir, "ds_drawdown_annual.csv")
+if (!file.exists(wb_path)) {
+  wb_path <- file.path(extended_dir, "DS_drawdown_annual.csv")
+}
 wb_storage <- read_csv(
-  file.path(extended_dir, "DS_drawdown_annual.csv"),
+  wb_path,
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
@@ -156,7 +172,19 @@ thermal_lowflow <- read_csv(
   ) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, temp_during_min_Q_7d_C, Q5_CV)
+  select(
+    site, year, T_7DMax, Q_7Q5, T_at_Q7Q5, T_Q7Q5,
+    max_temp_7d_C,
+    q5_7d_mm_d, temp_at_q5_7d_C, temp_during_q5_7d_C,
+    min_Q_7d_mm_d, temp_at_min_Q_7d_C, temp_during_min_Q_7d_C,
+    Q5_CV
+  ) %>%
+  mutate(
+    T_7DMax = ifelse(is.na(T_7DMax), max_temp_7d_C, T_7DMax),
+    Q_7Q5 = ifelse(is.na(Q_7Q5), q5_7d_mm_d, Q_7Q5),
+    T_at_Q7Q5 = ifelse(is.na(T_at_Q7Q5), temp_at_q5_7d_C, T_at_Q7Q5),
+    T_Q7Q5 = ifelse(is.na(T_Q7Q5), temp_during_q5_7d_C, T_Q7Q5)
+  )
 
 # -----------------------------------------------------------------------------
 # 3. MERGE ALL ANNUAL METRICS
@@ -250,7 +278,7 @@ write.csv(HJA_avg,
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
 mobile_metrics <- c("CHS", "MTT", "Fyw", "DR")
 extended_metrics <- c("WB")
-response_metrics <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_during_min_Q_7d_C")
+response_metrics <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 
 # Count non-NA values for annual metrics
 annual_sample_sizes <- HJA_annual %>%
@@ -263,8 +291,8 @@ annual_sample_sizes <- HJA_annual %>%
     n_SD = sum(!is.na(SD)),
     n_CHS = sum(!is.na(CHS)),
     n_WB = sum(!is.na(WB)),
-    n_max_temp = sum(!is.na(max_temp_7d_C)),
-    n_min_Q = sum(!is.na(min_Q_7d_mm_d)),
+    n_t_7dmax = sum(!is.na(T_7DMax)),
+    n_q_7q5 = sum(!is.na(Q_7Q5)),
     .groups = "drop"
   )
 

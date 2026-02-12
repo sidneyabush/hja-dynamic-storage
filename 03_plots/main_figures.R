@@ -121,7 +121,10 @@ annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
 cat("  Loaded annual data:", nrow(annual_data), "rows\n")
 
 # Isotope data for mobile storage (site-level metrics)
-isotope_file <- file.path(OUT_MET_MOBILE_DIR, "Isotope_Metrics_Site.csv")
+isotope_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
+if (!file.exists(isotope_file)) {
+  isotope_file <- file.path(OUT_MET_MOBILE_DIR, "Isotope_Metrics_Site.csv")
+}
 if (!file.exists(isotope_file)) {
   isotope_file <- file.path(base_dir, "Isotopes", "Isotope_Metrics_Site.csv")
 }
@@ -163,6 +166,9 @@ if (file.exists(isotope_file)) {
 
 # CHS data
 chs_file <- file.path(base_dir, "EC", "CHS_annual_baseflow.csv")
+if (!file.exists(chs_file)) {
+  chs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop.csv")
+}
 if (!file.exists(chs_file)) {
   chs_file <- file.path(OUT_MET_MOBILE_DIR, "Annual_GW_Prop.csv")
 }
@@ -337,15 +343,25 @@ cat("\nCreating Supplement: Dynamic Storage Time Series...\n")
 # Calculate site means for labels
 site_means_dynamic <- dynamic_long %>%
   group_by(site, metric) %>%
-  summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
+  summarise(
+    mean_val = mean(value, na.rm = TRUE),
+    x_pos = min(year, na.rm = TRUE),
+    y_pos = max(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+dynamic_line_data <- dynamic_long %>%
+  group_by(site, metric) %>%
+  filter(sum(!is.na(value)) >= 2) %>%
+  ungroup()
 
 supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) +
-  geom_line(linewidth = 0.5, na.rm = TRUE) +
+  geom_line(data = dynamic_line_data, linewidth = 0.5, na.rm = TRUE) +
   geom_point(size = 1, na.rm = TRUE) +
   geom_text(
     data = site_means_dynamic,
-    aes(x = -Inf, y = -Inf, label = sprintf("%.2f", mean_val)),
-    hjust = -0.1, vjust = -0.5, size = 2.5, color = "black"
+    aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
+    hjust = 0, vjust = -0.3, size = 2.5, color = "black", na.rm = TRUE
   ) +
   facet_grid(metric ~ site, scales = "free_y",
              labeller = labeller(metric = metric_labels), drop = FALSE) +
@@ -370,7 +386,12 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 
   chs_means <- chs_data %>%
     group_by(site) %>%
-    summarise(mean_val = mean(CHS, na.rm = TRUE), .groups = "drop")
+    summarise(
+      mean_val = mean(CHS, na.rm = TRUE),
+      x_pos = min(year, na.rm = TRUE),
+      y_pos = max(CHS, na.rm = TRUE),
+      .groups = "drop"
+    )
   chs_line_data <- chs_data %>%
     group_by(site) %>%
     filter(sum(!is.na(CHS)) >= 2) %>%
@@ -381,8 +402,8 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     geom_point(size = 1.5, na.rm = TRUE) +
     geom_text(
       data = chs_means,
-      aes(x = -Inf, y = -Inf, label = sprintf("%.2f", mean_val)),
-      hjust = -0.1, vjust = -0.5, size = 3, color = "black"
+      aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
+      hjust = 0, vjust = -0.3, size = 3, color = "black", na.rm = TRUE
     ) +
     facet_wrap(~site, ncol = 2, drop = FALSE) +
     scale_color_manual(values = site_colors) +

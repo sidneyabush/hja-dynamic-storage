@@ -262,7 +262,7 @@ interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
   if(nrow(check_dupes) > 0) {
     data <- data %>%
       group_by(DATE, SITECODE) %>%
-      summarise(across(everything(), mean, na.rm = TRUE), .groups = "drop")
+      summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
   }
 
   pair_data <- data %>%
@@ -357,7 +357,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
   if(nrow(check_dupes) > 0) {
     data <- data %>%
       group_by(DATE, SITECODE) %>%
-      summarise(across(everything(), mean, na.rm = TRUE), .groups = "drop")
+      summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
   }
 
   triplet_data <- data %>%
