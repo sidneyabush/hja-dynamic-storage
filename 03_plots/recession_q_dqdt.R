@@ -1,15 +1,15 @@
 # -----------------------------------------------------------------------------
 # Recession Relationship Plots: log(Q) vs log(-dQ/dt)
 # -----------------------------------------------------------------------------
-# Legacy-style faceted relationship plot by site.
+# Faceted relationship plot by site for supplement figures.
 #
 # Inputs:
 #   - HF00402_v14.csv
 #   - drainage_area.csv
 #
-# Outputs (FIGURES_DIR/Supplement/Hydrometric_Legacy):
-#   - legacy_recession_curve_by_site_mmday.png
-#   - legacy_recession_curve_by_site_mmday.pdf
+# Outputs (FIGURES_DIR/supp/hydrometric):
+#   - rcs_curve_by_site.png
+#   - rcs_curve_by_site.pdf
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -48,7 +48,7 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-plot_dir <- file.path(FIGURES_DIR, "Supplement", "Hydrometric_Legacy")
+plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 
 da_path <- file.path(DISCHARGE_DIR, "drainage_area.csv")
@@ -117,7 +117,7 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
     size = 3,
     hjust = 0
   ) +
-  facet_wrap(~site, ncol = 2, scales = "fixed") +
+  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE) +
   scale_color_manual(values = SITE_COLORS, guide = "none") +
   labs(x = "log Q (mm day-1)", y = "log -dQ/dt (mm day-1)") +
   theme(
@@ -128,7 +128,7 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
   )
 
 ggsave(
-  file.path(plot_dir, "legacy_recession_curve_by_site_mmday.png"),
+  file.path(plot_dir, "rcs_curve_by_site.png"),
   p_curve,
   width = 8,
   height = 9,
@@ -136,7 +136,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(plot_dir, "legacy_recession_curve_by_site_mmday.pdf"),
+  file.path(plot_dir, "rcs_curve_by_site.pdf"),
   p_curve,
   width = 8,
   height = 9

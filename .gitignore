@@ -61,4 +61,6 @@ README.html
 README_files/
 outputs/
 figures/
+tmp_outputs*/
+tmp_figures*/
 00_data_preprocessing/legacy_preprocessing_reference_raw.txt

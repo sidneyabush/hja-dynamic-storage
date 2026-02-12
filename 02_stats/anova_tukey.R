@@ -15,9 +15,8 @@
 #   - master_annual.csv (from aggregate_metrics.R)
 #
 # Outputs:
-#   - ANOVA_results.csv: ANOVA F-statistics and p-values
-#   - Tukey_HSD_results.csv: Pairwise site comparisons with adjusted p-values
-#   - QA_ANOVA_boxplots.png: Boxplots of storage metrics by site
+#   - anova_results.csv: ANOVA F-statistics and p-values
+#   - tukey_hsd_results.csv: Pairwise site comparisons with adjusted p-values
 #
 # Author: Sidney Bush
 # Date: 2026-01-23
@@ -70,6 +69,7 @@ if (file.exists(config_path)) {
 site_order <- SITE_ORDER_HYDROMETRIC
 base_dir   <- BASE_DATA_DIR
 output_dir <- OUTPUT_DIR
+output_dir <- OUT_STATS_ANOVA_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -78,7 +78,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 # 2. LOAD ANNUAL STORAGE METRICS
 # -----------------------------------------------------------------------------
 
-annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)
+annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
 if (!file.exists(annual_file)) {
   annual_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
 }
@@ -87,6 +87,7 @@ HJA_annual <- read_csv(
   annual_file,
   show_col_types = FALSE
 ) %>%
+  mutate(site = standardize_site_code(site)) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD) %>%
   mutate(site = factor(site, levels = site_order))
 
@@ -147,7 +148,7 @@ for (metric in storage_metrics) {
 
 # Save ANOVA results
 write.csv(anova_results,
-          file.path(output_dir, "ANOVA_results.csv"),
+          file.path(output_dir, "anova_results.csv"),
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
@@ -196,52 +197,18 @@ for (metric in storage_metrics) {
 # Save Tukey HSD results
 if (nrow(tukey_results) > 0) {
   write.csv(tukey_results,
-            file.path(output_dir, "Tukey_HSD_results.csv"),
+            file.path(output_dir, "tukey_hsd_results.csv"),
             row.names = FALSE)
 }
 
 if (nrow(tukey_group_letters) > 0) {
   write.csv(tukey_group_letters,
-            file.path(output_dir, "Tukey_Group_Letters.csv"),
+            file.path(output_dir, "tukey_group_letters.csv"),
             row.names = FALSE)
 }
 
 # -----------------------------------------------------------------------------
-# 6. QA PLOTS: BOXPLOTS BY SITE
-# -----------------------------------------------------------------------------
-
-# Prepare data for plotting
-plot_data <- HJA_annual %>%
-  select(site, all_of(storage_metrics)) %>%
-  pivot_longer(
-    cols = all_of(storage_metrics),
-    names_to = "metric",
-    values_to = "value"
-  ) %>%
-  filter(!is.na(value))
-
-# Create faceted boxplot
-p_boxplots <- ggplot(plot_data, aes(x = site, y = value, fill = site)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = 21, outlier.alpha = 0.5) +
-  facet_wrap(~metric, scales = "free_y", ncol = 2) +
-  labs(
-    title = "Storage Metrics by Site (ANOVA Comparisons)",
-    x = "Site",
-    y = "Value"
-  ) +
-  theme_bw(base_size = 10) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "none"
-  )
-
-ggsave(
-  file.path(output_dir, "QA_ANOVA_boxplots.png"),
-  p_boxplots, width = 12, height = 14, dpi = 300
-)
-
-# -----------------------------------------------------------------------------
-# 7. SUMMARY TABLE: SITE MEANS
+# 6. SUMMARY TABLE: SITE MEANS
 # -----------------------------------------------------------------------------
 
 site_means <- HJA_annual %>%
@@ -256,5 +223,5 @@ site_means <- HJA_annual %>%
   )
 
 write.csv(site_means,
-          file.path(output_dir, "Site_Means_Storage_Metrics.csv"),
+          file.path(output_dir, "site_means_storage_metrics.csv"),
           row.names = FALSE)

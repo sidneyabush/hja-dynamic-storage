@@ -17,7 +17,6 @@
 #
 # Outputs:
 #   - Annual_GW_Prop.csv: Annual mean baseflow proportion by site
-#   - QA plots: Continuous baseflow timeseries and annual summaries
 #
 # Author: Keira Johnson (original), Sidney Bush (adapted)
 # -----------------------------------------------------------------------------
@@ -67,7 +66,7 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 base_dir <- BASE_DATA_DIR
-output_dir <- OUTPUT_DIR
+output_dir <- OUT_MET_MOBILE_DIR
 
 discharge_dir <- DISCHARGE_DIR
 ec_dir <- EC_DIR
@@ -192,77 +191,7 @@ output_file <- file.path(output_dir, "Annual_GW_Prop.csv")
 write.csv(annual_bf_prop, output_file, row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 9. QA PLOTS
-# -----------------------------------------------------------------------------
-
-# Plot 1: Continuous baseflow proportion timeseries
-p1 <- ggplot(EC_Q, aes(x = date, y = GW_prop)) +
-  geom_line(color = "steelblue", alpha = 0.7) +
-  facet_wrap(~SITECODE, ncol = 2) +
-  ylim(-0.1, 1.1) +
-  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
-  geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
-  labs(
-    title = "Daily Baseflow Proportion (Chemical Hydrograph Separation)",
-    subtitle = "Red dashed lines = physical bounds [0, 1]",
-    x = "Date",
-    y = "Baseflow Proportion"
-  ) +
-  theme_bw(base_size = 14)
-
-ggsave(
-  file.path(output_dir, "QA_Continuous_Baseflow_Prop.png"),
-  p1,
-  width = 12,
-  height = 10,
-  dpi = 300
-)
-
-# Plot 2: Annual mean baseflow by site and year
-p2 <- ggplot(
-  annual_bf_prop,
-  aes(x = CHS, y = SITECODE, color = waterYear)
-) +
-  geom_point(size = 3, alpha = 0.8) +
-  scale_color_viridis_c() +
-  labs(
-    title = "Annual Mean Baseflow Proportion by Site",
-    x = "Mean Baseflow Proportion",
-    y = "",
-    color = "Water Year"
-  ) +
-  theme_bw(base_size = 14)
-
-ggsave(
-  file.path(output_dir, "QA_WY_Mean_Baseflow_Prop.png"),
-  p2,
-  width = 10,
-  height = 6,
-  dpi = 300
-)
-
-# Plot 3: Distribution of annual mean baseflow by site
-p3 <- ggplot(annual_bf_prop, aes(x = SITECODE, y = CHS)) +
-  geom_boxplot(fill = "lightblue", alpha = 0.6) +
-  geom_jitter(width = 0.2, alpha = 0.5, size = 2) +
-  labs(
-    title = "Distribution of Annual Mean Baseflow by Site",
-    x = "Site",
-    y = "Mean Baseflow Proportion"
-  ) +
-  theme_bw(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-ggsave(
-  file.path(output_dir, "QA_Baseflow_Distribution_by_Site.png"),
-  p3,
-  width = 10,
-  height = 6,
-  dpi = 300
-)
-
-# -----------------------------------------------------------------------------
-# 10. SUMMARY STATISTICS
+# 9. SUMMARY STATISTICS
 # -----------------------------------------------------------------------------
 
 summary_stats <- annual_bf_prop %>%

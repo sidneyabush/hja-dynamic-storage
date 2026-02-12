@@ -9,7 +9,7 @@
 #   - Recession slope: log-log linear regression of -dQ/dt vs Q
 #
 # Inputs: Daily discharge data (HF00402_v14.csv)
-# Outputs: Annual RBI and recession slopes, QA plots
+# Outputs: Annual RBI and recession slopes
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -58,7 +58,7 @@ if (file.exists(config_path)) {
 
 # Use configuration values
 base_dir <- BASE_DATA_DIR
-output_dir <- OUTPUT_DIR
+output_dir <- OUT_MET_DYNAMIC_DIR
 sites_keep <- SITE_ORDER_HYDROMETRIC
 
 # Read & prep data
@@ -157,151 +157,6 @@ palette10 <- c(
   "#332288"
 )
 site_cols <- setNames(lighten(palette10, amount = 0.1), sites_keep)
-
-# 1) Annual RBI by site
-p_RBI <- ggplot(annual_metrics, aes(year, RBI, color = site, fill = site)) +
-  geom_line(linewidth = 0.6) +
-  geom_point(size = 1) +
-  facet_wrap(~site, ncol = 2) +
-  scale_color_manual(values = site_cols, guide = "none") +
-  scale_fill_manual(values = alpha(site_cols, 0.3), guide = "none") +
-  labs(x = "Water Year", y = "Richards–Baker Index") +
-  theme(
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
-    axis.line = element_blank(),
-    strip.background = element_rect(fill = "white", colour = NA),
-    strip.text = element_text(color = "black")
-  )
-ggsave(
-  "RBI_by_site_wy.png",
-  p_RBI,
-  path = output_dir,
-  width = 8,
-  height = 9,
-  units = "in",
-  dpi = 300
-)
-
-# 2) Annual recession‐curve slope by site
-p_slope <- ggplot(annual_metrics, aes(year, slope, color = site, fill = site)) +
-  geom_line(linewidth = 0.6) +
-  geom_point(size = 1) +
-  facet_wrap(~site, ncol = 2) +
-  scale_color_manual(values = site_cols, guide = "none") +
-  scale_fill_manual(values = alpha(site_cols, 0.3), guide = "none") +
-  labs(x = "Water Year", y = "Recession Limb Slope") +
-  theme(
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
-    axis.line = element_blank(),
-    strip.background = element_rect(fill = "white", colour = NA),
-    strip.text = element_text(color = "black")
-  )
-ggsave(
-  "recession_slope_by_site_wy.png",
-  p_slope,
-  path = output_dir,
-  width = 8,
-  height = 9,
-  units = "in",
-  dpi = 300
-)
-
-# 3) Instantaneous recession‐limb curves: both axes in mm/day with slope annotation
-p_curve <- ggplot(
-  recession_clean,
-  aes(x = Q_mm_day, y = abs(slope_mm_day), color = site)
-) +
-  geom_point(alpha = 0.6, size = 1.2) +
-  geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
-  geom_text(
-    data = slopes_df,
-    inherit.aes = FALSE,
-    aes(
-      x = Q_pos_mm,
-      y = slope_pos_mm,
-      label = paste0("slope = ", slope_mm)
-    ),
-    hjust = 0.3,
-    vjust = -9,
-    size = 4,
-    color = "black"
-  ) +
-  facet_wrap(~site, ncol = 2, scales = "fixed") +
-  scale_color_manual(values = site_cols, guide = "none") +
-  labs(
-    x = "Q (mm day⁻¹)",
-    y = "–dQ/dt (mm day⁻¹)"
-  ) +
-  theme(
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
-    axis.line = element_blank(),
-    strip.background = element_rect(fill = "white", colour = NA),
-    strip.text = element_text(color = "black")
-  )
-ggsave(
-  "recession_curve_by_site_mmday.png",
-  p_curve,
-  path = output_dir,
-  width = 8,
-  height = 9,
-  units = "in",
-  dpi = 300
-)
-
-
-summary_site <- annual_metrics %>%
-  select(site, RBI, slope) %>%
-  pivot_longer(
-    cols = c(RBI, slope),
-    names_to = "metric",
-    values_to = "value"
-  ) %>%
-  group_by(site, metric) %>%
-  summarise(
-    mean_val = mean(value, na.rm = TRUE),
-    sd_val = sd(value, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# Replace your facet_wrap line with this to set custom panel titles:
-p_summary <- ggplot(summary_site, aes(x = site, y = mean_val, color = site)) +
-  geom_point(size = 2) +
-  geom_errorbar(
-    aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
-    width = 0.2
-  ) +
-  facet_wrap(
-    ~metric,
-    scales = "free_y",
-    ncol = 1, # stack panels vertically
-    labeller = labeller(
-      metric = c(
-        RBI = "Richards–Baker Index",
-        slope = "Recession Limb Slope"
-      )
-    )
-  ) +
-  scale_color_manual(values = site_cols, guide = "none") +
-  labs(x = NULL, y = "Mean ± 1 SD") +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
-    axis.line = element_blank(),
-    strip.background = element_rect(fill = "white", colour = NA),
-    strip.text = element_text(color = "black")
-  )
-
-p_summary
-
-ggsave(
-  "MeanSD_RBI_RecessionSlope_by_site.png",
-  p_summary,
-  path = output_dir,
-  width = 5,
-  height = 8,
-  units = "in",
-  dpi = 300
-)
 
 # Save annual metrics for aggregation script
 # RCS = Recession Curve Slope (method name)

@@ -17,7 +17,6 @@
 # Outputs:
 #   - DS_Drawdown_Date.csv: Timing of last peak for each site-year
 #   - DS_drawdown_annual.csv: Annual maximum drawdown (mm) per site
-#   - QA plots: Last peak visualization, drawdown timeseries
 #
 # Author: Keira Johnson (original), Sidney Bush (adapted)
 # -----------------------------------------------------------------------------
@@ -70,7 +69,7 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 base_dir    <- BASE_DATA_DIR
-output_dir  <- OUTPUT_DIR
+output_dir  <- OUT_MET_EXTENDED_DIR
 
 discharge_dir <- DISCHARGE_DIR
 storage_dir   <- ET_DIR
@@ -220,58 +219,3 @@ DS_max <- DS_compute %>%
 write.csv(DS_max,
           file.path(output_dir, "DS_drawdown_annual.csv"),
           row.names = FALSE)
-
-# -----------------------------------------------------------------------------
-# 9. QA PLOTS
-# -----------------------------------------------------------------------------
-
-# Plot 1: Last peak timing distribution by site
-p1 <- ggplot(last_peak, aes(x = wyd, y = SITECODE)) +
-  geom_boxplot() +
-  labs(
-    title = "Timing of Last Significant Peak (>8% of annual max)",
-    x = "Water Year Day",
-    y = ""
-  ) +
-  theme_bw(base_size = 14)
-
-ggsave(
-  file.path(output_dir, "QA_LastPeak_DSDrawdown_Timing.png"),
-  p1, width = 10, height = 6, dpi = 300
-)
-
-# Plot 2: Drawdown timeseries by site and year
-p2 <- ggplot(DS_compute, aes(x = get_water_year_day(DATE), y = WB)) +
-  geom_line(aes(color = waterYear, group = waterYear)) +
-  facet_wrap(~SITECODE, ncol = 3, scales = "free_y") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_color_gradient(low = "black", high = "grey88") +
-  labs(
-    title = "Dynamic Storage Drawdown During Summer Recession",
-    x = "Water Year Day",
-    y = "Cumulative Storage Change (mm)",
-    color = "Water Year"
-  ) +
-  theme_classic(base_size = 12)
-
-ggsave(
-  file.path(output_dir, "QA_DS_Drawdown_Timeseries.png"),
-  p2, width = 14, height = 10, dpi = 300
-)
-
-# Plot 3: Annual maximum drawdown distribution
-p3 <- ggplot(DS_max, aes(x = SITECODE, y = WB)) +
-  geom_boxplot(fill = "lightblue") +
-  geom_jitter(width = 0.2, alpha = 0.4, size = 2) +
-  labs(
-    title = "Annual Maximum Dynamic Storage Drawdown by Site",
-    x = "Site",
-    y = "Maximum Drawdown (mm)"
-  ) +
-  theme_bw(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-ggsave(
-  file.path(output_dir, "QA_DS_Drawdown_Distribution.png"),
-  p3, width = 10, height = 6, dpi = 300
-)

@@ -21,7 +21,7 @@
 #   - drainage_area.csv
 #
 # Outputs:
-#   - watersheds_met_data_q.csv: Daily P, T, RH, NR, VPD, Q for all watersheds
+#   - watersheds_met_q.csv: Daily P, T, RH, NR, VPD, Q for all watersheds
 #
 # Methods preserved from original 1440-line script. Helper functions are in
 # helpers/hydromet_utils.R for maintainability.
@@ -81,14 +81,12 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
-output_dir <- file.path(OUTPUT_DIR, "MET")
+output_dir <- OUT_MET_SUPPORT_DIR
 wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
-# Create output directories
+# Create output directory
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(file.path(output_dir, "plots"), showWarnings = FALSE)
-dir.create(file.path(output_dir, "data"), showWarnings = FALSE)
 
 # -----------------------------------------------------------------------------
 # SITE MAPPING: Watershed -> Met Stations
@@ -228,7 +226,7 @@ results <- process_station_groups(
   combined_met_clean,
   station_groups,
   variables,
-  plot_dir = file.path(output_dir, "plots")
+  plot_dir = NULL
 )
 
 interpolated_data <- results$data
@@ -241,11 +239,7 @@ cat("\nInterpolation complete.\n")
 
 cat("Creating watershed-level datasets...\n")
 
-# Legacy RH triplet diagnostics
-triplet_models <- plot_triplet_station_comparisons(
-  interpolated_data,
-  plot_dir = file.path(output_dir, "plots")
-)
+# no diagnostic plot exports in this workflow step
 
 # Variables including VPD
 watershed_variables <- c(variables, "VPD_kPa")
@@ -343,7 +337,7 @@ watershed_datasets[["GSLOOK"]] <- gslook_full_df
 # SAVE OUTPUT
 # -----------------------------------------------------------------------------
 
-output_file <- file.path(output_dir, "data", "watersheds_met_data_q.csv")
+output_file <- file.path(output_dir, "watersheds_met_q.csv")
 write_csv(all_watersheds_data, output_file)
 
 cat("\n=== PROCESSING COMPLETE ===\n")

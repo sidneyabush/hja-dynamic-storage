@@ -16,7 +16,6 @@
 #
 # Outputs:
 #   - stream_thermal_lowflow_metrics_annual.csv
-#   - QA plots showing time series and distributions
 #
 # Author: Sidney Bush
 # Date: 2026-01-23
@@ -71,7 +70,7 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 base_dir      <- BASE_DATA_DIR
-output_dir    <- OUTPUT_DIR
+output_dir    <- OUT_MET_ECO_DIR
 temp_dir      <- STREAM_TEMP_DIR
 discharge_dir <- DISCHARGE_DIR
 
@@ -279,81 +278,7 @@ output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv"
 write_csv(master_metrics, output_file)
 
 # -----------------------------------------------------------------------------
-# 7. QA PLOTS
-# -----------------------------------------------------------------------------
-
-# Plot 1: Time series of 7-day rolling metrics
-p1_temp_data <- temp_rolling %>%
-  filter(year %in% target_years)
-
-if (nrow(p1_temp_data) > 0) {
-  p1_temp <- p1_temp_data %>%
-    ggplot(aes(x = date, y = temp_7d_avg_C, color = site)) +
-    geom_line(alpha = 0.7) +
-    facet_wrap(~site, scales = "free_y", ncol = 2) +
-    labs(
-      title = "7-Day Rolling Average Stream Temperature",
-      subtitle = paste("Calendar Years", min(target_years), "-", max(target_years)),
-      x = "Date",
-      y = "Temperature (°C)",
-      color = "Site"
-    ) +
-    theme(legend.position = "none")
-
-  ggsave(file.path(output_dir, "QA_7day_temp_timeseries.png"),
-         p1_temp, width = 12, height = 10, dpi = 300)
-}
-
-p1_Q_data <- discharge_rolling %>%
-  filter(year %in% target_years, site %in% sites_keep)
-
-if (nrow(p1_Q_data) > 0) {
-  p1_Q <- p1_Q_data %>%
-    ggplot(aes(x = date, y = Q_7d_avg_mm_d, color = site)) +
-    geom_line(alpha = 0.7) +
-    facet_wrap(~site, scales = "free_y", ncol = 2) +
-    labs(
-      title = "7-Day Rolling Average Discharge",
-      subtitle = paste("Calendar Years", min(target_years), "-", max(target_years)),
-      x = "Date",
-      y = "Discharge (mm/d)",
-      color = "Site"
-    ) +
-    theme(legend.position = "none")
-
-  ggsave(file.path(output_dir, "QA_7day_Q_timeseries.png"),
-         p1_Q, width = 12, height = 10, dpi = 300)
-}
-
-# Plot 2: Annual metrics distributions
-p2_data <- master_metrics %>%
-  pivot_longer(
-    cols = c(max_temp_7d_C, min_Q_7d_mm_d, temp_during_min_Q_7d_C, Q5_CV),
-    names_to = "metric",
-    values_to = "value"
-  ) %>%
-  filter(!is.na(value))
-
-if (nrow(p2_data) > 0) {
-  p2 <- p2_data %>%
-    ggplot(aes(x = year, y = value, color = site)) +
-    geom_line() +
-    geom_point() +
-    facet_wrap(~metric, scales = "free_y", ncol = 1) +
-    labs(
-      title = "Annual Thermal & Low-Flow Metrics",
-      x = "Calendar Year",
-      y = "Value",
-      color = "Site"
-    ) +
-    theme_minimal()
-
-  ggsave(file.path(output_dir, "QA_annual_metrics_timeseries.png"),
-         p2, width = 12, height = 10, dpi = 300)
-}
-
-# -----------------------------------------------------------------------------
-# 8. SUMMARY STATISTICS
+# 7. SUMMARY STATISTICS
 # -----------------------------------------------------------------------------
 
 summary_stats <- master_metrics %>%

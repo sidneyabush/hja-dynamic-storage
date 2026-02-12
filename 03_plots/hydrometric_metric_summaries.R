@@ -1,15 +1,15 @@
 # -----------------------------------------------------------------------------
 # Hydrometric Metric Time Series and Site Summaries
 # -----------------------------------------------------------------------------
-# Legacy-style plotting for hydrometric storage metrics.
+# Hydrometric storage metric summaries for supplement figures.
 #
 # Inputs:
-#   - HJA_StorageMetrics_Annual_All.csv
+#   - master_annual.csv
 #
-# Outputs (FIGURES_DIR/Supplement/Hydrometric_Legacy):
-#   - legacy_timeseries_<metric>_by_site_wy.png
-#   - legacy_summary_<metric>_site_mean_sd.png
-#   - legacy_selected_metric_summary_grid.png
+# Outputs (FIGURES_DIR/supp/hydrometric):
+#   - <prefix>_<metric>_annual_ts.png
+#   - <prefix>_<metric>_ave.png
+#   - storage_metric_ave_grid.png
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -50,15 +50,29 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-plot_dir <- file.path(FIGURES_DIR, "Supplement", "Hydrometric_Legacy")
+plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 
-annual_file <- file.path(BASE_DATA_DIR, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+# Remove prior hydrometric summary outputs so this folder reflects current metrics.
+old_files <- c(
+  list.files(plot_dir, pattern = "_annual_ts\\.png$", full.names = TRUE),
+  list.files(plot_dir, pattern = "_ave\\.png$", full.names = TRUE),
+  file.path(plot_dir, "storage_metric_ave_grid.png")
+)
+old_files <- old_files[file.exists(old_files)]
+if (length(old_files) > 0) {
+  unlink(old_files)
+}
+
+annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
 if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUTPUT_DIR, "HJA_StorageMetrics_Annual_All.csv")
+  annual_file <- file.path(OUTPUT_DIR, MASTER_ANNUAL_FILE)
 }
 if (!file.exists(annual_file)) {
-  stop("HJA_StorageMetrics_Annual_All.csv not found.")
+  annual_file <- file.path(BASE_DATA_DIR, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+}
+if (!file.exists(annual_file)) {
+  stop("master_annual.csv not found.")
 }
 
 storage <- read_csv(annual_file, show_col_types = FALSE) %>%
@@ -66,12 +80,20 @@ storage <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-metric_order <- c("FDC", "Q5norm", "RBI", "RCS", "SD", "WB", "CHS")
+metric_order <- c("FDC", "RBI", "RCS", "SD", "WB", "CHS")
 metric_order <- metric_order[metric_order %in% names(storage)]
+
+metric_prefix <- c(
+  FDC = "ds",
+  RBI = "ds",
+  RCS = "ds",
+  SD = "ds",
+  WB = "eds",
+  CHS = "ms"
+)
 
 axis_labels <- c(
   FDC = "Flow Duration Curve Slope",
-  Q5norm = "Normalized Q5",
   RBI = "Richards-Baker Index",
   RCS = "Recession Curve Slope",
   SD = "Storage-Discharge",
@@ -81,12 +103,11 @@ axis_labels <- c(
 
 metric_labels_grid <- c(
   FDC = "A) Flow Duration Curve Slope",
-  Q5norm = "B) Normalized Q5",
-  RBI = "C) Richards-Baker Index",
-  RCS = "D) Recession Curve Slope",
-  SD = "E) Storage-Discharge",
-  WB = "F) Water Balance Drawdown",
-  CHS = "G) Chemical Hydrograph Separation"
+  RBI = "B) Richards-Baker Index",
+  RCS = "C) Recession Curve Slope",
+  SD = "D) Storage-Discharge",
+  WB = "E) Water Balance Drawdown",
+  CHS = "F) Chemical Hydrograph Separation"
 )
 
 site_cols <- SITE_COLORS
@@ -126,7 +147,7 @@ for (m in metric_order) {
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
     geom_line(linewidth = 0.5) +
     geom_point(size = 1) +
-    facet_wrap(~site, ncol = 2, scales = "free_y") +
+    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = "Water Year", y = axis_labels[[m]]) +
     theme(
@@ -137,7 +158,7 @@ for (m in metric_order) {
     )
 
   ggsave(
-    file.path(plot_dir, paste0("legacy_timeseries_", m, "_by_site_wy.png")),
+    file.path(plot_dir, paste0(metric_prefix[[m]], "_", tolower(m), "_annual_ts.png")),
     p_ts,
     width = 8,
     height = 9,
@@ -174,7 +195,7 @@ for (m in metric_order) {
     )
 
   ggsave(
-    file.path(plot_dir, paste0("legacy_summary_", m, "_site_mean_sd.png")),
+    file.path(plot_dir, paste0(metric_prefix[[m]], "_", tolower(m), "_ave.png")),
     p_sum,
     width = 6,
     height = 4,
@@ -209,7 +230,7 @@ if (nrow(summary_sel) > 0) {
     )
 
   ggsave(
-    file.path(plot_dir, "legacy_selected_metric_summary_grid.png"),
+    file.path(plot_dir, "storage_metric_ave_grid.png"),
     p_grid,
     width = 8,
     height = 10,

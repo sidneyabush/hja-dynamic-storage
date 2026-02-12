@@ -85,6 +85,8 @@ site_info <- tribble(
 # -----------------------------------------------------------------------------
 base_dir <- BASE_DATA_DIR
 output_dir <- OUTPUT_DIR
+support_dir <- OUT_MET_SUPPORT_DIR
+if (!dir.exists(support_dir)) dir.create(support_dir, recursive = TRUE)
 
 # -----------------------------------------------------------------------------
 # STORAGE METRICS AVAILABILITY TABLE
@@ -209,7 +211,7 @@ date_ranges <- site_info %>%
 # METEOROLOGICAL VARIABLES SUMMARY
 # -----------------------------------------------------------------------------
 # Load master met dataset
-met_file <- file.path(output_dir, "MET", "data", "watersheds_met_data_q.csv")
+met_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
 if (!file.exists(met_file)) {
   met_file <- file.path(base_dir, "MET", "watersheds_met_data_q.csv")
 }
@@ -267,7 +269,7 @@ if (file.exists(met_file)) {
   # Save met summary
   write.csv(
     met_summary,
-    file.path(output_dir, "Met_Variables_Summary.csv"),
+    file.path(support_dir, "Met_Variables_Summary.csv"),
     row.names = FALSE
   )
 } else {
@@ -322,25 +324,25 @@ comprehensive_summary <- site_info %>%
 # -----------------------------------------------------------------------------
 write.csv(
   site_metric_matrix,
-  file.path(output_dir, "Site_Metric_Availability.csv"),
+  file.path(support_dir, "Site_Metric_Availability.csv"),
   row.names = FALSE
 )
 
 write.csv(
   date_ranges,
-  file.path(output_dir, "Metric_Date_Ranges.csv"),
+  file.path(support_dir, "Metric_Date_Ranges.csv"),
   row.names = FALSE
 )
 
 write.csv(
   comprehensive_summary,
-  file.path(output_dir, "Comprehensive_Data_Summary.csv"),
+  file.path(support_dir, "Comprehensive_Data_Summary.csv"),
   row.names = FALSE
 )
 
 # Save metrics info
 write.csv(
   metrics_info,
-  file.path(output_dir, "Storage_Metrics_Definitions.csv"),
+  file.path(support_dir, "Storage_Metrics_Definitions.csv"),
   row.names = FALSE
 )

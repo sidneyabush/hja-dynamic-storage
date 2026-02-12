@@ -10,7 +10,7 @@
 #   - FDC slope: slope of log10(Q) vs exceedance probability (5th-95th)
 #
 # Inputs: Daily water balance data with P, Q, ET
-# Outputs: Annual storage depths and FDC slopes, QA plots
+# Outputs: Annual storage depths and FDC slopes
 # -----------------------------------------------------------------------------
 
 # 0) Load libraries & clear environment
@@ -52,7 +52,7 @@ if (file.exists(config_path)) {
 
 # 1) Directories & input
 data_dir   <- ET_DIR
-output_dir <- OUTPUT_DIR
+output_dir <- OUT_MET_DYNAMIC_DIR
 input_file <- file.path(data_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
 stopifnot(file.exists(input_file))
 
@@ -316,45 +316,3 @@ write.csv(
   file.path(output_dir, "StorageDischarge_FDC_Annual.csv"),
   row.names = FALSE
 )
-
-# 10) Quick plot of annual dynamic storage depths vs. water-year
-library(ggplot2)
-
-# Save plots to PDF in Box output directory
-pdf(file.path(output_dir, "QA_Storage_Timeseries.pdf"), width = 14, height = 8)
-
-ggplot(annual_vol, aes(x = wateryear, y = S_annual_mm, color = site, group = site)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    title = "Annual Dynamic Storage Depth by Water-Year",
-    x     = "Water Year",
-    y     = "Storage Depth (mm)",
-    color = "Site"
-  ) +
-  theme_minimal()
-
-# reshape to long format
-annual_long <- annual_vol %>%
-  select(site, wateryear, S_annual_mm, S_high_med_mm, S_med_low_mm) %>%
-  pivot_longer(
-    cols = starts_with("S_"),
-    names_to  = "metric",
-    values_to = "storage_mm"
-  )
-
-# facet by metric
-ggplot(annual_long, aes(x = wateryear, y = storage_mm, color = site)) +
-  geom_line() +
-  facet_wrap(~ metric, scales = "free_y") +
-  labs(x = "Water Year", y = "Storage (mm)", color = "Site") +
-  theme_minimal()
-
-ggplot(annual_long, aes(x = wateryear, y = storage_mm,
-                        linetype = metric, color = metric)) +
-  geom_line() +
-  facet_wrap(~ site) +
-  labs(x = "Water Year", y = "Storage (mm)") +
-  theme_classic()
-
-dev.off()

@@ -88,10 +88,14 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 base_dir    <- BASE_DATA_DIR
-output_dir  <- OUTPUT_DIR
+dynamic_dir <- OUT_MET_DYNAMIC_DIR
+mobile_dir  <- OUT_MET_MOBILE_DIR
+extended_dir <- OUT_MET_EXTENDED_DIR
+eco_dir <- OUT_MET_ECO_DIR
+master_dir <- OUT_MASTER_DIR
 
 # Create output directory if needed
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
 
 # -----------------------------------------------------------------------------
 # 2. LOAD ALL METRIC FILES
@@ -101,7 +105,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # RBI & Recession Slope (RBI, RCS)
 rbi_recession <- read_csv(
-  file.path(output_dir, "RBI_RecessionCurve_Annual.csv"),
+  file.path(dynamic_dir, "RBI_RecessionCurve_Annual.csv"),
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
@@ -109,7 +113,7 @@ rbi_recession <- read_csv(
 
 # Storage-Discharge, FDC, Q percentiles (SD, FDC)
 storage_fdc <- read_csv(
-  file.path(output_dir, "StorageDischarge_FDC_Annual.csv"),
+  file.path(dynamic_dir, "StorageDischarge_FDC_Annual.csv"),
   show_col_types = FALSE
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
@@ -119,7 +123,7 @@ storage_fdc <- read_csv(
 
 # Chemical hydrograph separation (CHS = mean baseflow fraction)
 baseflow <- read_csv(
-  file.path(output_dir, "Annual_GW_Prop.csv"),
+  file.path(mobile_dir, "Annual_GW_Prop.csv"),
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
@@ -131,7 +135,7 @@ baseflow <- read_csv(
 
 # Water Balance (WB = extended dynamic storage)
 wb_storage <- read_csv(
-  file.path(output_dir, "DS_drawdown_annual.csv"),
+  file.path(extended_dir, "DS_drawdown_annual.csv"),
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
@@ -143,7 +147,7 @@ wb_storage <- read_csv(
 
 # Stream temperature & low-flow metrics
 thermal_lowflow <- read_csv(
-  file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv"),
+  file.path(eco_dir, "stream_thermal_lowflow_metrics_annual.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(
@@ -170,19 +174,9 @@ HJA_annual <- rbi_recession %>%
   arrange(site, year)
 
 # Save annual metrics
-legacy_annual_path <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
-try(
-  write.csv(HJA_annual, legacy_annual_path, row.names = FALSE),
-  silent = TRUE
-)
 write.csv(HJA_annual,
-          file.path(output_dir, MASTER_ANNUAL_FILE),
+          file.path(master_dir, MASTER_ANNUAL_FILE),
           row.names = FALSE)
-write.csv(HJA_annual,
-          file.path(output_dir, "HJA_Stor_Temp_Yr.csv"),
-          row.names = FALSE)
-
-cat("Saved: HJA_StorageMetrics_Annual_All.csv\n")
 
 # -----------------------------------------------------------------------------
 # 4. CALCULATE SITE AVERAGES
@@ -245,13 +239,8 @@ HJA_avg <- HJA_avg %>%
 
 # Save site-averaged metrics with all data
 write.csv(HJA_avg,
-          file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
+          file.path(master_dir, MASTER_SITE_FILE),
           row.names = FALSE)
-write.csv(HJA_avg,
-          file.path(output_dir, MASTER_SITE_FILE),
-          row.names = FALSE)
-
-cat("Saved: HJA_Ave_StorageMetrics_CatCharacter.csv\n")
 
 # -----------------------------------------------------------------------------
 # 7. SAMPLE SIZE TRACKING
@@ -293,34 +282,6 @@ sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
 
 # Save sample size table
-write.csv(sample_sizes,
-          file.path(output_dir, "Sample_Size_by_Metric.csv"),
-          row.names = FALSE)
-
-cat("Saved: Sample_Size_by_Metric.csv\n")
-
-# Print summary
-cat("\n=== SAMPLE SIZE SUMMARY ===\n\n")
-cat("Storage Type | Metric | Sites | Total Obs\n")
-cat("-------------|--------|-------|----------\n")
-cat(sprintf("Dynamic      | RBI    | %d     | %d\n",
-            sum(sample_sizes$n_RBI > 0), sum(sample_sizes$n_RBI)))
-cat(sprintf("Dynamic      | RCS    | %d     | %d\n",
-            sum(sample_sizes$n_RCS > 0), sum(sample_sizes$n_RCS)))
-cat(sprintf("Dynamic      | FDC    | %d     | %d\n",
-            sum(sample_sizes$n_FDC > 0), sum(sample_sizes$n_FDC)))
-cat(sprintf("Dynamic      | SD     | %d     | %d\n",
-            sum(sample_sizes$n_SD > 0), sum(sample_sizes$n_SD)))
-cat(sprintf("Mobile       | CHS    | %d     | %d\n",
-            sum(sample_sizes$n_CHS > 0), sum(sample_sizes$n_CHS)))
-cat(sprintf("Mobile       | MTT    | %d     | (site-level)\n",
-            sum(sample_sizes$has_MTT)))
-cat(sprintf("Mobile       | Fyw    | %d     | (site-level)\n",
-            sum(sample_sizes$has_Fyw)))
-cat(sprintf("Mobile       | DR     | %d     | (site-level)\n",
-            sum(sample_sizes$has_DR)))
-cat(sprintf("Extended     | WB     | %d     | %d\n",
-            sum(sample_sizes$n_WB > 0), sum(sample_sizes$n_WB)))
 
 # -----------------------------------------------------------------------------
 # 8. QA: CORRELATION MATRIX (STORAGE METRICS ONLY)
@@ -330,81 +291,8 @@ cat(sprintf("Extended     | WB     | %d     | %d\n",
 #   Dynamic: RBI, RCS, FDC, SD
 #   Mobile: CHS, MTT, Fyw, DR
 #   Extended Dynamic: WB
-storage_vars <- c(
-  "RCS_mean",   # RCS - Recession Curve Slope - Dynamic
-  "RBI_mean",   # RBI - Richards-Baker Index - Dynamic
-  "FDC_mean",   # FDC - Flow Duration Curve - Dynamic
-  "SD_mean",    # SD  - Storage-Discharge - Dynamic
-  "CHS_mean",   # CHS - Chemical Hydrograph Separation - Mobile
-  "MTT",        # MTT - Mean Transit Time - Mobile (site-level)
-  "Fyw",        # Fyw - Young Water Fraction - Mobile (site-level)
-  "DR",         # DR  - Damping Ratio - Mobile (site-level)
-  "WB_mean"     # WB  - Water Balance - Extended Dynamic
-)
-
-# Filter to available columns
-available_vars <- storage_vars[storage_vars %in% colnames(HJA_avg)]
-
-cor_data <- HJA_avg %>%
-  select(all_of(available_vars)) %>%
-  filter(complete.cases(.))
-
-if (nrow(cor_data) >= 3) {
-  cor_storage <- cor(cor_data, use = "pairwise.complete.obs")
-
-  p_cor <- ggcorrplot(cor_storage,
-             hc.order = FALSE,
-             type = "lower",
-             outline.col = "white",
-             lab = TRUE,
-             lab_size = 2.5) +
-    labs(title = "Storage Metrics Correlation Matrix (Site Averages)")
-
-  ggsave(
-    file.path(output_dir, "QA_Storage_Metrics_CorrPlot.png"),
-    p_cor, width = 12, height = 12, dpi = 300
-  )
-  cat("\nSaved: QA_Storage_Metrics_CorrPlot.png\n")
-}
-
 # -----------------------------------------------------------------------------
-# 9. QA: SCATTERPLOT MATRIX (KEY STORAGE METRICS)
-# -----------------------------------------------------------------------------
-
-no_se_smoother <- function(data, mapping, ...) {
-  ggplot(data = data, mapping = mapping) +
-    geom_smooth(se = FALSE, method = "lm", color = "black", ...) +
-    geom_point()
-}
-
-# Subset to key storage metrics (exclude _mean suffix for cleaner labels)
-key_vars <- c("RBI_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean", "DR")
-key_vars <- key_vars[key_vars %in% colnames(HJA_avg)]
-
-key_metrics <- HJA_avg %>%
-  select(all_of(key_vars)) %>%
-  rename_with(~gsub("_mean$", "", .x))
-
-if (ncol(key_metrics) >= 3) {
-  tryCatch({
-    p_pairs <- ggpairs(
-      key_metrics,
-      lower = list(continuous = wrap("smooth", se = FALSE, method = "lm"))
-    ) +
-      theme_bw()
-
-    ggsave(
-      file.path(output_dir, "QA_Storage_Metrics_Scatterplot_Matrix.png"),
-      p_pairs, width = 14, height = 14, dpi = 300
-    )
-    cat("Saved: QA_Storage_Metrics_Scatterplot_Matrix.png\n")
-  }, error = function(e) {
-    cat("Warning: Could not create scatterplot matrix:", e$message, "\n")
-  })
-}
-
-# -----------------------------------------------------------------------------
-# 10. FINAL SUMMARY
+# 8. FINAL SUMMARY
 # -----------------------------------------------------------------------------
 
 cat("\n=== AGGREGATION COMPLETE ===\n")

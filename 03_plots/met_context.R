@@ -6,7 +6,7 @@
 #          for precipitation, temperature, and SWE at the CENMET station.
 #
 # Output:
-#   - Fig_Met_Context.png/pdf: 2x3 panel figure
+#   - met_context.png/pdf: 2x3 panel figure
 #     Top row: Monthly climatology (median with IQR)
 #     Bottom row: Annual anomalies relative to WY mean
 #   - Panel labels: a)–f)
@@ -67,7 +67,7 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
-output_dir <- file.path(FIGURES_DIR, "Main_Text")
+output_dir <- file.path(FIGURES_DIR, "main")
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
@@ -324,7 +324,7 @@ fig_combined <- (p1 | p2 | p3) /
   )
 
 ggsave(
-  file.path(output_dir, "Fig_Met_Context.png"),
+  file.path(output_dir, "met_context.png"),
   fig_combined,
   width = 12,
   height = 7,
@@ -332,7 +332,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(output_dir, "Fig_Met_Context.pdf"),
+  file.path(output_dir, "met_context.pdf"),
   fig_combined,
   width = 12,
   height = 7

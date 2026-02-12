@@ -1,15 +1,18 @@
 # -----------------------------------------------------------------------------
-# Catchment Controls MLR Plots
+# Watershed Controls MLR Plots
 # -----------------------------------------------------------------------------
-# This script makes standalone plots for catchment-controls MLR results.
+# This script makes standalone plots for watershed-controls MLR results.
 #
 # Inputs:
-#   - MLR_Storage_Catchment_Results.csv
-#   - MLR_Storage_Catchment_ModelSummary.csv
+#   - catch_chars_storage_mlr_results.csv
+#   - catch_chars_storage_mlr_summary.csv
 #
 # Outputs:
-#   - Catchment_Controls_MLR_Beta_Weights.png
-#   - Catchment_Controls_MLR_Beta_Weights.pdf
+#   - catch_chars_storage_mlr_beta.png
+#   - catch_chars_storage_mlr_beta.pdf
+#   - catch_chars_storage_mlr_model_perf.csv
+#   - catch_chars_storage_mlr_coef.csv
+#   - catch_chars_storage_mlr_table.csv
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -46,29 +49,57 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-output_dir <- OUTPUT_DIR
-plot_dir <- file.path(FIGURES_DIR, "Statistical")
+output_dir <- OUT_STATS_MLR_CATCH_CHARS_DIR
+plot_dir <- file.path(FIGURES_DIR, "supp", "stats", "mlr")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
+table_dir <- OUT_TABLES_MLR_DIR
+if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
-results_file <- file.path(output_dir, "MLR_Storage_Catchment_Results.csv")
-summary_file <- file.path(output_dir, "MLR_Storage_Catchment_ModelSummary.csv")
+results_file <- file.path(output_dir, "catch_chars_storage_mlr_results.csv")
+summary_file <- file.path(output_dir, "catch_chars_storage_mlr_summary.csv")
 
-if (!file.exists(results_file)) {
-  stop("Missing file: MLR_Storage_Catchment_Results.csv")
-}
-if (!file.exists(summary_file)) {
-  stop("Missing file: MLR_Storage_Catchment_ModelSummary.csv")
-}
+if (!file.exists(results_file)) stop("Missing file: catch_chars_storage_mlr_results.csv")
+if (!file.exists(summary_file)) stop("Missing file: catch_chars_storage_mlr_summary.csv")
 
 mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
+
+perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AIC", "AICc", "N")
+perf_cols <- perf_cols[perf_cols %in% names(mlr_summary)]
+perf_df <- mlr_summary %>%
+  select(all_of(perf_cols)) %>%
+  arrange(Outcome)
+
+coef_cols <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF")
+coef_cols <- coef_cols[coef_cols %in% names(mlr_results)]
+coef_df <- mlr_results %>%
+  select(all_of(coef_cols)) %>%
+  arrange(Outcome, desc(abs(Beta_Std)))
+
+write_csv(
+  perf_df,
+  file.path(table_dir, "catch_chars_storage_mlr_model_perf.csv")
+)
+
+write_csv(
+  coef_df,
+  file.path(table_dir, "catch_chars_storage_mlr_coef.csv")
+)
+
+results_table <- coef_df %>%
+  left_join(perf_df, by = "Outcome") %>%
+  arrange(Outcome, desc(abs(Beta_Std)))
+
+write_csv(
+  results_table,
+  file.path(table_dir, "catch_chars_storage_mlr_table.csv")
+)
 
 beta_plot_df <- mlr_results %>%
   filter(!is.na(Beta_Std)) %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    sig_label = ifelse(!is.na(p_value) & p_value < 0.05, "*", ""),
-    beta_label = paste0(sprintf("%.2f", Beta_Std), sig_label)
+    beta_label = sprintf("%.2f", Beta_Std)
   )
 
 adj_r2_lookup <- mlr_summary %>%
@@ -112,7 +143,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   )
 
 ggsave(
-  file.path(plot_dir, "Catchment_Controls_MLR_Beta_Weights.png"),
+  file.path(plot_dir, "catch_chars_storage_mlr_beta.png"),
   p_beta,
   width = 11,
   height = 7,
@@ -120,7 +151,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(plot_dir, "Catchment_Controls_MLR_Beta_Weights.pdf"),
+  file.path(plot_dir, "catch_chars_storage_mlr_beta.pdf"),
   p_beta,
   width = 11,
   height = 7

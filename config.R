@@ -30,13 +30,11 @@ if (USE_LOCAL_DATA) {
   # Local data paths (relative to repo root)
   BASE_DATA_DIR <- file.path(REPO_DIR, "data")
   OUTPUT_DIR <- file.path(REPO_DIR, "outputs")
-  FIGURES_DIR <- file.path(REPO_DIR, "figures")
 } else {
   # Box cloud storage paths (update these for your system)
   BOX_BASE_DIR <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
   BASE_DATA_DIR <- file.path(BOX_BASE_DIR, "03_Data")
   OUTPUT_DIR <- file.path(BOX_BASE_DIR, "05_Outputs")
-  FIGURES_DIR <- file.path(BOX_BASE_DIR, "Final_Workflow", "03_Figures")
 }
 
 # Keep current workflow outputs grouped under one subfolder in 05_Outputs.
@@ -47,6 +45,9 @@ if (USE_CONSOLIDATED_OUTPUT_SUBDIR) {
   OUTPUT_DIR <- file.path(OUTPUT_DIR, CONSOLIDATED_OUTPUT_SUBDIR)
 }
 
+# Keep all figures under outputs for one unified tree.
+FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
+
 # Optional path overrides for sandboxed/local runs
 BASE_DATA_DIR_OVERRIDE <- Sys.getenv("HJA_BASE_DATA_DIR", unset = "")
 OUTPUT_DIR_OVERRIDE <- Sys.getenv("HJA_OUTPUT_DIR", unset = "")
@@ -55,6 +56,7 @@ FIGURES_DIR_OVERRIDE <- Sys.getenv("HJA_FIGURES_DIR", unset = "")
 if (nzchar(BASE_DATA_DIR_OVERRIDE)) BASE_DATA_DIR <- BASE_DATA_DIR_OVERRIDE
 if (nzchar(OUTPUT_DIR_OVERRIDE)) OUTPUT_DIR <- OUTPUT_DIR_OVERRIDE
 if (nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- FIGURES_DIR_OVERRIDE
+if (!nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
 
 # Subdirectories
 DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "Q")
@@ -67,6 +69,46 @@ MET_DIR <- file.path(BASE_DATA_DIR, "MET")
 # Create output directory if it doesn't exist
 if (!dir.exists(OUTPUT_DIR)) {
   dir.create(OUTPUT_DIR, recursive = TRUE)
+}
+
+# Organized output directories
+OUT_METRICS_DIR <- file.path(OUTPUT_DIR, "metrics")
+OUT_MET_DYNAMIC_DIR <- file.path(OUT_METRICS_DIR, "dynamic")
+OUT_MET_MOBILE_DIR <- file.path(OUT_METRICS_DIR, "mobile")
+OUT_MET_EXTENDED_DIR <- file.path(OUT_METRICS_DIR, "extended_dynamic")
+OUT_MET_ECO_DIR <- file.path(OUT_METRICS_DIR, "eco")
+OUT_MET_SUPPORT_DIR <- file.path(OUT_METRICS_DIR, "support")
+
+OUT_MASTER_DIR <- file.path(OUTPUT_DIR, "master")
+
+OUT_STATS_DIR <- file.path(OUTPUT_DIR, "stats")
+OUT_STATS_ANOVA_DIR <- file.path(OUT_STATS_DIR, "anova_tukey")
+OUT_STATS_PCA_DIR <- file.path(OUT_STATS_DIR, "pca")
+OUT_STATS_MLR_CATCH_CHARS_DIR <- file.path(OUT_STATS_DIR, "mlr_catch_chars_storage")
+OUT_STATS_MLR_ECO_DIR <- file.path(OUT_STATS_DIR, "mlr_storage_eco")
+
+OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")
+OUT_TABLES_MLR_DIR <- file.path(OUT_TABLES_DIR, "mlr")
+
+for (d in c(
+  OUT_METRICS_DIR,
+  OUT_MET_DYNAMIC_DIR,
+  OUT_MET_MOBILE_DIR,
+  OUT_MET_EXTENDED_DIR,
+  OUT_MET_ECO_DIR,
+  OUT_MET_SUPPORT_DIR,
+  OUT_MASTER_DIR,
+  OUT_STATS_DIR,
+  OUT_STATS_ANOVA_DIR,
+  OUT_STATS_PCA_DIR,
+  OUT_STATS_MLR_CATCH_CHARS_DIR,
+  OUT_STATS_MLR_ECO_DIR,
+  OUT_TABLES_DIR,
+  OUT_TABLES_MLR_DIR
+)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
 }
 
 # -----------------------------------------------------------------------------

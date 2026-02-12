@@ -65,7 +65,7 @@ if (file.exists(config_path)) {
 # -----------------------------------------------------------------------------
 
 base_dir <- BASE_DATA_DIR
-output_dir <- OUTPUT_DIR
+output_dir <- OUT_MET_MOBILE_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) {
