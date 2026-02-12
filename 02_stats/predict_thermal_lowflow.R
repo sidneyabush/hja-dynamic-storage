@@ -59,6 +59,7 @@ file_prefix <- "storage_eco_mlr"
 
 MODEL_MIN_N <- 20
 VIF_THRESHOLD <- 10
+LOW_N_THRESHOLD_ECO <- 25
 ALLOW_LAVA_AND_ASH_TOGETHER <- FALSE
 ALLOW_TOTAL_AND_YOUNG_LS_TOGETHER <- FALSE
 
@@ -118,7 +119,9 @@ if (length(missing_response_vars) > 0) {
 }
 response_vars <- response_vars_required
 
-storage_predictors_all <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "MTT", "Fyw", "DR")
+# Use storage predictors and let model-level sample size filtering control
+# whether a predictor can be retained for a given response.
+storage_predictors_all <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "DR")
 storage_predictors_all <- storage_predictors_all[storage_predictors_all %in% names(merged_data)]
 
 geology_predictors <- c("Lava1_per", "Lava2_per", "Ash_Per")
@@ -190,10 +193,17 @@ fit_one_model <- function(df_in, response, predictors,
       p_vals <- sapply(seq_len(elbow_k), function(i) {
         suppressWarnings(cor.test(x_vec, pc_scores[, i])$p.value)
       })
+      sig_pc_idx <- which(is.finite(p_vals) & p_vals < p_cut)
+      sig_pc_txt <- if (length(sig_pc_idx) > 0) {
+        paste0("PC", sig_pc_idx, collapse = ", ")
+      } else {
+        NA_character_
+      }
       tibble(
         Predictor = v,
         min_p = min(p_vals, na.rm = TRUE),
-        significant_any_pc = any(p_vals < p_cut, na.rm = TRUE)
+        significant_any_pc = any(p_vals < p_cut, na.rm = TRUE),
+        significant_pcs = sig_pc_txt
       )
     })
     sig_tbl <- bind_rows(sig_rows)
@@ -332,6 +342,27 @@ fit_one_model <- function(df_in, response, predictors,
   }
 
   if (enforce_correlated_exclusions) {
+    fit_candidate_from_retained <- function(retained_set) {
+      if (length(retained_set) == 0) return(NULL)
+      lm_next <- tryCatch(
+        lm(as.formula(paste(response, "~", paste(retained_set, collapse = " + "))), data = model_df),
+        error = function(e) NULL
+      )
+      if (is.null(lm_next)) return(NULL)
+      lm_next <- tryCatch(stepAIC(lm_next, direction = "backward", trace = 0), error = function(e) lm_next)
+      retained_next <- setdiff(names(coef(lm_next)), "(Intercept)")
+      if (length(retained_next) == 0) return(NULL)
+      n_obs_next <- nrow(model_df)
+      k_params_next <- length(coef(lm_next)) + 1
+      aic_next <- AIC(lm_next)
+      aicc_next <- if ((n_obs_next - k_params_next - 1) > 0) {
+        aic_next + (2 * k_params_next * (k_params_next + 1)) / (n_obs_next - k_params_next - 1)
+      } else {
+        Inf
+      }
+      list(model = lm_next, aicc = aicc_next)
+    }
+
     repeat {
       retained_iter <- setdiff(names(coef(lm_aic)), "(Intercept)")
       has_ash <- "Ash_Per" %in% retained_iter
@@ -339,26 +370,29 @@ fit_one_model <- function(df_in, response, predictors,
       has_ls_both <- all(c("Landslide_Total", "Landslide_Young") %in% retained_iter)
       if (!(has_ash && has_lava) && !has_ls_both) break
 
-      drop_var <- NULL
       if (has_ash && has_lava) {
-        drop_var <- "Ash_Per"
+        drop_options <- c("Ash_Per")
+        if ("Lava1_per" %in% retained_iter) drop_options <- c(drop_options, "Lava1_per")
+        if ("Lava2_per" %in% retained_iter) drop_options <- c(drop_options, "Lava2_per")
+        cand_models <- lapply(drop_options, function(v) {
+          retained_next <- setdiff(retained_iter, v)
+          fit_candidate_from_retained(retained_next)
+        })
+        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
+        if (length(valid_idx) == 0) break
+        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
+        lm_aic <- cand_models[[best_idx]]$model
       } else if (has_ls_both) {
-        vif_vals_iter <- tryCatch(vif(lm_aic), error = function(e) NULL)
-        if (!is.null(vif_vals_iter) && all(c("Landslide_Total", "Landslide_Young") %in% names(vif_vals_iter))) {
-          drop_var <- names(which.max(vif_vals_iter[c("Landslide_Total", "Landslide_Young")]))
-        } else {
-          drop_var <- "Landslide_Total"
-        }
+        drop_options <- c("Landslide_Total", "Landslide_Young")
+        cand_models <- lapply(drop_options, function(v) {
+          retained_next <- setdiff(retained_iter, v)
+          fit_candidate_from_retained(retained_next)
+        })
+        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
+        if (length(valid_idx) == 0) break
+        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
+        lm_aic <- cand_models[[best_idx]]$model
       }
-
-      if (is.null(drop_var)) break
-      retained_next <- setdiff(retained_iter, drop_var)
-      if (length(retained_next) == 0) return(NULL)
-      lm_next <- lm(
-        as.formula(paste(response, "~", paste(retained_next, collapse = " + "))),
-        data = model_df
-      )
-      lm_aic <- tryCatch(stepAIC(lm_next, direction = "backward", trace = 0), error = function(e) lm_next)
     }
   }
 
@@ -519,6 +553,12 @@ strict <- run_method(
   use_iterative_vif = TRUE,
   enforce_correlated_exclusions = TRUE
 )
+
+strict$summary <- strict$summary %>%
+  mutate(
+    low_n_flag = n < LOW_N_THRESHOLD_ECO,
+    confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
+  )
 
 model_results_combined <- strict$results
 model_summary_combined <- strict$summary

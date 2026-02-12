@@ -78,7 +78,11 @@ output_dir <- OUT_STATS_MLR_CATCH_CHARS_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 file_prefix <- "catch_chars_storage_mlr"
 
+# Remove deprecated PCA-screening output for catchment-characteristics MLR.
+unlink(file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")))
+
 VIF_THRESHOLD <- 10
+LOW_N_THRESHOLD_CATCH <- 10
 
 env_vif_threshold <- suppressWarnings(as.numeric(Sys.getenv("HJA_MLR_VIF_THRESHOLD", unset = "")))
 if (!is.na(env_vif_threshold) && is.finite(env_vif_threshold) && env_vif_threshold > 0) {
@@ -99,6 +103,10 @@ HJA_Ave <- read_csv(
   show_col_types = FALSE
 ) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
+
+if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) {
+  HJA_Ave <- HJA_Ave %>% mutate(basin_slope = Slope_mean)
+}
 
 # -----------------------------------------------------------------------------
 # 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
@@ -128,7 +136,7 @@ outcome_vars <- c(
 # Selected key predictors based on theoretical importance
 
 predictor_vars <- c(
-  "Slope_mean",
+  "basin_slope",
   "Harvest",
   "Landslide_Total",
   "Landslide_Young",
@@ -147,94 +155,6 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
                              use_iterative_vif = FALSE,
                              vif_threshold = 10,
                              enforce_correlated_exclusions = FALSE) {
-  pca_screen_predictors <- function(df, predictor_names, conf_level = 0.99, collinear_cutoff = 0.7) {
-    p_use <- predictor_names[predictor_names %in% names(df)]
-    if (length(p_use) <= 1) {
-      return(list(kept = p_use, detail = tibble(), retained_pcs = NA_integer_))
-    }
-
-    x <- df %>% dplyr::select(all_of(p_use)) %>% na.omit()
-    if (nrow(x) < 6) {
-      return(list(kept = p_use, detail = tibble(), retained_pcs = NA_integer_))
-    }
-
-    x_scaled <- scale(x)
-    pca_obj <- prcomp(x_scaled, center = TRUE, scale. = TRUE)
-    eig <- pca_obj$sdev^2
-    var_exp <- eig / sum(eig)
-
-    # Scree elbow via max distance to line between first and last eigenvalue.
-    k_idx <- seq_along(eig)
-    line_y <- eig[1] + (eig[length(eig)] - eig[1]) * (k_idx - 1) / (length(eig) - 1)
-    elbow_k <- which.max(eig - line_y)
-    elbow_k <- max(1, elbow_k)
-
-    pc_scores <- pca_obj$x[, seq_len(elbow_k), drop = FALSE]
-    p_cut <- 1 - conf_level
-
-    sig_rows <- lapply(p_use, function(v) {
-      x_vec <- as.numeric(x_scaled[, v])
-      p_vals <- sapply(seq_len(elbow_k), function(i) {
-        suppressWarnings(cor.test(x_vec, pc_scores[, i])$p.value)
-      })
-      tibble(
-        Predictor = v,
-        min_p = min(p_vals, na.rm = TRUE),
-        significant_any_pc = any(p_vals < p_cut, na.rm = TRUE)
-      )
-    })
-    sig_tbl <- bind_rows(sig_rows)
-    keep_sig <- sig_tbl %>%
-      filter(significant_any_pc) %>%
-      pull(Predictor)
-    if (length(keep_sig) == 0) {
-      keep_sig <- p_use
-    }
-
-    loadings <- pca_obj$rotation[keep_sig, seq_len(elbow_k), drop = FALSE]
-    w <- var_exp[seq_len(elbow_k)]
-    score_tbl <- tibble(
-      Predictor = keep_sig,
-      pca_score = as.numeric(loadings^2 %*% w)
-    )
-
-    keep_final <- keep_sig
-    drop_tbl <- tibble()
-    repeat {
-      if (length(keep_final) <= 1) break
-      cm <- suppressWarnings(cor(x[, keep_final, drop = FALSE], use = "pairwise.complete.obs"))
-      cm[lower.tri(cm, diag = TRUE)] <- NA_real_
-      max_corr <- max(abs(cm), na.rm = TRUE)
-      if (!is.finite(max_corr) || max_corr < collinear_cutoff) break
-
-      idx <- which(abs(cm) == max_corr, arr.ind = TRUE)[1, ]
-      a <- colnames(cm)[idx[2]]
-      b <- rownames(cm)[idx[1]]
-      sa <- score_tbl$pca_score[match(a, score_tbl$Predictor)]
-      sb <- score_tbl$pca_score[match(b, score_tbl$Predictor)]
-      drop_var <- ifelse(sa >= sb, b, a)
-      keep_var <- ifelse(sa >= sb, a, b)
-
-      drop_tbl <- bind_rows(drop_tbl, tibble(
-        dropped = drop_var,
-        kept = keep_var,
-        corr_abs = max_corr,
-        reason = "collinear_pair"
-      ))
-      keep_final <- setdiff(keep_final, drop_var)
-    }
-
-    dropped_vars <- if ("dropped" %in% names(drop_tbl)) drop_tbl$dropped else character(0)
-    detail <- sig_tbl %>%
-      left_join(score_tbl, by = "Predictor") %>%
-      mutate(
-        retained_after_pca = Predictor %in% keep_final,
-        drop_reason = ifelse(Predictor %in% dropped_vars, "collinear_pair", NA_character_)
-      )
-
-    list(kept = keep_final, detail = detail, retained_pcs = elbow_k)
-  }
-
   calc_loocv_stats <- function(model_formula, df) {
     n <- nrow(df)
     if (n < 6) {
@@ -272,12 +192,6 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
     na.omit()
 
   if (nrow(model_df) < 5) {
-    return(NULL)
-  }
-
-  pca_filter <- pca_screen_predictors(model_df, predictor_keep)
-  predictor_keep <- pca_filter$kept
-  if (length(predictor_keep) == 0) {
     return(NULL)
   }
 
@@ -335,6 +249,27 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
 
   # Optional enforcement of known high-correlation predictor exclusions (Perry et al., 2025).
   if (enforce_correlated_exclusions) {
+    fit_candidate_from_retained <- function(retained_set) {
+      if (length(retained_set) == 0) return(NULL)
+      lm_next <- tryCatch(
+        lm(as.formula(paste(outcome, "~", paste(retained_set, collapse = " + "))), data = model_df),
+        error = function(e) NULL
+      )
+      if (is.null(lm_next)) return(NULL)
+      lm_next <- tryCatch(stepAIC(lm_next, direction = "backward", trace = 0), error = function(e) lm_next)
+      retained_next <- setdiff(names(coef(lm_next)), "(Intercept)")
+      if (length(retained_next) == 0) return(NULL)
+      n_obs_next <- nrow(model_df)
+      k_params_next <- length(coef(lm_next)) + 1
+      aic_next <- AIC(lm_next)
+      aicc_next <- if ((n_obs_next - k_params_next - 1) > 0) {
+        aic_next + (2 * k_params_next * (k_params_next + 1)) / (n_obs_next - k_params_next - 1)
+      } else {
+        Inf
+      }
+      list(model = lm_next, aicc = aicc_next)
+    }
+
     repeat {
       retained_vars <- setdiff(names(coef(lm_aic)), "(Intercept)")
       has_ash <- "Ash_Per" %in% retained_vars
@@ -345,27 +280,32 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
         break
       }
 
-      drop_var <- NULL
       if (has_ash && has_lava) {
-        # Prefer lava representation over ash when both are retained.
-        drop_var <- "Ash_Per"
-      } else if (has_ls_both) {
-        vif_vals_iter <- tryCatch(vif(lm_aic), error = function(e) NULL)
-        if (!is.null(vif_vals_iter) && all(c("Landslide_Total", "Landslide_Young") %in% names(vif_vals_iter))) {
-          drop_var <- names(which.max(vif_vals_iter[c("Landslide_Total", "Landslide_Young")]))
-        } else {
-          drop_var <- "Landslide_Total"
-        }
-      }
+        # Resolve Ash/Lava collinearity by selecting the lowest-AICc candidate.
+        drop_options <- c("Ash_Per")
+        if ("Lava1_per" %in% retained_vars) drop_options <- c(drop_options, "Lava1_per")
+        if ("Lava2_per" %in% retained_vars) drop_options <- c(drop_options, "Lava2_per")
 
-      if (is.null(drop_var)) break
-      retained_next <- setdiff(retained_vars, drop_var)
-      if (length(retained_next) == 0) return(NULL)
-      lm_next <- lm(
-        as.formula(paste(outcome, "~", paste(retained_next, collapse = " + "))),
-        data = model_df
-      )
-      lm_aic <- tryCatch(stepAIC(lm_next, direction = "backward", trace = 0), error = function(e) lm_next)
+        cand_models <- lapply(drop_options, function(v) {
+          retained_next <- setdiff(retained_vars, v)
+          fit_candidate_from_retained(retained_next)
+        })
+        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
+        if (length(valid_idx) == 0) break
+        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
+        lm_aic <- cand_models[[best_idx]]$model
+      } else if (has_ls_both) {
+        # Resolve landslide-pair collinearity by selecting the lowest-AICc candidate.
+        drop_options <- c("Landslide_Total", "Landslide_Young")
+        cand_models <- lapply(drop_options, function(v) {
+          retained_next <- setdiff(retained_vars, v)
+          fit_candidate_from_retained(retained_next)
+        })
+        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
+        if (length(valid_idx) == 0) break
+        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
+        lm_aic <- cand_models[[best_idx]]$model
+      }
     }
   }
 
@@ -421,7 +361,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
     left_join(vif_df, by = "variable") %>%
     left_join(beta_df, by = "variable") %>%
     mutate(
-      outcome = outcome,
+      outcome = ifelse(outcome == "DR", "DR_mean", outcome),
       R2 = lm_summary$r.squared,
       R2_adj = lm_summary$adj.r.squared,
       RMSE = sqrt(mean(residuals(lm_aic)^2, na.rm = TRUE)),
@@ -433,10 +373,10 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
   names(result_df) <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AIC", "AICc")
 
   summary_df <- tibble(
-    Outcome = outcome,
+    Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
     N = nrow(model_df),
-    PCA_PCs_Retained = pca_filter$retained_pcs,
-    Predictors_PCA = paste(predictor_keep, collapse = "; "),
+    PCA_PCs_Retained = NA_integer_,
+    Predictors_PCA = NA_character_,
     Predictors_Final = paste(retained_vars, collapse = "; "),
     R2 = lm_summary$r.squared,
     R2_adj = lm_summary$adj.r.squared,
@@ -461,8 +401,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
     summary = summary_df,
     model = lm_aic,
     data = model_df,
-    selection_path = tryCatch(as.data.frame(lm_aic$anova), error = function(e) NULL),
-    pca_screening = pca_filter$detail %>% mutate(Outcome = outcome)
+    selection_path = tryCatch(as.data.frame(lm_aic$anova), error = function(e) NULL)
   )
 }
 
@@ -470,33 +409,118 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   results_list <- list()
   model_summary_list <- list()
   selection_path_list <- list()
-  pca_screening_list <- list()
+  model_selection_list <- list()
+  model_avg_list <- list()
+
+  # Candidate predictor sets for model comparison and averaging.
+  candidate_predictor_sets <- unlist(
+    lapply(seq_along(predictor_vars), function(k) {
+      combn(predictor_vars, k, simplify = FALSE)
+    }),
+    recursive = FALSE
+  )
 
   for (outcome in outcome_vars) {
-    fit_obj <- fit_mlr_with_vif(
-      HJA_Ave,
-      outcome,
-      predictor_vars,
-      use_scaled_predictors = use_scaled_predictors,
-      use_iterative_vif = use_iterative_vif,
-      vif_threshold = VIF_THRESHOLD,
-      enforce_correlated_exclusions = enforce_correlated_exclusions
-    )
-    if (is.null(fit_obj)) {
-      next
-    }
-    results_list[[outcome]] <- fit_obj$coefficients %>% mutate(Method = method_name)
-    model_summary_list[[outcome]] <- fit_obj$summary %>% mutate(Method = method_name)
+    candidate_fits <- list()
+    candidate_summaries <- list()
+    candidate_coefs <- list()
 
-    if (!is.null(fit_obj$selection_path) && nrow(fit_obj$selection_path) > 0) {
-      sp <- fit_obj$selection_path
+    for (i in seq_along(candidate_predictor_sets)) {
+      fit_obj <- fit_mlr_with_vif(
+        HJA_Ave,
+        outcome,
+        candidate_predictor_sets[[i]],
+        use_scaled_predictors = use_scaled_predictors,
+        use_iterative_vif = use_iterative_vif,
+        vif_threshold = VIF_THRESHOLD,
+        enforce_correlated_exclusions = enforce_correlated_exclusions
+      )
+      if (is.null(fit_obj)) next
+
+      fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = method_name)
+      fit_obj$coefficients <- fit_obj$coefficients %>% mutate(Candidate_Set = i, Method = method_name)
+
+      candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
+      candidate_summaries[[length(candidate_summaries) + 1]] <- fit_obj$summary
+      candidate_coefs[[length(candidate_coefs) + 1]] <- fit_obj$coefficients
+    }
+
+    if (length(candidate_fits) == 0) next
+
+    cand_tbl <- bind_rows(candidate_summaries) %>%
+      mutate(delta_AICc = AICc - min(AICc, na.rm = TRUE)) %>%
+      arrange(AICc)
+    model_selection_list[[outcome]] <- cand_tbl
+
+    best_idx <- which.min(sapply(candidate_fits, function(x) x$summary$AICc))
+    best_fit <- candidate_fits[[best_idx]]
+    results_list[[outcome]] <- best_fit$coefficients
+
+    if (!is.null(best_fit$selection_path) && nrow(best_fit$selection_path) > 0) {
+      sp <- best_fit$selection_path
       sp$step <- seq_len(nrow(sp))
-      sp$Outcome <- outcome
+      sp$Outcome <- ifelse(outcome == "DR", "DR_mean", outcome)
       sp$Method <- method_name
+      sp$Candidate_Set <- best_fit$summary$Candidate_Set[1]
       selection_path_list[[outcome]] <- sp
     }
-    if (!is.null(fit_obj$pca_screening) && nrow(fit_obj$pca_screening) > 0) {
-      pca_screening_list[[outcome]] <- fit_obj$pca_screening %>% mutate(Method = method_name)
+
+    # Model-averaged standardized coefficients for delta AICc <= 2.
+    cand_weights <- cand_tbl %>%
+      filter(is.finite(AICc), delta_AICc <= 2) %>%
+      mutate(w_raw = exp(-0.5 * delta_AICc),
+             weight = w_raw / sum(w_raw, na.rm = TRUE)) %>%
+      dplyr::select(Candidate_Set, Outcome, weight)
+
+    best_summary <- best_fit$summary %>%
+      mutate(
+        R2_weighted_AICc_LTE2 = NA_real_,
+        R2_adj_weighted_AICc_LTE2 = NA_real_
+      )
+
+    if (nrow(cand_weights) > 0) {
+      weighted_fit <- cand_tbl %>%
+        inner_join(cand_weights, by = c("Candidate_Set", "Outcome")) %>%
+        summarise(
+          R2_weighted_AICc_LTE2 = sum(R2 * weight, na.rm = TRUE),
+          R2_adj_weighted_AICc_LTE2 = sum(R2_adj * weight, na.rm = TRUE),
+          .groups = "drop"
+        )
+      if (nrow(weighted_fit) == 1) {
+        best_summary <- best_summary %>%
+          mutate(
+            R2_weighted_AICc_LTE2 = weighted_fit$R2_weighted_AICc_LTE2[1],
+            R2_adj_weighted_AICc_LTE2 = weighted_fit$R2_adj_weighted_AICc_LTE2[1]
+          )
+      }
+    }
+    model_summary_list[[outcome]] <- best_summary
+
+    if (nrow(cand_weights) > 0) {
+      coef_tbl <- bind_rows(candidate_coefs)
+      predictor_universe <- sort(unique(coef_tbl$Predictor))
+      avg_tbl <- tibble(Predictor = predictor_universe) %>%
+        left_join(
+          coef_tbl %>%
+            inner_join(cand_weights, by = c("Candidate_Set", "Outcome")) %>%
+            group_by(Predictor) %>%
+            summarise(
+              Beta_Std_Avg = sum(Beta_Std * weight, na.rm = TRUE),
+              Inclusion_Weight = sum(weight, na.rm = TRUE),
+              Models_Present = n_distinct(Candidate_Set),
+              .groups = "drop"
+            ),
+          by = "Predictor"
+        ) %>%
+        mutate(
+          Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
+          Beta_Std_Avg = ifelse(is.na(Beta_Std_Avg), 0, Beta_Std_Avg),
+          Inclusion_Weight = ifelse(is.na(Inclusion_Weight), 0, Inclusion_Weight),
+          Models_DeltaAICc_LTE2 = nrow(cand_weights)
+        ) %>%
+        dplyr::select(Outcome, Predictor, Beta_Std_Avg, Inclusion_Weight, Models_Present, Models_DeltaAICc_LTE2)
+
+      model_avg_list[[outcome]] <- avg_tbl
     }
   }
 
@@ -504,7 +528,8 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
     results = bind_rows(results_list),
     summary = bind_rows(model_summary_list),
     selection = bind_rows(selection_path_list),
-    pca_screening = bind_rows(pca_screening_list)
+    model_selection = bind_rows(model_selection_list),
+    model_avg = bind_rows(model_avg_list)
   )
 }
 
@@ -514,6 +539,12 @@ strict <- run_method(
   use_iterative_vif = TRUE,
   enforce_correlated_exclusions = TRUE
 )
+
+strict$summary <- strict$summary %>%
+  mutate(
+    low_n_flag = N < LOW_N_THRESHOLD_CATCH,
+    confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
+  )
 
 beta_matrix_strict <- strict$results %>%
   dplyr::select(Predictor, Outcome, Beta_Std) %>%
@@ -539,8 +570,11 @@ write.csv(strict$summary,
 write.csv(strict$selection,
           file.path(output_dir, paste0(file_prefix, "_stepwise_path.csv")),
           row.names = FALSE)
-write.csv(strict$pca_screening,
-          file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")),
+write.csv(strict$model_selection,
+          file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
+          row.names = FALSE)
+write.csv(strict$model_avg,
+          file.path(output_dir, paste0(file_prefix, "_model_avg_coef.csv")),
           row.names = FALSE)
 flags <- strict$summary %>%
   filter(constraint_flag) %>%

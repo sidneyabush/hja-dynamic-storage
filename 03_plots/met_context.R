@@ -326,14 +326,14 @@ fig_combined <- (p1 | p2 | p3) /
 ggsave(
   file.path(output_dir, "met_context.png"),
   fig_combined,
-  width = 12,
-  height = 7,
+  width = 12 * FIG_WIDTH_SCALE,
+  height = 7 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
   file.path(output_dir, "met_context.pdf"),
   fig_combined,
-  width = 12,
-  height = 7
+  width = 12 * FIG_WIDTH_SCALE,
+  height = 7 * FIG_HEIGHT_SCALE
 )

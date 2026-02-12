@@ -152,7 +152,7 @@ for (m in metric_order) {
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
     geom_line(data = df_line, linewidth = 0.5) +
     geom_point(size = FIG_POINT_SIZE_SMALL) +
-    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE) +
+    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE, axes = "all_x", axis.labels = "margins") +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = "Water Year", y = axis_labels[[m]]) +
     theme(
@@ -167,8 +167,8 @@ for (m in metric_order) {
   ggsave(
     file.path(plot_dir, paste0(metric_prefix[[m]], "_", tolower(m), "_annual_ts.png")),
     p_ts,
-    width = 8,
-    height = 9,
+    width = 8 * FIG_WIDTH_SCALE,
+    height = 9 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 
@@ -206,7 +206,7 @@ if (nrow(summary_sel) > 0) {
     geom_point(size = FIG_POINT_SIZE_MED) +
     geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val), width = 0.2) +
     geom_text(aes(label = group, y = label_y), size = FIG_ANNOT_TEXT_SIZE, vjust = 0) +
-    facet_wrap(~metric_label, ncol = 2, scales = "free_y") +
+    facet_wrap(~metric_label, ncol = 2, scales = "free_y", axes = "all_x", axis.labels = "margins") +
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = NULL, y = "Mean +/- 1 SD") +
@@ -223,8 +223,8 @@ if (nrow(summary_sel) > 0) {
   ggsave(
     file.path(plot_dir, "storage_metric_ave_grid.png"),
     p_grid,
-    width = 8,
-    height = 10,
+    width = 8 * FIG_WIDTH_SCALE,
+    height = 10 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }

@@ -1,9 +1,14 @@
 ---
-title: "MLR and PCA Results"
+title: null
+pagetitle: "HJA Dynamic Storage: MLR Updates"
 output:
   html_document:
     toc: true
+    toc_float: true
     toc_depth: 2
+    number_sections: false
+    theme: flatly
+    highlight: textmate
     df_print: paged
 params:
   out_dir: "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/final_workflow"
@@ -13,255 +18,245 @@ params:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(dplyr)
 library(readr)
-library(tidyr)
 library(knitr)
 
 out_dir <- params$out_dir
-if (!dir.exists(out_dir)) {
-  box_out_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/final_workflow"
-  if (dir.exists(box_out_dir)) {
-    out_dir <- box_out_dir
-  } else {
-    stop(paste0("Output directory not found: ", out_dir))
-  }
+box_out_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/final_workflow"
+
+# Always prefer Box outputs when available so reported paths match manuscript outputs.
+if (dir.exists(box_out_dir)) {
+  out_dir <- box_out_dir
+} else if (!dir.exists(out_dir)) {
+  stop(paste0("Output directory not found: ", out_dir))
 }
 
 path <- function(...) file.path(out_dir, ...)
 fig <- function(...) file.path(out_dir, "figs", ...)
-first_existing <- function(paths) {
-  hit <- paths[file.exists(paths)]
-  if (length(hit) == 0) stop("Missing expected file(s): ", paste(paths, collapse = " OR "))
-  hit[[1]]
+```
+
+```{css, echo=FALSE}
+body {
+  font-size: 18px;
+  line-height: 1.55;
+}
+h1, h2, h3 {
+  font-weight: 700;
+  margin-top: 1.2em;
+}
+h2 {
+  border-bottom: 2px solid #d9dde3;
+  padding-bottom: 0.25em;
+}
+table {
+  font-size: 16px;
+}
+.caption {
+  font-size: 15px;
+  color: #4f5b66;
+}
+.main-container {
+  max-width: 1200px;
+}
+#TOC ul,
+#TOC ul ul,
+#TOC ul ul ul {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+#TOC li {
+  margin-left: 0 !important;
+  text-indent: 0 !important;
 }
 ```
 
-## PCA
+# HJA Dynamic Storage: MLR Updates
 
-```{r pca-summary}
-pca_var <- read_csv(path("stats", "pca", "pca_variance_explained.csv"), show_col_types = FALSE)
-pca_load <- read_csv(path("stats", "pca", "pca_loadings.csv"), show_col_types = FALSE)
+## MLR Structure
 
-pca_var <- pca_var %>%
-  mutate(cum_var = cumsum(Variance_Explained))
+- Model set 1: watershed characteristics predict storage metrics
+  - Selection stepwise AICc + constrained correlated pairs + iterative VIF filtering (VIF <= 10)
+  - AICc tie-break for constrained correlated pairs
+    - If Ash_Per and lava terms are both retained, test each drop option and keep the model with lowest AICc
+    - If Landslide_Total and Landslide_Young are both retained, test both drop options and keep the model with lowest AICc
 
-kable(pca_var)
+- Model set 2: storage metrics predict ecological variables
+  - Selection PCA screening, then stepwise AICc + iterative VIF filtering (VIF <= 10)
+  - PCA collinearity screening uses absolute Pearson cutoff |r| >= 0.7
+  - Reported coefficients and fit metrics come from the single best model by AICc for each response
 
-load_top <- pca_load %>%
-  mutate(abs_pc1 = abs(PC1), abs_pc2 = abs(PC2)) %>%
-  dplyr::select(feature, PC1, PC2, abs_pc1, abs_pc2) %>%
-  arrange(desc(abs_pc1))
+## Using Watershed Characteristics to Predict Storage Metrics
 
-kable(load_top)
-```
+- Coefficients shown for this model set are model-averaged across all candidate models with delta AICc <= 2
+  - This is used to stabilize inference given low site count and multiple correlated predictors
+  - Correlated-pair conflicts are resolved with AICc tie-break before final model averaging
+  - r2_adj_best_model below is from the single lowest-AICc model
+  - r2_adj_weighted_aicc_lte2 below is Akaike-weighted across all models with delta AICc <= 2
+  - Weighting uses weight = exp(-0.5 * delta_AICc) normalized to sum to 1
 
-```{r pca-figs, out.width='48%', fig.show='hold'}
-knitr::include_graphics(c(
-  fig("main", "pca_biplot.png"),
-  fig("supp", "stats", "pca", "pca_scree.png")
-))
-```
+- Candidate predictor pool for this model set
+  - basin_slope
+  - Harvest
+  - Landslide_Total
+  - Landslide_Young
+  - Lava1_per
+  - Lava2_per
+  - Ash_Per
+  - Pyro_per
 
-## How PCA informs the MLR models
 
-PCA is used as a predictor-screening step before stepwise regression. Screening is done separately for each MLR analysis, with the full predictor pool for that analysis:
-
-- MLR using watershed characteristics to predict storage metrics: PCA screening is run on watershed predictors.
-- MLR using storage metrics to predict ecological variables: PCA screening is run on storage predictors, and screening is evaluated within each ecological response model candidate set.
-
-Predictors are retained if they are significant on retained principal components, and collinear predictors are filtered so redundant variables are not carried forward into MLR.
-
-```{r pca-screening-summary}
-pca_screen_catch <- read_csv(
-  first_existing(c(
-    path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_pca_screening.csv"),
-    path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_pca_screening_all_methods.csv")
-  )),
-  show_col_types = FALSE
-)
-pca_screen_eco <- read_csv(
-  first_existing(c(
-    path("stats", "mlr_storage_eco", "storage_eco_mlr_pca_screening.csv"),
-    path("stats", "mlr_storage_eco", "storage_eco_mlr_pca_screening_all_methods.csv")
-  )),
-  show_col_types = FALSE
-)
-
-catch_screen_tbl <- pca_screen_catch %>%
-  filter(Method == "strict") %>%
-  group_by(Predictor) %>%
-  summarise(
-    retained_after_pca = any(retained_after_pca, na.rm = TRUE),
-    drop_reason = paste(unique(na.omit(drop_reason)), collapse = "; "),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    retained_after_pca = ifelse(retained_after_pca, "yes", "no"),
-    drop_reason = ifelse(drop_reason == "", "", drop_reason)
-  ) %>%
-  arrange(desc(retained_after_pca), Predictor)
-
-eco_screen_tbl <- pca_screen_eco %>%
-  filter(Method == "strict") %>%
-  group_by(Predictor) %>%
-  summarise(
-    retained_after_pca = any(retained_after_pca, na.rm = TRUE),
-    drop_reason = paste(unique(na.omit(drop_reason)), collapse = "; "),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    retained_after_pca = ifelse(retained_after_pca, "yes", "no"),
-    drop_reason = ifelse(drop_reason == "", "", drop_reason)
-  ) %>%
-  arrange(desc(retained_after_pca), Predictor)
-
-kable(catch_screen_tbl, caption = "PCA screening summary for watershed-characteristics predictors (strict workflow)")
-kable(eco_screen_tbl, caption = "PCA screening summary for storage predictors in ecological models (strict workflow)")
-
-eco_screen_by_response <- pca_screen_eco %>%
-  filter(Method == "strict") %>%
-  group_by(Response, Predictor) %>%
-  summarise(
-    retained_after_pca = any(retained_after_pca, na.rm = TRUE),
-    drop_reason = paste(unique(na.omit(drop_reason)), collapse = "; "),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    retained_after_pca = ifelse(retained_after_pca, "yes", "no"),
-    drop_reason = ifelse(drop_reason == "", "", drop_reason)
-  ) %>%
-  arrange(Response, desc(retained_after_pca), Predictor)
-
-kable(eco_screen_by_response, caption = "PCA screening by ecological response model (strict workflow)")
-```
-
-## MLR Method Comparison
-
-```{r mlr-methods-table}
-mlr_methods_tbl <- tibble(
-  step = c(
-    "predictor screening",
-    "model selection",
-    "multicollinearity filter",
-    "coefficient standardization",
-    "model validation"
-  ),
-  method = c(
-    "PCA-based screening with retained PCs and collinearity filtering",
-    "backward stepwise AIC (MASS::stepAIC) on centered/scaled predictors",
-    "iterative VIF filtering until all retained predictors have VIF <= 10",
-    "standardized beta coefficients",
-    "LOOCV metrics (RMSE_LOOCV and R2_LOOCV)"
-  )
-)
-kable(mlr_methods_tbl)
-```
-
-The workflow follows the Johnson et al. (2023) structure: centered and scaled predictors, backward stepwise AIC selection, iterative VIF filtering to a threshold of 10, and LOOCV diagnostics. In this report, "strict" means that iterative VIF filtering is always enforced and known high-correlation predictor pairs (Perry et al., 2025) are not allowed in the same final model.
-
-Model structure used here:
-
-- Model set 1: watershed characteristics predict storage metrics.
-- Model set 2: storage metrics predict ecological variables.
-- Within each model set, each response variable is modeled separately.
-
-## MLR: using watershed characteristics to predict storage metrics
-
-```{r mlr1-compare}
+```{r catch-summary}
 mlr1_strict <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_summary_strict.csv"), show_col_types = FALSE)
+if (!("low_n_flag" %in% names(mlr1_strict))) mlr1_strict$low_n_flag <- NA
 mlr1_selected <- mlr1_strict %>%
+  mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
   transmute(
     response = Outcome,
     n = N,
     predictors_final = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
+    r2_adj_best_model = round(R2_adj, 3),
+    r2_adj_weighted_aicc_lte2 = round(R2_adj_weighted_AICc_LTE2, 3),
     rmse = signif(RMSE, 4),
     rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
+    aicc = round(AICc, 3),
+    low_n = low_n_flag
   ) %>%
-  arrange(desc(r2_adj))
+  arrange(desc(r2_adj_best_model))
 
 kable(mlr1_selected)
 ```
 
-Each storage metric is modeled separately as its own response. The final table above reports one selected model per storage metric.
+```{r catch-selection-screening, include=FALSE}
+catch_predictor_pool <- c(
+  "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
+  "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
+)
 
-```{r mlr1-beta-fig, out.width='75%'}
-knitr::include_graphics(fig("supp", "stats", "mlr", "catch_chars_storage_mlr_beta.png"))
-```
+catch_best <- mlr1_strict %>%
+  mutate(response = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
+  transmute(response, predictors_final = Predictors_Final)
 
-```{r mlr1-beta-interpret}
-mlr1_beta_key <- mlr1_strict %>%
-  transmute(
-    response = Outcome,
-    predictors_in_beta_plot = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
-    rmse = signif(RMSE, 4),
-    rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
+catch_screen <- catch_best %>%
+  rowwise() %>%
+  mutate(pred_list = list(strsplit(gsub("\\s+", "", predictors_final), ";")[[1]])) %>%
+  ungroup() %>%
+  tidyr::uncount(length(catch_predictor_pool), .id = "pred_idx") %>%
+  mutate(
+    predictor = catch_predictor_pool[pred_idx],
+    selection_decision = ifelse(predictor %in% pred_list, "retained", "dropped"),
+    why_dropped = ifelse(selection_decision == "dropped", "not retained in best AICc model", NA_character_)
   ) %>%
-  arrange(desc(r2_adj))
+  select(response, predictor, selection_decision, why_dropped) %>%
+  arrange(response, desc(selection_decision), predictor)
 
-kable(mlr1_beta_key, caption = "How to read the beta plot (watershed characteristics to storage): only retained predictors are shown as tiles.")
 ```
 
-### Candidate model comparison (`delta_AICc <= 2`) for watershed characteristics to storage
+```{r catch-predictor-frequency}
+catch_coef <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_results_strict.csv"), show_col_types = FALSE)
+catch_predictor_freq <- catch_coef %>%
+  mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
+  group_by(Predictor) %>%
+  summarise(
+    n_responses_retained = n_distinct(Outcome),
+    mean_abs_beta = round(mean(abs(Beta_Std), na.rm = TRUE), 3),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_responses_retained), desc(mean_abs_beta))
 
-```{r catch-candidates-delta2}
-catch_step_file <- path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_stepwise_path.csv")
+kable(catch_predictor_freq, caption = "Watershed-characteristics predictors retained across storage responses.")
+```
 
-if (file.exists(catch_step_file)) {
-  catch_step <- read_csv(catch_step_file, show_col_types = FALSE)
-  catch_n <- mlr1_strict %>% select(Outcome, N)
-
-  catch_candidates <- catch_step %>%
-    filter(Method == "strict") %>%
-    left_join(catch_n, by = "Outcome") %>%
-    mutate(
-      k = N - Resid.Df,
-      aicc = ifelse((N - k - 1) > 0, AIC + (2 * k * (k + 1)) / (N - k - 1), NA_real_)
-    ) %>%
-    group_by(Outcome) %>%
-    mutate(delta_aicc = aicc - min(aicc, na.rm = TRUE)) %>%
-    ungroup() %>%
-    filter(delta_aicc <= 2) %>%
-    transmute(
-      response = Outcome,
-      step = step,
-      n = N,
-      residual_df = Resid.Df,
-      aic = round(AIC, 3),
-      aicc = round(aicc, 3),
-      delta_aicc = round(delta_aicc, 3)
-    ) %>%
-    arrange(response, delta_aicc, step)
-
-  kable(catch_candidates)
+```{r catch-model-avg}
+catch_avg_file <- path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_model_avg_coef.csv")
+if (file.exists(catch_avg_file)) {
+  cat("All watershed-model-averaged coefficients are saved here:\n\n")
+  cat(paste0("- ", catch_avg_file, "\n"))
 } else {
-  kable(tibble(note = "Run `02_stats/catchment_storage_mlr.R` to generate catch_chars_storage_mlr_stepwise_path.csv"))
+  kable(tibble(note = "Run `02_stats/catchment_storage_mlr.R` to generate catch_chars_storage_mlr_model_avg_coef.csv"))
 }
 ```
 
-## MLR: using storage metrics to predict ecological variables
-
-Ecological variables modeled:
-- `T_7DMax`
-- `Q_7Q5`
-- `T_Q7Q5`
-
-```{r eco-shorthand-key}
-eco_key <- tibble(
-  shorthand = c("T_7DMax", "Q_7Q5", "T_Q7Q5"),
-  meaning = c(
-    "Annual maximum 7-day moving-average stream temperature",
-    "7-day moving-average low-flow statistic (Q5) for discharge",
-    "Mean stream temperature during the annual Q5 7-day low-flow window"
-  )
-)
-kable(eco_key)
+```{r catch-beta-fig, out.width='75%'}
+knitr::include_graphics(fig("supp", "stats", "mlr", "catch_chars_storage_mlr_beta.png"))
 ```
 
-```{r mlr2-compare}
+## Using Storage Metrics to Predict Ecological Variables
+
+- Ecological variables modeled
+  - T_7DMax: annual maximum 7-day moving-average stream temperature
+  - Q_7Q5: 7-day moving-average low-flow statistic (Q5) for discharge
+  - T_Q7Q5: mean stream temperature during the annual Q5 7-day low-flow window
+
+- Candidate predictor pool for this model set
+  - RCS
+  - RBI
+  - FDC
+  - SD
+  - WB
+  - CHS
+  - DR
+
+- Predictor inclusion is controlled by complete-case sample size at model fit stage
+- Ecological MLR results below are from the single best model by AICc for each response
+- Ecological MLR does not use coefficient model averaging
+
+```{r eco-pca-values}
+eco_pca_var <- read_csv(path("stats", "pca", "eco_mlr_pca_variance_explained.csv"), show_col_types = FALSE) %>%
+  mutate(cum_var = cumsum(Variance_Explained)) %>%
+  mutate(across(c(Variance_Explained, cum_var), ~ round(.x, 4)))
+
+eco_pca_load_file <- path("stats", "pca", "eco_mlr_pca_loadings.csv")
+eco_pca_load <- read_csv(eco_pca_load_file, show_col_types = FALSE) %>%
+  mutate(abs_pc1 = abs(PC1), abs_pc2 = abs(PC2))
+
+kable(eco_pca_var, caption = "Eco-model PCA variance explained by component.")
+cat("Eco-model PCA loadings file path:\n\n")
+cat(paste0("- ", eco_pca_load_file, "\n"))
+```
+
+```{r eco-pca-figs, out.width='90%', fig.align='center'}
+knitr::include_graphics(
+  fig("supp", "stats", "pca", "eco_mlr_pca_biplot.png")
+)
+```
+
+```{r eco-pca-screening, include=FALSE}
+eco_screen <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_pca_screening.csv"), show_col_types = FALSE)
+eco_sel <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_model_selection.csv"), show_col_types = FALSE)
+
+best_sets <- eco_sel %>%
+  filter(Method == "strict") %>%
+  group_by(Response) %>%
+  slice_min(order_by = AICc, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(Response, Candidate_Set)
+
+eco_screen_best <- eco_screen %>%
+  filter(Method == "strict") %>%
+  inner_join(best_sets, by = c("Response", "Candidate_Set")) %>%
+  mutate(
+    pca_decision = ifelse(retained_after_pca, "retained", "dropped"),
+    significant_pcs = if ("significant_pcs" %in% names(.)) significant_pcs else NA_character_,
+    why_dropped = dplyr::case_when(
+      retained_after_pca ~ NA_character_,
+      !significant_any_pc ~ "not significant on retained PC(s)",
+      drop_reason == "collinear_pair" ~ "dropped as collinear pair (abs(r) >= 0.7) with lower PCA score",
+      TRUE ~ "dropped in PCA screening"
+    )
+  ) %>%
+  transmute(
+    response = Response,
+    predictor = Predictor,
+    pca_decision,
+    significant_pcs,
+    why_dropped
+  ) %>%
+  arrange(response, desc(pca_decision), predictor)
+
+```
+
+```{r eco-summary}
 mlr2_strict <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_summary_strict.csv"), show_col_types = FALSE)
+if (!("low_n_flag" %in% names(mlr2_strict))) mlr2_strict$low_n_flag <- NA
 mlr2_selected <- mlr2_strict %>%
   transmute(
     response = Response,
@@ -270,124 +265,25 @@ mlr2_selected <- mlr2_strict %>%
     r2_adj = round(R2_adj, 3),
     rmse = signif(RMSE, 4),
     rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
+    aicc = round(AICc, 3),
+    low_n = low_n_flag
   ) %>%
   arrange(desc(r2_adj))
 
 kable(mlr2_selected)
 ```
 
-Each ecological variable is modeled separately as its own response.
 
-### Ecological model 1: `T_7DMax`
-
-```{r eco-model-t7dmax}
-eco_fit <- mlr2_strict %>%
-  filter(Response == "T_7DMax") %>%
-  transmute(
-    response = Response,
-    n = n,
-    predictors_final = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
-    rmse = signif(RMSE, 4),
-    rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
-  )
-
-eco_coef <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_results_strict.csv"), show_col_types = FALSE) %>%
-  filter(Response == "T_7DMax") %>%
-  transmute(
-    predictor = Predictor,
-    beta_std = round(Beta_Std, 3),
-    p_value = signif(p_value, 3),
-    vif = round(VIF, 3)
-  )
-
-kable(eco_fit)
-kable(eco_coef)
-```
-
-### Ecological model 2: `Q_7Q5`
-
-```{r eco-model-q7q5}
-eco_fit <- mlr2_strict %>%
-  filter(Response == "Q_7Q5") %>%
-  transmute(
-    response = Response,
-    n = n,
-    predictors_final = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
-    rmse = signif(RMSE, 4),
-    rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
-  )
-
-eco_coef <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_results_strict.csv"), show_col_types = FALSE) %>%
-  filter(Response == "Q_7Q5") %>%
-  transmute(
-    predictor = Predictor,
-    beta_std = round(Beta_Std, 3),
-    p_value = signif(p_value, 3),
-    vif = round(VIF, 3)
-  )
-
-kable(eco_fit)
-kable(eco_coef)
-```
-
-### Ecological model 3: `T_Q7Q5`
-
-```{r eco-model-tq7q5}
-eco_fit <- mlr2_strict %>%
-  filter(Response == "T_Q7Q5") %>%
-  transmute(
-    response = Response,
-    n = n,
-    predictors_final = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
-    rmse = signif(RMSE, 4),
-    rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
-  )
-
-eco_coef <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_results_strict.csv"), show_col_types = FALSE) %>%
-  filter(Response == "T_Q7Q5") %>%
-  transmute(
-    predictor = Predictor,
-    beta_std = round(Beta_Std, 3),
-    p_value = signif(p_value, 3),
-    vif = round(VIF, 3)
-  )
-
-kable(eco_fit)
-kable(eco_coef)
-```
-
-```{r mlr2-beta-fig, out.width='75%'}
+```{r eco-beta-fig, out.width='75%'}
 knitr::include_graphics(fig("supp", "stats", "mlr", "storage_eco_mlr_beta.png"))
 ```
 
-```{r mlr2-beta-interpret}
-mlr2_beta_key <- mlr2_strict %>%
-  transmute(
-    response = Response,
-    predictors_in_beta_plot = Predictors_Final,
-    r2_adj = round(R2_adj, 3),
-    rmse = signif(RMSE, 4),
-    rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3)
-  ) %>%
-  arrange(desc(r2_adj))
-
-kable(mlr2_beta_key, caption = "How to read the beta plot (storage to ecological variables): only retained predictors are shown as tiles.")
-```
-
-## Candidate model comparison (`delta_AICc <= 2`)
-
-This table is provided for collaborator review so top-competing models can be compared, not only the selected best model.
+AICc < 2 candidate models (storage to ecological variables)
 
 ```{r eco-candidates-delta2}
 eco_candidates_file <- path("stats", "mlr_storage_eco", "storage_eco_mlr_model_selection.csv")
+eco_out_file <- path("tables", "mlr", "storage_eco_mlr_aicc_lt2.csv")
+cat(paste0("Table path: ", eco_out_file, "\n\n"))
 
 if (file.exists(eco_candidates_file)) {
   eco_candidates <- read_csv(eco_candidates_file, show_col_types = FALSE)
@@ -410,17 +306,63 @@ if (file.exists(eco_candidates_file)) {
     ) %>%
     arrange(response, delta_aicc, desc(r2_adj))
 
-  kable(eco_candidates_top)
+  out_dir_tbl <- dirname(eco_out_file)
+  if (!dir.exists(out_dir_tbl)) {
+    dir.create(out_dir_tbl, recursive = TRUE, showWarnings = FALSE)
+  }
+  tryCatch(
+    write_csv(eco_candidates_top, eco_out_file),
+    error = function(e) NULL
+  )
 } else {
   kable(tibble(note = "Run `02_stats/predict_thermal_lowflow.R` to generate storage_eco_mlr_model_selection.csv"))
 }
 ```
 
-## Correlation Context
+## Model screening
 
-```{r corr-figs, out.width='48%', fig.show='hold'}
-knitr::include_graphics(c(
-  fig("supp", "stats", "correlations", "catch_chars_storage_mlr_corr.png"),
-  fig("supp", "stats", "correlations", "storage_eco_mlr_corr.png")
-))
+### Watershed model
+
+```{r model-screening-watershed}
+hr <- "<hr style='border:0;border-top:2px solid #9aa4af;margin:0;'>"
+catch_groups <- split(catch_screen, catch_screen$response)
+catch_with_sep <- dplyr::bind_rows(lapply(seq_along(catch_groups), function(i) {
+  block <- catch_groups[[i]]
+  if (i < length(catch_groups)) {
+    sep <- as_tibble(as.data.frame(matrix(hr, nrow = 1, ncol = ncol(block)), stringsAsFactors = FALSE))
+    names(sep) <- names(block)
+    dplyr::bind_rows(block, sep)
+  } else {
+    block
+  }
+}))
+
+kable(
+  catch_with_sep,
+  caption = "Watershed-characteristics predictors retained across storage responses.",
+  escape = FALSE
+)
+```
+
+### Eco model
+
+```{r model-screening-eco}
+hr <- "<hr style='border:0;border-top:2px solid #9aa4af;margin:0;'>"
+eco_groups <- split(eco_screen_best, eco_screen_best$response)
+eco_with_sep <- dplyr::bind_rows(lapply(seq_along(eco_groups), function(i) {
+  block <- eco_groups[[i]]
+  if (i < length(eco_groups)) {
+    sep <- as_tibble(as.data.frame(matrix(hr, nrow = 1, ncol = ncol(block)), stringsAsFactors = FALSE))
+    names(sep) <- names(block)
+    dplyr::bind_rows(block, sep)
+  } else {
+    block
+  }
+}))
+
+kable(
+  eco_with_sep,
+  caption = "Eco-model PCA screening decisions for the best AICc candidate set for each response",
+  escape = FALSE
+)
 ```

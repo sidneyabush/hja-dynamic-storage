@@ -81,7 +81,7 @@ response_lookup <- model_summary %>%
   arrange(Response) %>%
   mutate(
     Response = as.character(Response),
-    Response_label = paste0(Response, " (Adjusted R2 = ", sprintf("%.2f", R2_adj), ")")
+    Response_label = paste0(Response, "\nAdj R2 = ", sprintf("%.2f", R2_adj))
   ) %>%
   select(Response, Response_label)
 
@@ -129,7 +129,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Response_label, y = Predictor, fill = Bet
   labs(x = NULL, y = NULL) +
   theme_classic(base_size = FIG_BASE_SIZE) +
   theme(
-    axis.text.x = element_text(angle = 20, hjust = 1),
+    axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     plot.margin = margin(10, 12, 22, 12),
@@ -139,16 +139,16 @@ p_beta <- ggplot(beta_plot_df, aes(x = Response_label, y = Predictor, fill = Bet
 ggsave(
   file.path(plot_dir, "storage_eco_mlr_beta.png"),
   p_beta,
-  width = 9,
-  height = 5,
+  width = 9 * FIG_WIDTH_SCALE,
+  height = 5 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
   file.path(plot_dir, "storage_eco_mlr_beta.pdf"),
   p_beta,
-  width = 9,
-  height = 5
+  width = 9 * FIG_WIDTH_SCALE,
+  height = 5 * FIG_HEIGHT_SCALE
 )
 
 write_csv(

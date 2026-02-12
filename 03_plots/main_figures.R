@@ -65,6 +65,7 @@ for (d in c(main_dir, supp_dir)) {
 }
 
 site_order <- SITE_ORDER_HYDROMETRIC
+site_order_iso <- SITE_ORDER_ALL
 site_colors <- SITE_COLORS
 
 # Metric labels
@@ -93,13 +94,13 @@ theme_set(theme_pub)
 # HELPER: Standardize site names to WS## format
 # -----------------------------------------------------------------------------
 
-standardize_sites <- function(df) {
+standardize_sites <- function(df, allowed_sites = site_order) {
   df %>%
     mutate(
       site = standardize_site_code(site)
     ) %>%
-    filter(site %in% site_order) %>%
-    mutate(site = factor(site, levels = site_order))
+    filter(site %in% allowed_sites) %>%
+    mutate(site = factor(site, levels = allowed_sites))
 }
 
 # -----------------------------------------------------------------------------
@@ -116,7 +117,7 @@ if (!file.exists(annual_file)) {
 
 annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
   rename_legacy_storage_metrics() %>%
-  standardize_sites()
+  standardize_sites(allowed_sites = site_order)
 
 cat("  Loaded annual data:", nrow(annual_data), "rows\n")
 
@@ -131,7 +132,7 @@ if (!file.exists(isotope_file)) {
 
 if (file.exists(isotope_file)) {
   isotope_data <- read_csv(isotope_file, show_col_types = FALSE) %>%
-    standardize_sites()
+    standardize_sites(allowed_sites = site_order_iso)
 
   # Add MTT1/MTT2 columns from raw isotope table when available.
   mtt_file <- file.path(base_dir, "Isotopes", "MTT_FYW.csv")
@@ -146,7 +147,7 @@ if (file.exists(isotope_file)) {
 
     mtt_raw <- read_csv(mtt_file, show_col_types = FALSE) %>%
       mutate(site = standardize_site_code(site)) %>%
-      filter(site %in% site_order)
+      filter(site %in% site_order_iso)
 
     first_col <- function(df, candidates) {
       hit <- candidates[candidates %in% names(df)]
@@ -157,9 +158,14 @@ if (file.exists(isotope_file)) {
     }
 
     mtt_raw$MTT1_val <- first_col(mtt_raw, c("MTT1"))
+    mtt_raw$MTT1_sd <- first_col(mtt_raw, c("MTT1_SD"))
     mtt_raw$MTT1_low <- first_col(mtt_raw, c("MTT1L", "MTT1_low", "MTT1_MIN"))
     mtt_raw$MTT1_high <- first_col(mtt_raw, c("MTT1H", "MTT1_high", "MTT1_MAX"))
-    mtt_raw$MTT1_err <- (mtt_raw$MTT1_high - mtt_raw$MTT1_low) / 2
+    mtt_raw$MTT1_err <- ifelse(
+      !is.na(mtt_raw$MTT1_sd),
+      abs(mtt_raw$MTT1_sd),
+      abs((mtt_raw$MTT1_high - mtt_raw$MTT1_low) / 2)
+    )
 
     mtt_raw$MTT2_val <- first_col(mtt_raw, c("MTT2M", "MTT2"))
     if (all(is.na(mtt_raw$MTT2_val))) {
@@ -169,12 +175,27 @@ if (file.exists(isotope_file)) {
     }
     mtt_raw$MTT2_low <- first_col(mtt_raw, c("MTT2L", "MTT2_low", "MTT2_MIN"))
     mtt_raw$MTT2_high <- first_col(mtt_raw, c("MTT2H", "MTT2_high", "MTT2_MAX"))
-    mtt_raw$MTT2_err <- (mtt_raw$MTT2_high - mtt_raw$MTT2_low) / 2
+    mtt_raw$MTT2_low_sd <- first_col(mtt_raw, c("MTT2L_SD", "MTT2_low_SD"))
+    mtt_raw$MTT2_high_sd <- first_col(mtt_raw, c("MTT2H_SD", "MTT2_high_SD"))
+    mtt_raw$MTT2_err <- ifelse(
+      is.finite(mtt_raw$MTT2_low_sd) & is.finite(mtt_raw$MTT2_high_sd),
+      abs((mtt_raw$MTT2_low_sd + mtt_raw$MTT2_high_sd) / 2),
+      abs((mtt_raw$MTT2_high - mtt_raw$MTT2_low) / 2)
+    )
 
-    mtt_raw$Fyw_val <- first_col(mtt_raw, c("Fyw", "FYW", "fyw"))
     mtt_raw$Fyw_low <- first_col(mtt_raw, c("FywL", "FYWL", "Fyw_low", "FYWL"))
     mtt_raw$Fyw_high <- first_col(mtt_raw, c("FywH", "FYWH", "Fyw_high", "FYWH"))
-    mtt_raw$Fyw_err <- (mtt_raw$Fyw_high - mtt_raw$Fyw_low) / 2
+    mtt_raw$Fyw_val <- first_col(mtt_raw, c("Fyw", "FYW", "fyw", "FYWM"))
+    if (all(is.na(mtt_raw$Fyw_val))) {
+      mtt_raw$Fyw_val <- rowMeans(cbind(mtt_raw$Fyw_low, mtt_raw$Fyw_high), na.rm = TRUE)
+    }
+    mtt_raw$Fyw_low_sd <- first_col(mtt_raw, c("FYWL_SD", "FywL_SD", "Fyw_low_SD"))
+    mtt_raw$Fyw_high_sd <- first_col(mtt_raw, c("FYWH_SD", "FywH_SD", "Fyw_high_SD"))
+    mtt_raw$Fyw_err <- ifelse(
+      is.finite(mtt_raw$Fyw_low_sd) & is.finite(mtt_raw$Fyw_high_sd),
+      abs((mtt_raw$Fyw_low_sd + mtt_raw$Fyw_high_sd) / 2),
+      abs((mtt_raw$Fyw_high - mtt_raw$Fyw_low) / 2)
+    )
 
     mtt_versions <- mtt_raw %>%
       mutate(
@@ -194,6 +215,23 @@ if (file.exists(isotope_file)) {
 
     isotope_data <- isotope_data %>%
       left_join(mtt_versions, by = "site")
+
+    # Resolve duplicated columns after join so plotting uses the merged value.
+    merge_col <- function(df, nm) {
+      x <- paste0(nm, ".x")
+      y <- paste0(nm, ".y")
+      if (x %in% names(df) || y %in% names(df)) {
+        xv <- if (x %in% names(df)) df[[x]] else NA_real_
+        yv <- if (y %in% names(df)) df[[y]] else NA_real_
+        df[[nm]] <- dplyr::coalesce(suppressWarnings(as.numeric(xv)), suppressWarnings(as.numeric(yv)))
+        if (x %in% names(df)) df[[x]] <- NULL
+        if (y %in% names(df)) df[[y]] <- NULL
+      }
+      df
+    }
+    for (nm in c("MTT1", "MTT1_err", "MTT2", "MTT2_err", "Fyw", "Fyw_err", "DR", "DR_err")) {
+      isotope_data <- merge_col(isotope_data, nm)
+    }
   }
 
   if (!("MTT1" %in% names(isotope_data))) isotope_data$MTT1 <- NA_real_
@@ -212,6 +250,27 @@ if (file.exists(isotope_file)) {
       isotope_data$Fyw_err <- NA_real_
     }
   }
+  isotope_data <- isotope_data %>%
+    complete(site = factor(site_order_iso, levels = site_order_iso))
+
+  # Save the exact values used for isotope plotting so figure inputs are traceable
+  isotope_plot_values <- isotope_data %>%
+    transmute(
+      site = as.character(site),
+      MTT1,
+      MTT1_err,
+      MTT2,
+      MTT2_err,
+      Fyw,
+      Fyw_err,
+      DR,
+      DR_err
+    )
+
+  write_csv(
+    isotope_plot_values,
+    file.path(OUT_MET_SUPPORT_DIR, "ms_isotope_plot_values.csv")
+  )
   cat("  Loaded isotope data:", nrow(isotope_data), "rows\n")
 } else {
   isotope_data <- NULL
@@ -294,13 +353,14 @@ fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
     width = 0.3, linewidth = 0.5, na.rm = TRUE
   ) +
   facet_wrap(~metric, scales = "free_y", ncol = 2,
+             axes = "all_x", axis.labels = "margins",
              labeller = labeller(metric = metric_labels)) +
   scale_color_manual(values = site_colors) +
   scale_x_discrete(limits = site_order, drop = FALSE) +
   labs(x = NULL, y = "Mean ± 1 SD")
 
-ggsave(file.path(main_dir, "ds_summary.png"), fig3, width = 10, height = 8, dpi = 300)
-ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10, height = 8)
+ggsave(file.path(main_dir, "ds_summary.png"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
 cat("  Saved Figure 3\n")
 
 # -----------------------------------------------------------------------------
@@ -314,7 +374,7 @@ if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
     p <- ggplot(df, aes(x = site, y = .data[[y_col]], color = site)) +
       geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
       scale_color_manual(values = site_colors) +
-      scale_x_discrete(limits = site_order, drop = FALSE) +
+      scale_x_discrete(limits = site_order_iso, drop = FALSE) +
       labs(x = NULL, y = y_lab)
 
     if (!is.null(err_col) && err_col %in% names(df)) {
@@ -326,14 +386,16 @@ if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
     p
   }
 
-  p_mtt1 <- make_mobile_panel(isotope_data, "MTT1", "MTT1 (yr)", err_col = "MTT1_err")
-  p_mtt2 <- make_mobile_panel(isotope_data, "MTT2", "MTT2 (yr)", err_col = "MTT2_err")
+  p_mtt1 <- make_mobile_panel(isotope_data, "MTT1", "MTT1 (yr)", err_col = "MTT1_err") +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  p_mtt2 <- make_mobile_panel(isotope_data, "MTT2", "MTT2 (yr)", err_col = "MTT2_err") +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
   p_fyw <- make_mobile_panel(isotope_data, "Fyw", "Fyw", err_col = "Fyw_err")
   p_dr <- make_mobile_panel(isotope_data, "DR", "DR", err_col = "DR_err")
 
   fig4 <- (p_mtt1 | p_mtt2) / (p_fyw | p_dr)
-  ggsave(file.path(main_dir, "ms_isotope.png"), fig4, width = 12, height = 8, dpi = 300)
-  ggsave(file.path(main_dir, "ms_isotope.pdf"), fig4, width = 12, height = 8)
+  ggsave(file.path(main_dir, "ms_isotope.png"), fig4, width = 12 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(main_dir, "ms_isotope.pdf"), fig4, width = 12 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
   cat("  Saved Figure 4\n")
 } else {
   cat("  Skipping Figure 4: No isotope data\n")
@@ -370,8 +432,8 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     scale_x_discrete(limits = site_order, drop = FALSE) +
     labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
-  ggsave(file.path(main_dir, "ms_chs.png"), fig5, width = 8, height = 5, dpi = 300)
-  ggsave(file.path(main_dir, "ms_chs.pdf"), fig5, width = 8, height = 5)
+  ggsave(file.path(main_dir, "ms_chs.png"), fig5, width = 8 * FIG_WIDTH_SCALE, height = 5 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(main_dir, "ms_chs.pdf"), fig5, width = 8 * FIG_WIDTH_SCALE, height = 5 * FIG_HEIGHT_SCALE)
 
   fig5_box <- ggplot(chs_data, aes(x = site, y = CHS, color = site, fill = site)) +
     geom_boxplot(outlier.shape = NA, alpha = 0.2, na.rm = TRUE) +
@@ -381,8 +443,8 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     scale_x_discrete(limits = site_order, drop = FALSE) +
     labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
-  ggsave(file.path(main_dir, "ms_chs_boxplot.png"), fig5_box, width = 8, height = 5, dpi = 300)
-  ggsave(file.path(main_dir, "ms_chs_boxplot.pdf"), fig5_box, width = 8, height = 5)
+  ggsave(file.path(main_dir, "ms_chs_boxplot.png"), fig5_box, width = 8 * FIG_WIDTH_SCALE, height = 5 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(main_dir, "ms_chs_boxplot.pdf"), fig5_box, width = 8 * FIG_WIDTH_SCALE, height = 5 * FIG_HEIGHT_SCALE)
   cat("  Saved Figure 5\n")
 } else {
   cat("  Skipping Figure 5: No CHS data\n")
@@ -427,8 +489,8 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
     strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE)
   )
 
-ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14, height = 10, dpi = 300)
-ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 14, height = 10)
+ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
 cat("  Saved Dynamic Storage Time Series\n")
 
 # -----------------------------------------------------------------------------
@@ -459,12 +521,12 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
       aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
       hjust = 0, vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE, color = "black", na.rm = TRUE
     ) +
-    facet_wrap(~site, ncol = 2, drop = FALSE) +
+    facet_wrap(~site, ncol = 2, drop = FALSE, axes = "all_x", axis.labels = "margins") +
     scale_color_manual(values = site_colors) +
     labs(x = "Water Year", y = "Baseflow Fraction (CHS)")
 
-  ggsave(file.path(supp_dir, "ms_chs_annual_ts.png"), supp_chs_ts, width = 10, height = 10, dpi = 300)
-  ggsave(file.path(supp_dir, "ms_chs_annual_ts.pdf"), supp_chs_ts, width = 10, height = 10)
+  ggsave(file.path(supp_dir, "ms_chs_annual_ts.png"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(supp_dir, "ms_chs_annual_ts.pdf"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
   cat("  Saved CHS Time Series\n")
 }
 

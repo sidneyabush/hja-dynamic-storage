@@ -80,6 +80,9 @@ site_info <- tribble(
   "LO1"      , "Upper Lookout 1" , FALSE        , FALSE      , TRUE      , "Isotope only (2022-2023)"
 )
 
+site_info <- site_info %>%
+  filter(!site_code %in% c("MR", "NC", "LC", "LO2", "CC", "LO1"))
+
 # -----------------------------------------------------------------------------
 # DIRECTORIES (from config.R)
 # -----------------------------------------------------------------------------

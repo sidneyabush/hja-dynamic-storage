@@ -117,7 +117,7 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
     size = FIG_ANNOT_TEXT_SIZE,
     hjust = 0
   ) +
-  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE) +
+  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE, axes = "all_x", axis.labels = "margins") +
   scale_color_manual(values = SITE_COLORS, guide = "none") +
   labs(x = "log Q (mm day-1)", y = "log -dQ/dt (mm day-1)") +
   theme(
@@ -130,14 +130,14 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
 ggsave(
   file.path(plot_dir, "rcs_curve_by_site.png"),
   p_curve,
-  width = 8,
-  height = 9,
+  width = 8 * FIG_WIDTH_SCALE,
+  height = 9 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
   file.path(plot_dir, "rcs_curve_by_site.pdf"),
   p_curve,
-  width = 8,
-  height = 9
+  width = 8 * FIG_WIDTH_SCALE,
+  height = 9 * FIG_HEIGHT_SCALE
 )

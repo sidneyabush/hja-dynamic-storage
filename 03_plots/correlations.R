@@ -76,12 +76,16 @@ HJA_Ave <- read_csv(
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
+if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) {
+  HJA_Ave <- HJA_Ave %>% mutate(basin_slope = Slope_mean)
+}
+
 # -----------------------------------------------------------------------------
 # 2. catch_chars MLR family correlation matrix
 # -----------------------------------------------------------------------------
 
 watershed_predictors <- c(
-  "Slope_mean", "Harvest", "Landslide_Total", "Landslide_Young",
+  "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
   "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
 )
 watershed_predictors <- watershed_predictors[watershed_predictors %in% names(HJA_Ave)]
@@ -101,8 +105,8 @@ if (length(watershed_predictors) >= 2) {
   ggsave(
     file.path(plot_dir, "catch_chars_storage_mlr_corr.png"),
     p_catchment,
-    width = 9,
-    height = 9,
+    width = 9 * FIG_WIDTH_SCALE,
+    height = 9 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }
@@ -154,7 +158,7 @@ if (!("T_Q7Q5" %in% names(HJA_Yr)) && ("temp_during_q5_7d_C" %in% names(HJA_Yr))
 eco_response_vars <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
-storage_predictor_vars <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "MTT", "Fyw", "DR")
+storage_predictor_vars <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "DR")
 storage_predictor_vars <- storage_predictor_vars[storage_predictor_vars %in% names(HJA_Yr)]
 
 eco_corr_vars <- unique(c(eco_response_vars, storage_predictor_vars))
@@ -175,8 +179,8 @@ if (length(eco_corr_vars) >= 2) {
   ggsave(
     file.path(plot_dir, "storage_eco_mlr_corr.png"),
     p_eco,
-    width = 11,
-    height = 11,
+    width = 11 * FIG_WIDTH_SCALE,
+    height = 11 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }

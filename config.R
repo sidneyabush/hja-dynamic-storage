@@ -125,10 +125,10 @@ SITE_ORDER_HYDROMETRIC <- c(
   "Look", # Lookout Creek
   "WS02", # Watershed 02
   "WS03", # Watershed 03
+  "Mack", # Mack Creek
   "WS06", # Watershed 06 (no chemistry/isotope data)
   "WS07", # Watershed 07
-  "WS08", # Watershed 08
-  "Mack" # Mack Creek
+  "WS08" # Watershed 08
 )
 
 # Sites with chemistry data (for CHS) - excludes WS06, WS09, Look
@@ -143,25 +143,8 @@ SITE_ORDER_CHEMISTRY <- c(
   "Mack" # Mack Creek
 )
 
-# All sites including isotope-only sites (for MTT, Fyw, DR)
-SITE_ORDER_ALL <- c(
-  "WS09", # Watershed 09
-  "WS10", # Watershed 10
-  "WS01", # Watershed 01
-  "Look", # Lookout Creek
-  "WS02", # Watershed 02
-  "WS03", # Watershed 03
-  "MR", # McRae Creek (isotope-only)
-  "WS06", # Watershed 06 (hydrometric only)
-  "WS07", # Watershed 07
-  "WS08", # Watershed 08
-  "NC", # Nostoc Creek (isotope-only)
-  "Mack", # Mack Creek
-  "LC", # Longer Creek (isotope-only)
-  "LO2", # Upper Lookout 2 (isotope-only)
-  "CC", # Cold Creek (isotope-only)
-  "LO1" # Upper Lookout 1 (isotope-only)
-)
+# Active analysis/plotting site set
+SITE_ORDER_ALL <- SITE_ORDER_HYDROMETRIC
 
 # Site name lookup table
 SITE_NAMES <- c(
@@ -258,6 +241,8 @@ FIG_TILE_TEXT_SIZE <- 6
 FIG_POINT_SIZE_SMALL <- 1.5
 FIG_POINT_SIZE_MED <- 2.5
 FIG_POINT_SIZE_LARGE <- 3.0
+FIG_WIDTH_SCALE <- 1.35
+FIG_HEIGHT_SCALE <- 1.35
 
 # 10-color palette for hydrometric sites (colorblind-friendly)
 SITE_COLORS <- c(

@@ -113,13 +113,13 @@ build_panel <- function(metric_name) {
 
 main_panels <- lapply(metrics_main, build_panel)
 fig_main <- wrap_plots(main_panels, ncol = 2)
-ggsave(file.path(main_dir, "ds_anova_tukey.png"), fig_main, width = 11, height = 8, dpi = 300)
-ggsave(file.path(main_dir, "ds_anova_tukey.pdf"), fig_main, width = 11, height = 8)
+ggsave(file.path(main_dir, "ds_anova_tukey.png"), fig_main, width = 11 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(main_dir, "ds_anova_tukey.pdf"), fig_main, width = 11 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
 
 all_panels <- lapply(metrics_all, build_panel)
 fig_all <- wrap_plots(all_panels, ncol = 2)
-ggsave(file.path(supp_dir, "storage_anova_tukey_all.png"), fig_all, width = 11, height = 12, dpi = 300)
-ggsave(file.path(supp_dir, "storage_anova_tukey_all.pdf"), fig_all, width = 11, height = 12)
+ggsave(file.path(supp_dir, "storage_anova_tukey_all.png"), fig_all, width = 11 * FIG_WIDTH_SCALE, height = 12 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(supp_dir, "storage_anova_tukey_all.pdf"), fig_all, width = 11 * FIG_WIDTH_SCALE, height = 12 * FIG_HEIGHT_SCALE)
 
 # Flat table for manuscript/supplement use
 if (nrow(anova_df) > 0 && nrow(letters_df) > 0) {

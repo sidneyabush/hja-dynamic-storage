@@ -4,7 +4,7 @@
 # This script makes standalone plots for watershed-controls MLR results.
 #
 # Inputs:
-#   - catch_chars_storage_mlr_results.csv
+#   - catch_chars_storage_mlr_model_avg_coef.csv
 #   - catch_chars_storage_mlr_summary.csv
 #
 # Outputs:
@@ -55,13 +55,13 @@ if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
-results_file <- file.path(output_dir, "catch_chars_storage_mlr_results.csv")
+model_avg_file <- file.path(output_dir, "catch_chars_storage_mlr_model_avg_coef.csv")
 summary_file <- file.path(output_dir, "catch_chars_storage_mlr_summary.csv")
 
-if (!file.exists(results_file)) stop("Missing file: catch_chars_storage_mlr_results.csv")
+if (!file.exists(model_avg_file)) stop("Missing file: catch_chars_storage_mlr_model_avg_coef.csv")
 if (!file.exists(summary_file)) stop("Missing file: catch_chars_storage_mlr_summary.csv")
 
-mlr_results <- read_csv(results_file, show_col_types = FALSE)
+mlr_model_avg <- read_csv(model_avg_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
 
 perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AIC", "AICc", "N")
@@ -70,17 +70,17 @@ perf_df <- mlr_summary %>%
   select(all_of(perf_cols)) %>%
   arrange(Outcome)
 
-coef_cols <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF")
-coef_cols <- coef_cols[coef_cols %in% names(mlr_results)]
-coef_df <- mlr_results %>%
+coef_cols <- c("Outcome", "Predictor", "Beta_Std_Avg", "Inclusion_Weight", "Models_Present", "Models_DeltaAICc_LTE2")
+coef_cols <- coef_cols[coef_cols %in% names(mlr_model_avg)]
+coef_df <- mlr_model_avg %>%
   select(all_of(coef_cols)) %>%
-  arrange(Outcome, desc(abs(Beta_Std)))
+  arrange(Outcome, desc(abs(Beta_Std_Avg)))
 
-beta_plot_df <- mlr_results %>%
-  filter(!is.na(Beta_Std)) %>%
+beta_plot_df <- mlr_model_avg %>%
+  filter(!is.na(Beta_Std_Avg), is.finite(Beta_Std_Avg), Inclusion_Weight > 0) %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    beta_label = sprintf("%.2f", Beta_Std)
+    beta_label = sprintf("%.2f", Beta_Std_Avg)
   )
 
 adj_r2_lookup <- mlr_summary %>%
@@ -94,7 +94,7 @@ beta_plot_df <- beta_plot_df %>%
   left_join(adj_r2_lookup, by = "Outcome")
 
 predictor_order <- c(
-  "Slope_mean", "Harvest", "Landslide_Total", "Landslide_Young",
+  "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
   "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
 )
 
@@ -104,7 +104,7 @@ beta_plot_df <- beta_plot_df %>%
     Outcome_label = factor(Outcome_label, levels = unique(adj_r2_lookup$Outcome_label))
   )
 
-p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
+p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std_Avg)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
@@ -128,16 +128,16 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
 ggsave(
   file.path(plot_dir, "catch_chars_storage_mlr_beta.png"),
   p_beta,
-  width = 11,
-  height = 7,
+  width = 11 * FIG_WIDTH_SCALE,
+  height = 7 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
   file.path(plot_dir, "catch_chars_storage_mlr_beta.pdf"),
   p_beta,
-  width = 11,
-  height = 7
+  width = 11 * FIG_WIDTH_SCALE,
+  height = 7 * FIG_HEIGHT_SCALE
 )
 
 write_csv(
@@ -152,7 +152,7 @@ write_csv(
 
 results_table <- coef_df %>%
   left_join(perf_df, by = "Outcome") %>%
-  arrange(Outcome, desc(abs(Beta_Std)))
+  arrange(Outcome, desc(abs(Beta_Std_Avg)))
 
 write_csv(
   results_table,
