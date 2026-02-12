@@ -181,27 +181,6 @@ for (m in metric_order) {
   offset <- ifelse(is.finite(y_max - y_min), 0.05 * (y_max - y_min), 0)
   sum_df <- sum_df %>% mutate(label_y = mean_val + sd_val + offset, metric = m)
 
-  p_sum <- ggplot(sum_df, aes(x = site, y = mean_val, color = site)) +
-    geom_point(size = 2) +
-    geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val), width = 0.2) +
-    geom_text(aes(label = group, y = label_y), size = 3, vjust = 0) +
-    scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC) +
-    scale_color_manual(values = site_cols, guide = "none") +
-    labs(x = NULL, y = paste0("Mean +/- 1 SD: ", axis_labels[[m]])) +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-      axis.line = element_blank()
-    )
-
-  ggsave(
-    file.path(plot_dir, paste0(metric_prefix[[m]], "_", tolower(m), "_ave.png")),
-    p_sum,
-    width = 6,
-    height = 4,
-    dpi = 300
-  )
-
   summary_all[[m]] <- sum_df
 }
 
