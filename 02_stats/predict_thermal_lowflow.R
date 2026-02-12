@@ -498,7 +498,7 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
       arrange(AICc)
     model_selection[[response]] <- cand_tbl
 
-    best_idx <- which.min(sapply(candidate_fits, function(x) x$summary$AIC))
+    best_idx <- which.min(sapply(candidate_fits, function(x) x$summary$AICc))
     best_fit <- candidate_fits[[best_idx]]
 
     model_results[[response]] <- best_fit$coef
@@ -513,12 +513,6 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   )
 }
 
-non_strict <- run_method(
-  method_name = "non_strict",
-  use_scaled_predictors = FALSE,
-  use_iterative_vif = FALSE,
-  enforce_correlated_exclusions = FALSE
-)
 strict <- run_method(
   method_name = "strict",
   use_scaled_predictors = TRUE,
@@ -528,8 +522,8 @@ strict <- run_method(
 
 model_results_combined <- strict$results
 model_summary_combined <- strict$summary
-selection_combined <- bind_rows(non_strict$selection, strict$selection)
-pca_screening_combined <- bind_rows(non_strict$pca_screening, strict$pca_screening)
+selection_combined <- strict$selection
+pca_screening_combined <- strict$pca_screening
 
 cor_data <- merged_data %>%
   dplyr::select(all_of(unique(c(response_vars, storage_predictors_all))))
@@ -550,55 +544,19 @@ write.csv(model_summary_combined,
           file.path(output_dir, paste0(file_prefix, "_summary.csv")),
           row.names = FALSE)
 
-write.csv(non_strict$results,
-          file.path(output_dir, paste0(file_prefix, "_results_non_strict.csv")),
-          row.names = FALSE)
-write.csv(non_strict$summary,
-          file.path(output_dir, paste0(file_prefix, "_summary_non_strict.csv")),
-          row.names = FALSE)
 write.csv(strict$results,
           file.path(output_dir, paste0(file_prefix, "_results_strict.csv")),
           row.names = FALSE)
 write.csv(strict$summary,
           file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
           row.names = FALSE)
-
-write.csv(bind_rows(non_strict$results, strict$results),
-          file.path(output_dir, paste0(file_prefix, "_results_all_methods.csv")),
-          row.names = FALSE)
-write.csv(bind_rows(non_strict$summary, strict$summary),
-          file.path(output_dir, paste0(file_prefix, "_summary_all_methods.csv")),
-          row.names = FALSE)
 write.csv(selection_combined,
-          file.path(output_dir, paste0(file_prefix, "_model_selection_all_methods.csv")),
+          file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
 write.csv(pca_screening_combined,
-          file.path(output_dir, paste0(file_prefix, "_pca_screening_all_methods.csv")),
+          file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")),
           row.names = FALSE)
-
-comparison <- non_strict$summary %>%
-  dplyr::select(Response, Predictors_PCA, Predictors_Final, R2_adj, RMSE, RMSE_LOOCV, AIC, AICc, n) %>%
-  rename_with(~ paste0(.x, "_non_strict"), -Response) %>%
-  full_join(
-    strict$summary %>%
-      dplyr::select(Response, Predictors_PCA, Predictors_Final, R2_adj, RMSE, RMSE_LOOCV, AIC, AICc, n) %>%
-      rename_with(~ paste0(.x, "_strict"), -Response),
-    by = "Response"
-  ) %>%
-  mutate(
-    delta_R2_adj = R2_adj_strict - R2_adj_non_strict,
-    delta_RMSE = RMSE_strict - RMSE_non_strict,
-    delta_RMSE_LOOCV = RMSE_LOOCV_strict - RMSE_LOOCV_non_strict,
-    delta_AIC = AIC_strict - AIC_non_strict,
-    delta_AICc = AICc_strict - AICc_non_strict
-  ) %>%
-  arrange(Response)
-
-write.csv(comparison,
-          file.path(output_dir, paste0(file_prefix, "_strict_vs_non_strict.csv")),
-          row.names = FALSE)
-
-flags <- bind_rows(non_strict$summary, strict$summary) %>%
+flags <- strict$summary %>%
   filter(constraint_flag) %>%
   arrange(Method, Response)
 write.csv(flags,

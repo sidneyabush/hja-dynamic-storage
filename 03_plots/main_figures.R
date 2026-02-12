@@ -75,15 +75,15 @@ metric_labels <- c(
 )
 
 # Publication theme
-theme_pub <- theme_classic(base_size = 12) +
+theme_pub <- theme_classic(base_size = FIG_BASE_SIZE) +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 11),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE),
+    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     strip.background = element_blank(),
-    strip.text = element_text(size = 10, hjust = 0),
+    strip.text = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0),
     legend.position = "none"
   )
 
@@ -136,27 +136,81 @@ if (file.exists(isotope_file)) {
   # Add MTT1/MTT2 columns from raw isotope table when available.
   mtt_file <- file.path(base_dir, "Isotopes", "MTT_FYW.csv")
   if (file.exists(mtt_file)) {
-    mtt_versions <- read_csv(mtt_file, show_col_types = FALSE) %>%
+    mean_or_na <- function(x) {
+      if (all(is.na(x))) {
+        NA_real_
+      } else {
+        mean(x, na.rm = TRUE)
+      }
+    }
+
+    mtt_raw <- read_csv(mtt_file, show_col_types = FALSE) %>%
       mutate(site = standardize_site_code(site)) %>%
-      filter(site %in% site_order) %>%
+      filter(site %in% site_order)
+
+    first_col <- function(df, candidates) {
+      hit <- candidates[candidates %in% names(df)]
+      if (length(hit) == 0) {
+        return(rep(NA_real_, nrow(df)))
+      }
+      as.numeric(df[[hit[1]]])
+    }
+
+    mtt_raw$MTT1_val <- first_col(mtt_raw, c("MTT1"))
+    mtt_raw$MTT1_low <- first_col(mtt_raw, c("MTT1L", "MTT1_low", "MTT1_MIN"))
+    mtt_raw$MTT1_high <- first_col(mtt_raw, c("MTT1H", "MTT1_high", "MTT1_MAX"))
+    mtt_raw$MTT1_err <- (mtt_raw$MTT1_high - mtt_raw$MTT1_low) / 2
+
+    mtt_raw$MTT2_val <- first_col(mtt_raw, c("MTT2M", "MTT2"))
+    if (all(is.na(mtt_raw$MTT2_val))) {
+      mtt2_low <- first_col(mtt_raw, c("MTT2L", "MTT2_low", "MTT2_MIN"))
+      mtt2_high <- first_col(mtt_raw, c("MTT2H", "MTT2_high", "MTT2_MAX"))
+      mtt_raw$MTT2_val <- rowMeans(cbind(mtt2_low, mtt2_high), na.rm = TRUE)
+    }
+    mtt_raw$MTT2_low <- first_col(mtt_raw, c("MTT2L", "MTT2_low", "MTT2_MIN"))
+    mtt_raw$MTT2_high <- first_col(mtt_raw, c("MTT2H", "MTT2_high", "MTT2_MAX"))
+    mtt_raw$MTT2_err <- (mtt_raw$MTT2_high - mtt_raw$MTT2_low) / 2
+
+    mtt_raw$Fyw_val <- first_col(mtt_raw, c("Fyw", "FYW", "fyw"))
+    mtt_raw$Fyw_low <- first_col(mtt_raw, c("FywL", "FYWL", "Fyw_low", "FYWL"))
+    mtt_raw$Fyw_high <- first_col(mtt_raw, c("FywH", "FYWH", "Fyw_high", "FYWH"))
+    mtt_raw$Fyw_err <- (mtt_raw$Fyw_high - mtt_raw$Fyw_low) / 2
+
+    mtt_versions <- mtt_raw %>%
       mutate(
-        MTT2 = if ("MTT2M" %in% names(.)) {
-          MTT2M
-        } else if (all(c("MTT2L", "MTT2H") %in% names(.))) {
-          rowMeans(cbind(MTT2L, MTT2H), na.rm = TRUE)
-        } else {
-          NA_real_
-        }
+        Fyw_val = ifelse(is.na(Fyw_val), NA_real_, Fyw_val),
+        Fyw_err = ifelse(is.na(Fyw_err), NA_real_, abs(Fyw_err))
       ) %>%
-      select(site, MTT1, MTT2)
+      group_by(site) %>%
+      summarise(
+        MTT1 = mean_or_na(MTT1_val),
+        MTT1_err = mean_or_na(abs(MTT1_err)),
+        MTT2 = mean_or_na(MTT2_val),
+        MTT2_err = mean_or_na(abs(MTT2_err)),
+        Fyw = mean_or_na(Fyw_val),
+        Fyw_err = mean_or_na(Fyw_err),
+        .groups = "drop"
+      )
 
     isotope_data <- isotope_data %>%
       left_join(mtt_versions, by = "site")
   }
 
   if (!("MTT1" %in% names(isotope_data))) isotope_data$MTT1 <- NA_real_
+  if (!("MTT1_err" %in% names(isotope_data))) isotope_data$MTT1_err <- NA_real_
   if (!("MTT2" %in% names(isotope_data))) {
     isotope_data$MTT2 <- if ("MTT" %in% names(isotope_data)) isotope_data$MTT else NA_real_
+  }
+  if (!("MTT2_err" %in% names(isotope_data))) isotope_data$MTT2_err <- NA_real_
+  if (!("Fyw" %in% names(isotope_data))) isotope_data$Fyw <- NA_real_
+  if (!("Fyw_err" %in% names(isotope_data))) {
+    fyw_low_name <- names(isotope_data)[tolower(names(isotope_data)) %in% c("fywl", "fyw_low")]
+    fyw_high_name <- names(isotope_data)[tolower(names(isotope_data)) %in% c("fywh", "fyw_high")]
+    if (length(fyw_low_name) > 0 && length(fyw_high_name) > 0) {
+      isotope_data$Fyw_err <- abs((isotope_data[[fyw_high_name[1]]] - isotope_data[[fyw_low_name[1]]]) / 2)
+    } else {
+      isotope_data$Fyw_err <- NA_real_
+    }
   }
   cat("  Loaded isotope data:", nrow(isotope_data), "rows\n")
 } else {
@@ -234,7 +288,7 @@ dynamic_labels <- dynamic_summary %>%
   )
 
 fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
-  geom_point(size = 2.5, na.rm = TRUE) +
+  geom_point(size = FIG_POINT_SIZE_MED, na.rm = TRUE) +
   geom_errorbar(
     aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
     width = 0.3, linewidth = 0.5, na.rm = TRUE
@@ -258,7 +312,7 @@ cat("Creating Figure 4: Mobile Isotope Storage...\n")
 if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
   make_mobile_panel <- function(df, y_col, y_lab, err_col = NULL) {
     p <- ggplot(df, aes(x = site, y = .data[[y_col]], color = site)) +
-      geom_point(size = 3, na.rm = TRUE) +
+      geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
       scale_color_manual(values = site_colors) +
       scale_x_discrete(limits = site_order, drop = FALSE) +
       labs(x = NULL, y = y_lab)
@@ -272,9 +326,9 @@ if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
     p
   }
 
-  p_mtt1 <- make_mobile_panel(isotope_data, "MTT1", "MTT1 (yr)")
-  p_mtt2 <- make_mobile_panel(isotope_data, "MTT2", "MTT2 (yr)")
-  p_fyw <- make_mobile_panel(isotope_data, "Fyw", "Fyw")
+  p_mtt1 <- make_mobile_panel(isotope_data, "MTT1", "MTT1 (yr)", err_col = "MTT1_err")
+  p_mtt2 <- make_mobile_panel(isotope_data, "MTT2", "MTT2 (yr)", err_col = "MTT2_err")
+  p_fyw <- make_mobile_panel(isotope_data, "Fyw", "Fyw", err_col = "Fyw_err")
   p_dr <- make_mobile_panel(isotope_data, "DR", "DR", err_col = "DR_err")
 
   fig4 <- (p_mtt1 | p_mtt2) / (p_fyw | p_dr)
@@ -307,7 +361,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     )
 
   fig5 <- ggplot(chs_summary, aes(x = site, y = mean_val, color = site)) +
-    geom_point(size = 3, na.rm = TRUE) +
+    geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
     geom_errorbar(
       aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
       width = 0.3, linewidth = 0.6, na.rm = TRUE
@@ -321,7 +375,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 
   fig5_box <- ggplot(chs_data, aes(x = site, y = CHS, color = site, fill = site)) +
     geom_boxplot(outlier.shape = NA, alpha = 0.2, na.rm = TRUE) +
-    geom_point(position = position_jitter(width = 0.12, height = 0), size = 1.4, alpha = 0.7, na.rm = TRUE) +
+    geom_point(position = position_jitter(width = 0.12, height = 0), size = FIG_POINT_SIZE_SMALL, alpha = 0.7, na.rm = TRUE) +
     scale_color_manual(values = site_colors) +
     scale_fill_manual(values = site_colors) +
     scale_x_discrete(limits = site_order, drop = FALSE) +
@@ -357,20 +411,20 @@ dynamic_line_data <- dynamic_long %>%
 
 supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) +
   geom_line(data = dynamic_line_data, linewidth = 0.5, na.rm = TRUE) +
-  geom_point(size = 1, na.rm = TRUE) +
+  geom_point(size = FIG_POINT_SIZE_SMALL, na.rm = TRUE) +
   geom_text(
     data = site_means_dynamic,
     aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
-    hjust = 0, vjust = -0.3, size = 2.5, color = "black", na.rm = TRUE
+    hjust = 0, vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE, color = "black", na.rm = TRUE
   ) +
   facet_grid(metric ~ site, scales = "free_y",
              labeller = labeller(metric = metric_labels), drop = FALSE) +
   scale_color_manual(values = site_colors) +
   labs(x = "Water Year", y = NULL) +
   theme(
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7),
-    strip.text.y = element_text(angle = 0, size = 9),
-    strip.text.x = element_text(size = 8)
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = FIG_AXIS_TEXT_SIZE),
+    strip.text.y = element_text(angle = 0, size = FIG_STRIP_TEXT_SIZE),
+    strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE)
   )
 
 ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14, height = 10, dpi = 300)
@@ -399,11 +453,11 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 
   supp_chs_ts <- ggplot(chs_data, aes(x = year, y = CHS, color = site)) +
     geom_line(data = chs_line_data, linewidth = 0.6, na.rm = TRUE) +
-    geom_point(size = 1.5, na.rm = TRUE) +
+    geom_point(size = FIG_POINT_SIZE_SMALL, na.rm = TRUE) +
     geom_text(
       data = chs_means,
       aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
-      hjust = 0, vjust = -0.3, size = 3, color = "black", na.rm = TRUE
+      hjust = 0, vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE, color = "black", na.rm = TRUE
     ) +
     facet_wrap(~site, ncol = 2, drop = FALSE) +
     scale_color_manual(values = site_colors) +

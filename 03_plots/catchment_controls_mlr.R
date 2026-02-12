@@ -76,25 +76,6 @@ coef_df <- mlr_results %>%
   select(all_of(coef_cols)) %>%
   arrange(Outcome, desc(abs(Beta_Std)))
 
-write_csv(
-  perf_df,
-  file.path(table_dir, "catch_chars_storage_mlr_model_perf.csv")
-)
-
-write_csv(
-  coef_df,
-  file.path(table_dir, "catch_chars_storage_mlr_coef.csv")
-)
-
-results_table <- coef_df %>%
-  left_join(perf_df, by = "Outcome") %>%
-  arrange(Outcome, desc(abs(Beta_Std)))
-
-write_csv(
-  results_table,
-  file.path(table_dir, "catch_chars_storage_mlr_table.csv")
-)
-
 beta_plot_df <- mlr_results %>%
   filter(!is.na(Beta_Std)) %>%
   mutate(
@@ -105,7 +86,7 @@ beta_plot_df <- mlr_results %>%
 adj_r2_lookup <- mlr_summary %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    Outcome_label = paste0(Outcome_clean, "\nAdjR2=", sprintf("%.2f", R2_adj))
+    Outcome_label = paste0(Outcome_clean, "\nAdj R2 = ", sprintf("%.2f", R2_adj))
   ) %>%
   select(Outcome, Outcome_label)
 
@@ -125,7 +106,7 @@ beta_plot_df <- beta_plot_df %>%
 
 p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
   geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = beta_label), size = 3) +
+  geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
     low = "firebrick4",
     mid = "white",
@@ -136,9 +117,11 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
     name = "Beta"
   ) +
   labs(x = NULL, y = NULL) +
-  theme_classic(base_size = 11) +
+  theme_classic(base_size = FIG_BASE_SIZE) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     legend.position = "right"
   )
 
@@ -155,4 +138,23 @@ ggsave(
   p_beta,
   width = 11,
   height = 7
+)
+
+write_csv(
+  perf_df,
+  file.path(table_dir, "catch_chars_storage_mlr_model_perf.csv")
+)
+
+write_csv(
+  coef_df,
+  file.path(table_dir, "catch_chars_storage_mlr_coef.csv")
+)
+
+results_table <- coef_df %>%
+  left_join(perf_df, by = "Outcome") %>%
+  arrange(Outcome, desc(abs(Beta_Std)))
+
+write_csv(
+  results_table,
+  file.path(table_dir, "catch_chars_storage_mlr_table.csv")
 )

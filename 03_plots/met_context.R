@@ -109,15 +109,15 @@ col_swe_neg <- "#E6E6E6"
 # THEME
 # -----------------------------------------------------------------------------
 
-theme_pub <- theme_classic(base_size = 12) +
+theme_pub <- theme_classic(base_size = FIG_BASE_SIZE) +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
     plot.title = element_blank(),
     plot.subtitle = element_blank(),
     plot.caption = element_blank(),
-    axis.title = element_text(size = 10),
-    axis.text = element_text(size = 9)
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE)
   )
 
 theme_set(theme_pub)
@@ -318,7 +318,7 @@ fig_combined <- (p1 | p2 | p3) /
     tag_levels = "a",
     tag_suffix = ")",
     theme = theme(
-      plot.tag = element_text(size = 7, face = "plain"), # smaller, journal-like
+      plot.tag = element_text(size = FIG_STRIP_TEXT_SIZE, face = "plain"),
       plot.tag.position = c(0.02, 0.985)
     )
   )

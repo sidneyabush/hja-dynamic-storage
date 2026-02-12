@@ -34,9 +34,9 @@ if (!dir.exists(OUTPUT_DIR)) {
   quit(save = "no", status = 0)
 }
 
-# Safety guard: only clean known workflow output roots.
-if (!grepl("final_workflow$|temp_outputs$", OUTPUT_DIR)) {
-  stop("Safety check failed. OUTPUT_DIR must end with 'final_workflow' or 'temp_outputs'.")
+# Safety guard: only clean the consolidated workflow output root.
+if (!grepl("final_workflow$", OUTPUT_DIR)) {
+  stop("Safety check failed. OUTPUT_DIR must end with 'final_workflow'.")
 }
 
 targets <- c("metrics", "master", "stats", "tables", "figs", "MET")

@@ -16,20 +16,48 @@ find_repo_root <- function(start_dir) {
   return(normalizePath(start_dir, winslash = "/", mustWork = FALSE))
 }
 
-script_path <- tryCatch({
-  normalizePath(sys.frame(1)$ofile, winslash = "/", mustWork = FALSE)
-}, error = function(e) NA_character_)
+# Prefer explicit override when launched from IDE with unusual cwd.
+env_repo_root <- Sys.getenv("HJA_REPO_DIR", unset = "")
+if (nzchar(env_repo_root)) {
+  repo_root <- normalizePath(env_repo_root, winslash = "/", mustWork = FALSE)
+} else {
+  # Try to discover this script path robustly across Rscript/source/IDE run modes.
+  script_path <- NA_character_
 
-if (is.na(script_path) || script_path == "") {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    script_path <- normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = FALSE)
+  # 1) Look through call frames for an ofile ending in run_all.R
+  frame_ofiles <- unlist(lapply(sys.frames(), function(fr) {
+    tryCatch(fr$ofile, error = function(e) NA_character_)
+  }))
+  frame_ofiles <- frame_ofiles[is.character(frame_ofiles) & !is.na(frame_ofiles) & nzchar(frame_ofiles)]
+  if (length(frame_ofiles) > 0) {
+    frame_hits <- frame_ofiles[basename(frame_ofiles) == "run_all.R"]
+    if (length(frame_hits) > 0) {
+      script_path <- normalizePath(frame_hits[1], winslash = "/", mustWork = FALSE)
+    }
   }
+
+  # 2) Fall back to --file if running via Rscript
+  if (is.na(script_path) || script_path == "") {
+    args <- commandArgs(trailingOnly = FALSE)
+    file_arg <- grep("^--file=", args, value = TRUE)
+    if (length(file_arg) > 0) {
+      script_path <- normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = FALSE)
+    }
+  }
+
+  start_dir <- if (!is.na(script_path) && nzchar(script_path)) dirname(script_path) else getwd()
+  repo_root <- find_repo_root(start_dir)
 }
 
-start_dir <- if (!is.na(script_path) && nzchar(script_path)) dirname(script_path) else getwd()
-repo_root <- find_repo_root(start_dir)
+if (!file.exists(file.path(repo_root, "check_inputs.R"))) {
+  stop(
+    paste0(
+      "Could not locate repo root from current session.\n",
+      "Set working directory to the repo, or set HJA_REPO_DIR to repo path.\n",
+      "Current resolved repo_root: ", repo_root
+    )
+  )
+}
 
 run_script <- function(path) {
   full <- file.path(repo_root, path)

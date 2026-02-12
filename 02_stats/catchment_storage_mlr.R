@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Multiple Linear Regression: Watershed Characteristics -> Storage Metrics
+# Multiple Linear Regression: Watershed Characteristics to Storage Metrics
 # -----------------------------------------------------------------------------
 # Purpose: Use stepwise regression to identify which watershed attributes
 #          best predict hydrometric storage metrics
@@ -508,23 +508,12 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   )
 }
 
-non_strict <- run_method(
-  method_name = "non_strict",
-  use_scaled_predictors = FALSE,
-  use_iterative_vif = FALSE,
-  enforce_correlated_exclusions = FALSE
-)
 strict <- run_method(
   method_name = "strict",
   use_scaled_predictors = TRUE,
   use_iterative_vif = TRUE,
   enforce_correlated_exclusions = TRUE
 )
-
-results_all_methods <- bind_rows(non_strict$results, strict$results)
-summary_all_methods <- bind_rows(non_strict$summary, strict$summary)
-selection_all_methods <- bind_rows(non_strict$selection, strict$selection)
-pca_screening_all_methods <- bind_rows(non_strict$pca_screening, strict$pca_screening)
 
 beta_matrix_strict <- strict$results %>%
   dplyr::select(Predictor, Outcome, Beta_Std) %>%
@@ -541,58 +530,19 @@ write.csv(beta_matrix_strict,
           file.path(output_dir, paste0(file_prefix, "_beta_matrix.csv")),
           row.names = FALSE)
 
-# Save method-specific outputs
-write.csv(non_strict$results,
-          file.path(output_dir, paste0(file_prefix, "_results_non_strict.csv")),
-          row.names = FALSE)
-write.csv(non_strict$summary,
-          file.path(output_dir, paste0(file_prefix, "_summary_non_strict.csv")),
-          row.names = FALSE)
 write.csv(strict$results,
           file.path(output_dir, paste0(file_prefix, "_results_strict.csv")),
           row.names = FALSE)
 write.csv(strict$summary,
           file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
           row.names = FALSE)
-
-# Save all-method stacks and selection paths
-write.csv(results_all_methods,
-          file.path(output_dir, paste0(file_prefix, "_results_all_methods.csv")),
+write.csv(strict$selection,
+          file.path(output_dir, paste0(file_prefix, "_stepwise_path.csv")),
           row.names = FALSE)
-write.csv(summary_all_methods,
-          file.path(output_dir, paste0(file_prefix, "_summary_all_methods.csv")),
+write.csv(strict$pca_screening,
+          file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")),
           row.names = FALSE)
-write.csv(selection_all_methods,
-          file.path(output_dir, paste0(file_prefix, "_stepwise_path_all_methods.csv")),
-          row.names = FALSE)
-write.csv(pca_screening_all_methods,
-          file.path(output_dir, paste0(file_prefix, "_pca_screening_all_methods.csv")),
-          row.names = FALSE)
-
-# Method comparison table for side-by-side review
-comparison <- non_strict$summary %>%
-  dplyr::select(Outcome, Predictors_PCA, Predictors_Final, R2_adj, RMSE, RMSE_LOOCV, AIC, AICc, N) %>%
-  rename_with(~ paste0(.x, "_non_strict"), -Outcome) %>%
-  full_join(
-    strict$summary %>%
-      dplyr::select(Outcome, Predictors_PCA, Predictors_Final, R2_adj, RMSE, RMSE_LOOCV, AIC, AICc, N) %>%
-      rename_with(~ paste0(.x, "_strict"), -Outcome),
-    by = "Outcome"
-  ) %>%
-  mutate(
-    delta_R2_adj = R2_adj_strict - R2_adj_non_strict,
-    delta_RMSE = RMSE_strict - RMSE_non_strict,
-    delta_RMSE_LOOCV = RMSE_LOOCV_strict - RMSE_LOOCV_non_strict,
-    delta_AIC = AIC_strict - AIC_non_strict,
-    delta_AICc = AICc_strict - AICc_non_strict
-  ) %>%
-  arrange(Outcome)
-
-write.csv(comparison,
-          file.path(output_dir, paste0(file_prefix, "_strict_vs_non_strict.csv")),
-          row.names = FALSE)
-
-flags <- summary_all_methods %>%
+flags <- strict$summary %>%
   filter(constraint_flag) %>%
   arrange(Method, Outcome)
 write.csv(flags,

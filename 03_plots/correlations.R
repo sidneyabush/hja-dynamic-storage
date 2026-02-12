@@ -17,8 +17,6 @@ library(readr)
 library(ggplot2)
 library(ggcorrplot)
 
-theme_set(theme_classic(base_size = 12))
-
 rm(list = ls())
 
 # get script directory (works with source() and Rscript)
@@ -49,6 +47,8 @@ if (file.exists(config_path)) {
 } else {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
+
+theme_set(theme_classic(base_size = FIG_BASE_SIZE))
 
 output_dir <- OUT_MASTER_DIR
 plot_dir <- file.path(FIGURES_DIR, "supp", "stats", "correlations")
@@ -94,7 +94,8 @@ if (length(watershed_predictors) >= 2) {
     hc.order = FALSE,
     type = "lower",
     outline.col = "white",
-    lab = TRUE
+    lab = TRUE,
+    lab_size = FIG_TILE_TEXT_SIZE
   ) + labs(title = "Watershed Characteristics MLR Predictor Correlation Matrix")
 
   ggsave(
@@ -107,7 +108,7 @@ if (length(watershed_predictors) >= 2) {
 }
 
 # -----------------------------------------------------------------------------
-# 3. storage->eco MLR family correlation matrix
+# 3. storage and ecological-variable MLR correlation matrix
 # -----------------------------------------------------------------------------
 
 annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)
@@ -167,8 +168,9 @@ if (length(eco_corr_vars) >= 2) {
     hc.order = FALSE,
     type = "lower",
     outline.col = "white",
-    lab = FALSE
-  ) + labs(title = "Storage->Eco MLR Predictor/Response Correlation Matrix")
+    lab = TRUE,
+    lab_size = FIG_TILE_TEXT_SIZE
+  ) + labs(title = "Storage Eco MLR Predictor/Response Correlation Matrix")
 
   ggsave(
     file.path(plot_dir, "storage_eco_mlr_corr.png"),

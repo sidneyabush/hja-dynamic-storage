@@ -20,8 +20,6 @@ library(multcompView)
 
 rm(list = ls())
 
-theme_set(theme_classic(base_size = 12))
-
 script_dir <- tryCatch({
   dirname(sys.frame(1)$ofile)
 }, error = function(e) {
@@ -49,6 +47,8 @@ if (file.exists(config_path)) {
 } else {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
+
+theme_set(theme_classic(base_size = FIG_BASE_SIZE))
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
@@ -151,15 +151,17 @@ for (m in metric_order) {
 
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
     geom_line(data = df_line, linewidth = 0.5) +
-    geom_point(size = 1) +
+    geom_point(size = FIG_POINT_SIZE_SMALL) +
     facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = "Water Year", y = axis_labels[[m]]) +
     theme(
+      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
       axis.line = element_blank(),
       strip.background = element_blank(),
-      strip.text = element_text(hjust = 0)
+      strip.text = element_text(hjust = 0, size = FIG_STRIP_TEXT_SIZE)
     )
 
   ggsave(
@@ -201,19 +203,21 @@ if (nrow(summary_sel) > 0) {
     )
 
   p_grid <- ggplot(summary_sel, aes(x = site, y = mean_val, color = site)) +
-    geom_point(size = 2) +
+    geom_point(size = FIG_POINT_SIZE_MED) +
     geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val), width = 0.2) +
-    geom_text(aes(label = group, y = label_y), size = 3, vjust = 0) +
+    geom_text(aes(label = group, y = label_y), size = FIG_ANNOT_TEXT_SIZE, vjust = 0) +
     facet_wrap(~metric_label, ncol = 2, scales = "free_y") +
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = NULL, y = "Mean +/- 1 SD") +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
       axis.line = element_blank(),
       strip.background = element_blank(),
-      strip.text = element_text(hjust = 0)
+      strip.text = element_text(hjust = 0, size = FIG_STRIP_TEXT_SIZE)
     )
 
   ggsave(

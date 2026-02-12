@@ -86,23 +86,26 @@ build_panel <- function(metric_name) {
 
   ggplot(d, aes(x = site, y = value, color = site, fill = site)) +
     geom_boxplot(outlier.shape = NA, alpha = 0.2, na.rm = TRUE) +
-    geom_point(position = position_jitter(width = 0.12, height = 0), size = 1.2, alpha = 0.7, na.rm = TRUE) +
+    geom_point(position = position_jitter(width = 0.12, height = 0), size = FIG_POINT_SIZE_SMALL, alpha = 0.7, na.rm = TRUE) +
     geom_text(
       data = letters_m,
       aes(x = site, y = y_label, label = group_letter),
       inherit.aes = FALSE,
       color = "black",
-      size = 3,
+      size = FIG_ANNOT_TEXT_SIZE,
       na.rm = TRUE
     ) +
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC, drop = FALSE) +
     scale_color_manual(values = SITE_COLORS) +
     scale_fill_manual(values = SITE_COLORS) +
-    labs(x = NULL, y = metric_name) +
-    theme_classic(base_size = 11) +
+    labs(x = NULL, y = "Value", title = metric_name) +
+    theme_classic(base_size = FIG_BASE_SIZE) +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       legend.position = "none",
+      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      plot.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
       axis.line = element_blank()
     )

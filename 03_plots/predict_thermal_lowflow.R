@@ -76,6 +76,15 @@ beta_plot_df <- model_coefs %>%
     beta_label = sprintf("%.2f", Beta_Std)
   )
 
+response_lookup <- model_summary %>%
+  mutate(Response = factor(Response, levels = response_order)) %>%
+  arrange(Response) %>%
+  mutate(
+    Response = as.character(Response),
+    Response_label = paste0(Response, " (Adjusted R2 = ", sprintf("%.2f", R2_adj), ")")
+  ) %>%
+  select(Response, Response_label)
+
 perf_df <- model_summary %>%
   mutate(Response = factor(Response, levels = response_order)) %>%
   arrange(Response) %>%
@@ -84,6 +93,63 @@ perf_df <- model_summary %>%
 coef_df <- model_coefs %>%
   select(any_of(c("Response", "Predictor", "Beta_Std", "p_value", "VIF"))) %>%
   arrange(Response, desc(abs(Beta_Std)))
+
+# Preserve predictor ordering from strongest average absolute beta to weakest.
+pred_order <- beta_plot_df %>%
+  group_by(Predictor) %>%
+  summarise(mean_abs_beta = mean(abs(Beta_Std), na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(mean_abs_beta)) %>%
+  pull(Predictor)
+
+beta_plot_df <- beta_plot_df %>%
+  mutate(
+    Response = as.character(Response),
+    Predictor = factor(Predictor, levels = rev(pred_order))
+  ) %>%
+  left_join(response_lookup, by = "Response") %>%
+  mutate(
+    Response_label = factor(
+      Response_label,
+      levels = response_lookup$Response_label
+    )
+  )
+
+p_beta <- ggplot(beta_plot_df, aes(x = Response_label, y = Predictor, fill = Beta_Std)) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
+  scale_fill_gradient2(
+    low = "firebrick4",
+    mid = "white",
+    high = "dodgerblue3",
+    midpoint = 0,
+    limits = c(-1.5, 1.5),
+    oob = scales::squish,
+    name = "Beta"
+  ) +
+  labs(x = NULL, y = NULL) +
+  theme_classic(base_size = FIG_BASE_SIZE) +
+  theme(
+    axis.text.x = element_text(angle = 20, hjust = 1),
+    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+    plot.margin = margin(10, 12, 22, 12),
+    legend.position = "right"
+  )
+
+ggsave(
+  file.path(plot_dir, "storage_eco_mlr_beta.png"),
+  p_beta,
+  width = 9,
+  height = 5,
+  dpi = 300
+)
+
+ggsave(
+  file.path(plot_dir, "storage_eco_mlr_beta.pdf"),
+  p_beta,
+  width = 9,
+  height = 5
+)
 
 write_csv(
   perf_df,
@@ -102,48 +168,4 @@ manuscript_table <- coef_df %>%
 write_csv(
   manuscript_table,
   file.path(table_dir, "storage_eco_mlr_table.csv")
-)
-
-# Preserve predictor ordering from strongest average absolute beta to weakest.
-pred_order <- beta_plot_df %>%
-  group_by(Predictor) %>%
-  summarise(mean_abs_beta = mean(abs(Beta_Std), na.rm = TRUE), .groups = "drop") %>%
-  arrange(desc(mean_abs_beta)) %>%
-  pull(Predictor)
-
-beta_plot_df <- beta_plot_df %>%
-  mutate(Predictor = factor(Predictor, levels = rev(pred_order)))
-
-p_beta <- ggplot(beta_plot_df, aes(x = Response, y = Predictor, fill = Beta_Std)) +
-  geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = beta_label), size = 3) +
-  scale_fill_gradient2(
-    low = "firebrick4",
-    mid = "white",
-    high = "dodgerblue3",
-    midpoint = 0,
-    limits = c(-1.5, 1.5),
-    oob = scales::squish,
-    name = "Beta"
-  ) +
-  labs(x = NULL, y = NULL) +
-  theme_classic(base_size = 11) +
-  theme(
-    axis.text.x = element_text(angle = 35, hjust = 1),
-    legend.position = "right"
-  )
-
-ggsave(
-  file.path(plot_dir, "storage_eco_mlr_beta.png"),
-  p_beta,
-  width = 9,
-  height = 5,
-  dpi = 300
-)
-
-ggsave(
-  file.path(plot_dir, "storage_eco_mlr_beta.pdf"),
-  p_beta,
-  width = 9,
-  height = 5
 )

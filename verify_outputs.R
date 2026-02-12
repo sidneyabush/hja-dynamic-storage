@@ -38,9 +38,7 @@ required_outputs <- c(
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
   file.path(OUT_STATS_MLR_CATCH_CHARS_DIR, "catch_chars_storage_mlr_summary_strict.csv"),
-  file.path(OUT_STATS_MLR_CATCH_CHARS_DIR, "catch_chars_storage_mlr_summary_non_strict.csv"),
   file.path(OUT_STATS_MLR_ECO_DIR, "storage_eco_mlr_summary_strict.csv"),
-  file.path(OUT_STATS_MLR_ECO_DIR, "storage_eco_mlr_summary_non_strict.csv"),
   file.path(FIGURES_DIR, "main", "ds_summary.png"),
   file.path(FIGURES_DIR, "main", "pca_biplot.png")
 )

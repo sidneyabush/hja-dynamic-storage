@@ -248,6 +248,17 @@ LEGACY_STORAGE_RENAME_MAP <- c(
 # COLOR PALETTE
 # -----------------------------------------------------------------------------
 
+# Global plot text size (used across plotting scripts).
+FIG_BASE_SIZE <- 18
+FIG_AXIS_TEXT_SIZE <- 16
+FIG_AXIS_TITLE_SIZE <- 18
+FIG_STRIP_TEXT_SIZE <- 16
+FIG_ANNOT_TEXT_SIZE <- 5
+FIG_TILE_TEXT_SIZE <- 6
+FIG_POINT_SIZE_SMALL <- 1.5
+FIG_POINT_SIZE_MED <- 2.5
+FIG_POINT_SIZE_LARGE <- 3.0
+
 # 10-color palette for hydrometric sites (colorblind-friendly)
 SITE_COLORS <- c(
   "WS09" = "#882255",

@@ -18,8 +18,6 @@ library(ggplot2)
 
 rm(list = ls())
 
-theme_set(theme_classic(base_size = 12))
-
 script_dir <- tryCatch({
   dirname(sys.frame(1)$ofile)
 }, error = function(e) {
@@ -47,6 +45,8 @@ if (file.exists(config_path)) {
 } else {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
+
+theme_set(theme_classic(base_size = FIG_BASE_SIZE))
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
@@ -107,14 +107,14 @@ slopes_df <- recession_clean %>%
   )
 
 p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day), color = site)) +
-  geom_point(alpha = 0.5, size = 1) +
+  geom_point(alpha = 0.5, size = FIG_POINT_SIZE_SMALL) +
   geom_smooth(method = "lm", se = FALSE, linewidth = 0.5) +
   geom_text(
     data = slopes_df,
     aes(x = x_pos, y = y_pos, label = paste0("slope = ", slope_mm)),
     inherit.aes = FALSE,
     color = "black",
-    size = 3,
+    size = FIG_ANNOT_TEXT_SIZE,
     hjust = 0
   ) +
   facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE) +
