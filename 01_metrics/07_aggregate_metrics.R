@@ -33,6 +33,9 @@
 # Outputs:
 #   - HJA_StorageMetrics_Annual_All.csv: All metrics, annual, all sites
 #   - HJA_Ave_StorageMetrics_CatCharacter.csv: Site-averaged metrics + catchment
+#   - master_annual.csv: Canonical annual master for all analyses
+#   - master_site.csv: Canonical site-level master for all analyses
+#   - HJA_Stor_Temp_Yr.csv: Legacy-compatible annual master alias
 #   - Sample_Size_by_Metric.csv: Sample size tracking for each metric
 #   - QA correlation plots and scatterplot matrices
 # -----------------------------------------------------------------------------
@@ -67,7 +70,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -140,10 +146,13 @@ thermal_lowflow <- read_csv(
   file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv"),
   show_col_types = FALSE
 ) %>%
-  rename(site = SITECODE, year = wateryear) %>%
+  mutate(
+    site = if ("site" %in% names(.)) site else SITECODE,
+    year = if ("year" %in% names(.)) year else wateryear
+  ) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
-  select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, Q5_CV)
+  select(site, year, max_temp_7d_C, min_Q_7d_mm_d, temp_at_min_Q_7d_C, temp_during_min_Q_7d_C, Q5_CV)
 
 # -----------------------------------------------------------------------------
 # 3. MERGE ALL ANNUAL METRICS
@@ -161,8 +170,16 @@ HJA_annual <- rbi_recession %>%
   arrange(site, year)
 
 # Save annual metrics
+legacy_annual_path <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+try(
+  write.csv(HJA_annual, legacy_annual_path, row.names = FALSE),
+  silent = TRUE
+)
 write.csv(HJA_annual,
-          file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
+          file.path(output_dir, MASTER_ANNUAL_FILE),
+          row.names = FALSE)
+write.csv(HJA_annual,
+          file.path(output_dir, "HJA_Stor_Temp_Yr.csv"),
           row.names = FALSE)
 
 cat("Saved: HJA_StorageMetrics_Annual_All.csv\n")
@@ -230,6 +247,9 @@ HJA_avg <- HJA_avg %>%
 write.csv(HJA_avg,
           file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
           row.names = FALSE)
+write.csv(HJA_avg,
+          file.path(output_dir, MASTER_SITE_FILE),
+          row.names = FALSE)
 
 cat("Saved: HJA_Ave_StorageMetrics_CatCharacter.csv\n")
 
@@ -241,7 +261,7 @@ cat("Saved: HJA_Ave_StorageMetrics_CatCharacter.csv\n")
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
 mobile_metrics <- c("CHS", "MTT", "Fyw", "DR")
 extended_metrics <- c("WB")
-response_metrics <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_at_min_Q_7d_C")
+response_metrics <- c("max_temp_7d_C", "min_Q_7d_mm_d", "temp_during_min_Q_7d_C")
 
 # Count non-NA values for annual metrics
 annual_sample_sizes <- HJA_annual %>%

@@ -39,6 +39,23 @@ if (USE_LOCAL_DATA) {
   FIGURES_DIR <- file.path(BOX_BASE_DIR, "Final_Workflow", "03_Figures")
 }
 
+# Keep current workflow outputs grouped under one subfolder in 05_Outputs.
+USE_CONSOLIDATED_OUTPUT_SUBDIR <- TRUE
+CONSOLIDATED_OUTPUT_SUBDIR <- "final_workflow"
+
+if (USE_CONSOLIDATED_OUTPUT_SUBDIR) {
+  OUTPUT_DIR <- file.path(OUTPUT_DIR, CONSOLIDATED_OUTPUT_SUBDIR)
+}
+
+# Optional path overrides for sandboxed/local runs
+BASE_DATA_DIR_OVERRIDE <- Sys.getenv("HJA_BASE_DATA_DIR", unset = "")
+OUTPUT_DIR_OVERRIDE <- Sys.getenv("HJA_OUTPUT_DIR", unset = "")
+FIGURES_DIR_OVERRIDE <- Sys.getenv("HJA_FIGURES_DIR", unset = "")
+
+if (nzchar(BASE_DATA_DIR_OVERRIDE)) BASE_DATA_DIR <- BASE_DATA_DIR_OVERRIDE
+if (nzchar(OUTPUT_DIR_OVERRIDE)) OUTPUT_DIR <- OUTPUT_DIR_OVERRIDE
+if (nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- FIGURES_DIR_OVERRIDE
+
 # Subdirectories
 DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "Q")
 ET_DIR <- file.path(BASE_DATA_DIR, "DynamicStorage")
@@ -158,6 +175,33 @@ ALL_STORAGE_METRICS <- c(
 )
 
 # -----------------------------------------------------------------------------
+# SHARED FILE NAMES AND CODE MAPPINGS
+# -----------------------------------------------------------------------------
+
+MASTER_ANNUAL_FILE <- "master_annual.csv"
+MASTER_SITE_FILE <- "master_site.csv"
+LEGACY_ANNUAL_FILE <- "HJA_Stor_Temp_Yr.csv"
+LEGACY_SITE_FILE <- "HJA_Ave_StorageMetrics_CatCharacter.csv"
+
+# Raw site codes that should be excluded from analysis tables.
+SITE_EXCLUDE_RAW <- c("GSWSMA", "GSWSMF")
+
+# Site recode map used when bringing met/discharge records into watershed codes.
+SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
+
+# Component watersheds used to make GSLOOK met composites.
+GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
+
+# Legacy names that still appear in old exports.
+LEGACY_STORAGE_RENAME_MAP <- c(
+  recession_curve_slope = "RCS",
+  fdc_slope = "FDC",
+  S_annual_mm = "SD",
+  mean_bf = "CHS",
+  DS_sum = "WB"
+)
+
+# -----------------------------------------------------------------------------
 # COLOR PALETTE
 # -----------------------------------------------------------------------------
 
@@ -222,26 +266,23 @@ standardize_site_code <- function(site_code) {
   )
 }
 
-# -----------------------------------------------------------------------------
-# PRINT CONFIGURATION SUMMARY
-# -----------------------------------------------------------------------------
+# Reverse mapping for legacy hydrometric exports (GSWS##/GSLOOK/GSWSMC style).
+to_legacy_hydro_site_code <- function(site_code) {
+  site_code <- trimws(site_code)
+  dplyr::case_when(
+    site_code == "Mack" ~ "GSWSMC",
+    site_code == "Look" ~ "GSLOOK",
+    grepl("^WS[0-9]+$", site_code) ~ gsub("^WS", "GSWS", site_code),
+    TRUE ~ site_code
+  )
+}
 
-cat(
-  "
-================================================================================
-HJA Dynamic Storage - Configuration Loaded
-================================================================================
-"
-)
-cat(
-  "Data source:",
-  ifelse(USE_LOCAL_DATA, "Local (data/)", "Box cloud storage"),
-  "\n"
-)
-cat("Data directory:", BASE_DATA_DIR, "\n")
-cat("Output directory:", OUTPUT_DIR, "\n")
-cat("Water year range:", WY_START, "-", WY_END, "\n")
-cat("Hydrometric sites:", length(SITE_ORDER_HYDROMETRIC), "\n")
-cat(
-  "================================================================================\n\n"
-)
+rename_legacy_storage_metrics <- function(df) {
+  hits <- names(LEGACY_STORAGE_RENAME_MAP)[names(LEGACY_STORAGE_RENAME_MAP) %in% names(df)]
+  if (length(hits) == 0) {
+    return(df)
+  }
+  dplyr::rename(df, !!!setNames(as.list(hits), unname(LEGACY_STORAGE_RENAME_MAP[hits])))
+}
+
+SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))

@@ -14,7 +14,6 @@
 #   - process_station_groups(): Main processing workflow for station pairs/triplets
 #   - create_watershed_datasets(): Aggregate station data to watershed level
 #
-# Author: Sidney Bush
 # -----------------------------------------------------------------------------
 
 library(readr)
@@ -65,9 +64,16 @@ parse_my_date <- function(d) {
 #' @param var Variable name for the value column
 #' @param met_dir Directory containing the file
 #' @return Long-format tibble with DATE, SITECODE, and variable column
-make_inter_long <- function(fname, var, met_dir) {
+make_inter_long <- function(fname, var, met_dir, date_start = NULL, date_end = NULL) {
   raw <- read_csv(file.path(met_dir, fname), show_col_types = FALSE) %>%
     mutate(DATE = parse_my_date(DATE))
+
+  if (!is.null(date_start)) {
+    raw <- raw %>% filter(DATE >= as.Date(date_start))
+  }
+  if (!is.null(date_end)) {
+    raw <- raw %>% filter(DATE <= as.Date(date_end))
+  }
 
   long <- raw %>%
     pivot_longer(
@@ -92,11 +98,11 @@ make_inter_long <- function(fname, var, met_dir) {
 #' @param fname Filename
 #' @param met_dir Directory containing the file
 #' @return Tibble with DATE, SITECODE, P_mm_d
-read_mack_precip <- function(fname, met_dir) {
+read_mack_precip <- function(fname, met_dir, recode_map = c("GSWSMC" = "GSMACK")) {
   read_csv(file.path(met_dir, fname), show_col_types = FALSE) %>%
     mutate(
       DATE     = parse_my_date(DATE),
-      SITECODE = recode(SITECODE, "GSWSMC" = "GSMACK")
+      SITECODE = recode(SITECODE, !!!as.list(recode_map))
     ) %>%
     filter(SITECODE == "GSMACK") %>%
     select(DATE, SITECODE, PRECIP_TOT_DAY) %>%
@@ -116,6 +122,89 @@ calculate_vpd <- function(temp_celsius, rh_percent) {
   ea <- es * (rh_percent / 100)
   vpd <- es - ea
   return(vpd)
+}
+
+# Legacy-style pairwise relationship plot for interpolation diagnostics
+create_relationship_plot <- function(data, site1, site2, variable, r_squared, complete_count) {
+  site1_col <- site1
+  site2_col <- site2
+
+  ggplot(data, aes_string(x = paste0("`", site1_col, "`"), y = paste0("`", site2_col, "`"))) +
+    geom_point(alpha = 0.6, size = 2) +
+    geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      axis.title = element_text(face = "bold"),
+      axis.text = element_text(color = "black")
+    ) +
+    labs(
+      title = paste("Relationship for", variable, "between stations"),
+      subtitle = paste(site1, "and", site2, "(n =", complete_count, ")"),
+      x = site1,
+      y = site2
+    ) +
+    annotate(
+      "text",
+      x = min(data[[site1_col]], na.rm = TRUE) + 0.8 * (max(data[[site1_col]], na.rm = TRUE) - min(data[[site1_col]], na.rm = TRUE)),
+      y = min(data[[site2_col]], na.rm = TRUE) + 0.1 * (max(data[[site2_col]], na.rm = TRUE) - min(data[[site2_col]], na.rm = TRUE)),
+      label = sprintf("R2 = %.3f", r_squared),
+      hjust = 1,
+      fontface = "bold"
+    )
+}
+
+# Legacy-style model summary panel for triplet interpolation diagnostics
+create_multiple_regression_plot <- function(target_site, predictor_sites, variable, model_summary, complete_count) {
+  title <- paste("Multiple Regression Model for", variable)
+  subtitle <- paste(target_site, "predicted from", paste(predictor_sites, collapse = ", "))
+
+  model_info <- data.frame(
+    Metric = c("R2", "Adjusted R2", "F-statistic", "p-value", "Sample Size"),
+    Value = c(
+      round(model_summary$r.squared, 4),
+      round(model_summary$adj.r.squared, 4),
+      round(model_summary$fstatistic[1], 2),
+      format.pval(
+        pf(
+          model_summary$fstatistic[1],
+          model_summary$fstatistic[2],
+          model_summary$fstatistic[3],
+          lower.tail = FALSE
+        ),
+        digits = 3
+      ),
+      complete_count
+    )
+  )
+
+  coef_info <- data.frame(
+    Term = rownames(model_summary$coefficients),
+    Estimate = model_summary$coefficients[, "Estimate"],
+    `Pr(>|t|)` = model_summary$coefficients[, "Pr(>|t|)"]
+  )
+
+  ggplot() +
+    theme_minimal(base_size = 12) +
+    annotate("text", x = 0.5, y = 0.9, label = title, fontface = "bold", size = 5, hjust = 0.5) +
+    annotate("text", x = 0.5, y = 0.85, label = subtitle, fontface = "italic", size = 4, hjust = 0.5) +
+    annotate("text", x = 0.5, y = 0.75, label = "Model Metrics:", fontface = "bold", size = 4, hjust = 0.5) +
+    annotate("text", x = 0.3, y = 0.7, label = paste(model_info$Metric, collapse = "\n"), hjust = 1, size = 3) +
+    annotate("text", x = 0.7, y = 0.7, label = paste(model_info$Value, collapse = "\n"), hjust = 0, size = 3) +
+    annotate("text", x = 0.5, y = 0.5, label = "Coefficients:", fontface = "bold", size = 4, hjust = 0.5) +
+    annotate("text", x = 0.2, y = 0.45, label = paste(c("Term", coef_info$Term), collapse = "\n"), hjust = 0, fontface = "bold", size = 3) +
+    annotate("text", x = 0.45, y = 0.45, label = paste(c("Estimate", round(coef_info$Estimate, 4)), collapse = "\n"), hjust = 0, size = 3) +
+    annotate("text", x = 0.7, y = 0.45, label = paste(c("p-value", format.pval(coef_info$`Pr(>|t|)`, digits = 3)), collapse = "\n"), hjust = 0, size = 3) +
+    xlim(0, 1) +
+    ylim(0, 1) +
+    theme(
+      panel.border = element_rect(color = "black", fill = NA),
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank()
+    ) +
+    labs(title = title, subtitle = subtitle)
 }
 
 # -----------------------------------------------------------------------------
@@ -162,7 +251,7 @@ extract_station_groups <- function(site_mapping) {
 #' @param site2 Second station code
 #' @param variable Variable name to interpolate
 #' @return Data frame with interpolated values added
-interpolate_pair <- function(data, site1, site2, variable) {
+interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
   # Check for duplicates
   check_dupes <- data %>%
     filter(SITECODE %in% c(site1, site2)) %>%
@@ -195,8 +284,23 @@ interpolate_pair <- function(data, site1, site2, variable) {
   model <- lm(formula = paste0("`", site2_col, "` ~ `", site1_col, "`"),
               data = pair_data[complete_rows, ])
 
+  r_squared <- summary(model)$r.squared
   intercept <- coef(model)[1]
   slope <- coef(model)[2]
+
+  if (!is.null(plot_dir) && nzchar(plot_dir)) {
+    plot_data <- pair_data[complete_rows, ]
+    if (nrow(plot_data) > 1) {
+      p <- create_relationship_plot(plot_data, site1, site2, variable, r_squared, complete_count)
+      ggsave(
+        filename = file.path(plot_dir, paste0("relationship_", variable, "_", site1, "_", site2, ".png")),
+        plot = p,
+        width = 8,
+        height = 6,
+        dpi = 300
+      )
+    }
+  }
 
   # Interpolate site2 from site1
   s1_has_data_s2_missing <- !is.na(pair_data[[site1_col]]) & is.na(pair_data[[site2_col]])
@@ -242,7 +346,7 @@ interpolate_pair <- function(data, site1, site2, variable) {
 #' @param site3 Third station code
 #' @param variable Variable name to interpolate
 #' @return Data frame with interpolated values added
-interpolate_triplet <- function(data, site1, site2, site3, variable) {
+interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = NULL) {
   # Check for duplicates
   check_dupes <- data %>%
     filter(SITECODE %in% c(site1, site2, site3)) %>%
@@ -279,6 +383,20 @@ interpolate_triplet <- function(data, site1, site2, site3, variable) {
                data = triplet_data[model1_rows, ])
   model3 <- lm(formula = paste0("`", site3_col, "` ~ `", site1_col, "` + `", site2_col, "`"),
                data = triplet_data[model1_rows, ])
+
+  if (!is.null(plot_dir) && nzchar(plot_dir)) {
+    model1_summary <- summary(model1)
+    model2_summary <- summary(model2)
+    model3_summary <- summary(model3)
+
+    p1 <- create_multiple_regression_plot(site1, c(site2, site3), variable, model1_summary, model1_count)
+    p2 <- create_multiple_regression_plot(site2, c(site1, site3), variable, model2_summary, model1_count)
+    p3 <- create_multiple_regression_plot(site3, c(site1, site2), variable, model3_summary, model1_count)
+
+    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site1, "_from_", site2, "_", site3, ".png")), p1, width = 8, height = 6, dpi = 300)
+    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site2, "_from_", site1, "_", site3, ".png")), p2, width = 8, height = 6, dpi = 300)
+    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site3, "_from_", site1, "_", site2, ".png")), p3, width = 8, height = 6, dpi = 300)
+  }
 
   # Case 1: Only site1 is missing
   case1 <- is.na(triplet_data[[site1_col]]) & !is.na(triplet_data[[site2_col]]) & !is.na(triplet_data[[site3_col]])
@@ -369,7 +487,7 @@ constrain_interpolated_values <- function(data) {
 #' @param station_groups List with $pairs and $triplets from extract_station_groups()
 #' @param variables Character vector of variable names to process
 #' @return List with interpolated data and tracking info
-process_station_groups <- function(data, station_groups, variables) {
+process_station_groups <- function(data, station_groups, variables, plot_dir = NULL) {
   interpolated_data <- data
   interpolated_pairs <- list()
   interpolated_triplets <- list()
@@ -398,7 +516,7 @@ process_station_groups <- function(data, station_groups, variables) {
 
     if (pair_can_be_interpolated) {
       for (var in variables) {
-        interpolated_data <- interpolate_pair(interpolated_data, site1, site2, var)
+        interpolated_data <- interpolate_pair(interpolated_data, site1, site2, var, plot_dir = plot_dir)
       }
       interpolated_pairs[[pair_name]] <- pair
     }
@@ -429,7 +547,7 @@ process_station_groups <- function(data, station_groups, variables) {
 
     if (triplet_can_be_interpolated) {
       for (var in variables) {
-        interpolated_data <- interpolate_triplet(interpolated_data, site1, site2, site3, var)
+        interpolated_data <- interpolate_triplet(interpolated_data, site1, site2, site3, var, plot_dir = plot_dir)
       }
       interpolated_triplets[[triplet_name]] <- triplet
     } else {
@@ -442,7 +560,7 @@ process_station_groups <- function(data, station_groups, variables) {
 
       for (pair in fallback_pairs) {
         for (var in variables) {
-          interpolated_data <- interpolate_pair(interpolated_data, pair$site1, pair$site2, var)
+          interpolated_data <- interpolate_pair(interpolated_data, pair$site1, pair$site2, var, plot_dir = plot_dir)
         }
       }
     }
@@ -548,4 +666,71 @@ add_discharge_to_watersheds <- function(watershed_datasets, discharge, da_df) {
   }
 
   return(watershed_datasets)
+}
+
+# Legacy triplet RH diagnostics (WS7MET, VANMET, H15MET)
+plot_triplet_station_comparisons <- function(interpolated_data, plot_dir) {
+  triplet_stations <- c("WS7MET", "VANMET", "H15MET")
+
+  triplet_rh_data <- interpolated_data %>%
+    filter(SITECODE %in% triplet_stations) %>%
+    select(DATE, SITECODE, RH_d_pct) %>%
+    pivot_wider(names_from = SITECODE, values_from = RH_d_pct)
+
+  complete_triplet_data <- triplet_rh_data %>%
+    filter(!is.na(WS7MET) & !is.na(VANMET) & !is.na(H15MET))
+
+  if (nrow(complete_triplet_data) == 0) {
+    return(NULL)
+  }
+
+  p1 <- ggplot(complete_triplet_data, aes(x = WS7MET, y = VANMET)) +
+    geom_point(alpha = 0.6, color = "blue") +
+    geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+    theme_classic(base_size = 12) +
+    labs(title = "Comparison of Relative Humidity", subtitle = "WS7MET vs VANMET", x = "WS7MET Relative Humidity (%)", y = "VANMET Relative Humidity (%)")
+
+  model_ws7_van <- lm(VANMET ~ WS7MET, data = complete_triplet_data)
+  p1 <- p1 + annotate("text", x = min(complete_triplet_data$WS7MET, na.rm = TRUE) + 0.8 * (max(complete_triplet_data$WS7MET, na.rm = TRUE) - min(complete_triplet_data$WS7MET, na.rm = TRUE)), y = min(complete_triplet_data$VANMET, na.rm = TRUE) + 0.1 * (max(complete_triplet_data$VANMET, na.rm = TRUE) - min(complete_triplet_data$VANMET, na.rm = TRUE)), label = sprintf("R2 = %.3f", summary(model_ws7_van)$r.squared), hjust = 1, fontface = "bold")
+
+  p2 <- ggplot(complete_triplet_data, aes(x = WS7MET, y = H15MET)) +
+    geom_point(alpha = 0.6, color = "blue") +
+    geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+    theme_classic(base_size = 12) +
+    labs(title = "Comparison of Relative Humidity", subtitle = "WS7MET vs H15MET", x = "WS7MET Relative Humidity (%)", y = "H15MET Relative Humidity (%)")
+
+  model_ws7_h15 <- lm(H15MET ~ WS7MET, data = complete_triplet_data)
+  p2 <- p2 + annotate("text", x = min(complete_triplet_data$WS7MET, na.rm = TRUE) + 0.8 * (max(complete_triplet_data$WS7MET, na.rm = TRUE) - min(complete_triplet_data$WS7MET, na.rm = TRUE)), y = min(complete_triplet_data$H15MET, na.rm = TRUE) + 0.1 * (max(complete_triplet_data$H15MET, na.rm = TRUE) - min(complete_triplet_data$H15MET, na.rm = TRUE)), label = sprintf("R2 = %.3f", summary(model_ws7_h15)$r.squared), hjust = 1, fontface = "bold")
+
+  p3 <- ggplot(complete_triplet_data, aes(x = VANMET, y = H15MET)) +
+    geom_point(alpha = 0.6, color = "blue") +
+    geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+    theme_classic(base_size = 12) +
+    labs(title = "Comparison of Relative Humidity", subtitle = "VANMET vs H15MET", x = "VANMET Relative Humidity (%)", y = "H15MET Relative Humidity (%)")
+
+  model_van_h15 <- lm(H15MET ~ VANMET, data = complete_triplet_data)
+  p3 <- p3 + annotate("text", x = min(complete_triplet_data$VANMET, na.rm = TRUE) + 0.8 * (max(complete_triplet_data$VANMET, na.rm = TRUE) - min(complete_triplet_data$VANMET, na.rm = TRUE)), y = min(complete_triplet_data$H15MET, na.rm = TRUE) + 0.1 * (max(complete_triplet_data$H15MET, na.rm = TRUE) - min(complete_triplet_data$H15MET, na.rm = TRUE)), label = sprintf("R2 = %.3f", summary(model_van_h15)$r.squared), hjust = 1, fontface = "bold")
+
+  triplet_long <- triplet_rh_data %>%
+    pivot_longer(cols = c("WS7MET", "VANMET", "H15MET"), names_to = "Station", values_to = "RH_pct")
+
+  p4 <- ggplot(triplet_long, aes(x = DATE, y = RH_pct, color = Station)) +
+    geom_line(linewidth = 0.5) +
+    theme_classic(base_size = 12) +
+    scale_color_brewer(palette = "Set1") +
+    labs(title = "Time Series Comparison of Relative Humidity", subtitle = "Triplet Stations: WS7MET, VANMET, and H15MET", x = "Date", y = "Relative Humidity (%)")
+
+  ggsave(file.path(plot_dir, "RH_comparison_WS7MET_vs_VANMET.png"), plot = p1, width = 8, height = 6, dpi = 300)
+  ggsave(file.path(plot_dir, "RH_comparison_WS7MET_vs_H15MET.png"), plot = p2, width = 8, height = 6, dpi = 300)
+  ggsave(file.path(plot_dir, "RH_comparison_VANMET_vs_H15MET.png"), plot = p3, width = 8, height = 6, dpi = 300)
+  ggsave(file.path(plot_dir, "RH_timeseries_triplet_stations.png"), plot = p4, width = 12, height = 6, dpi = 300)
+
+  list(
+    model_ws7_van = model_ws7_van,
+    model_ws7_h15 = model_ws7_h15,
+    model_van_h15 = model_van_h15
+  )
 }

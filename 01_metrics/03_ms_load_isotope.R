@@ -47,7 +47,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -77,15 +80,9 @@ mtt_fyw <- read_csv(
   file.path(base_dir, "Isotopes", "MTT_FYW.csv"),
   show_col_types = FALSE
 ) %>%
-  # Clean site names (remove trailing spaces, standardize)
   mutate(
     site = trimws(site),
-    site = case_when(
-      site == "MCRAEC" ~ "MR", # McRae Creek
-      site == "GSLOOK " ~ "Look", # Remove trailing space
-      site == "GSLOOK" ~ "Look", # Lookout Creek
-      TRUE ~ site
-    )
+    site = standardize_site_code(site)
   ) %>%
   # Select key columns: use mean values (M suffix) for MTT and Fyw
   select(
@@ -104,14 +101,9 @@ damping <- read_csv(
   file.path(base_dir, "Isotopes", "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
 ) %>%
-  # Clean site names
   mutate(
     site = trimws(site),
-    site = case_when(
-      site == "GSMACK" ~ "GSWSMC",
-      site == "MCRAEC" ~ "MCRAE",
-      TRUE ~ site
-    )
+    site = standardize_site_code(site)
   ) %>%
   # Select key columns
   select(

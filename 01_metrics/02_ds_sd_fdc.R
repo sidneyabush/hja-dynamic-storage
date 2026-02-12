@@ -37,7 +37,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -228,6 +231,40 @@ fdc_slopes <- df %>%
     .groups = "drop"
   )
 
+# Legacy-compatible FDC exports:
+# - FDC_slopes_overall.csv (one slope per site)
+# - FDC_slopes_WY.csv (one slope per site-water year)
+fdc_curves_overall <- df %>%
+  filter(Q > 0) %>%
+  group_by(site) %>%
+  arrange(desc(Q), .by_group = TRUE) %>%
+  mutate(
+    Rank = row_number(),
+    N = n(),
+    ExceedanceProbability = 100 * Rank / (N + 1)
+  ) %>%
+  filter(ExceedanceProbability >= 5, ExceedanceProbability <= 95) %>%
+  summarise(
+    Slope = coef(lm(log10(Q) ~ ExceedanceProbability))[2],
+    .groups = "drop"
+  )
+
+fdc_curves_WY <- df %>%
+  filter(Q > 0) %>%
+  group_by(site, wateryear) %>%
+  arrange(desc(Q), .by_group = TRUE) %>%
+  mutate(
+    Rank = row_number(),
+    N = n(),
+    ExceedanceProbability = 100 * Rank / (N + 1)
+  ) %>%
+  filter(ExceedanceProbability >= 5, ExceedanceProbability <= 95) %>%
+  summarise(
+    Slope = coef(lm(log10(Q) ~ ExceedanceProbability))[2],
+    .groups = "drop"
+  ) %>%
+  rename(WaterYear = wateryear)
+
 # Calculate Q5norm: 5th percentile during Aug-Oct (months 8-10)
 Q5_annual <- df %>%
   filter(month(date) >= 8, month(date) <= 10) %>%
@@ -262,6 +299,12 @@ write.csv(annual,
 write.csv(annual_vol,
           file = file.path(output_dir,
                            "storage_discharge_method_annual_vol_per_site_wateryear.csv"),
+          row.names = FALSE)
+write.csv(fdc_curves_overall,
+          file = file.path(output_dir, "FDC_slopes_overall.csv"),
+          row.names = FALSE)
+write.csv(fdc_curves_WY,
+          file = file.path(output_dir, "FDC_slopes_WY.csv"),
           row.names = FALSE)
 
 # Save annual FDC metrics for aggregation script
@@ -315,4 +358,3 @@ ggplot(annual_long, aes(x = wateryear, y = storage_mm,
   theme_classic()
 
 dev.off()
-

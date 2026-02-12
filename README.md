@@ -12,6 +12,23 @@ Quantifying storage metrics from streamflow, stream chemistry, and stream isotop
 
 ---
 
+## Workflow Order
+
+Run scripts directly by stage.
+
+1. `01_metrics/`
+2. `02_stats/`
+3. `03_plots/`
+
+Script layout:
+
+1. `01_metrics/`
+2. `02_stats/`
+3. `03_plots/`
+4. `helpers/hydromet_utils.R`
+5. `config.R`
+
+
 ## Requirements
 
 ```r

@@ -46,10 +46,13 @@ script_dir <- tryCatch(
 )
 
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- file.path(getwd(), "07_Plots")
+  script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }

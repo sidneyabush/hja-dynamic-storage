@@ -15,10 +15,12 @@
 #   3. Summarize results across all storage metrics
 #
 # Inputs:
-#   - HJA_Ave_StorageMetrics_CatCharacter.csv (from Correlations_Metrics.R)
+#   - master_site.csv (from 03b_aggregate_metrics.R)
 #
 # Outputs:
 #   - MLR_Storage_Catchment_Results.csv: Beta coefficients, p-values, VIF, R²
+#   - MLR_Storage_Catchment_ModelSummary.csv: Final predictors and model fit stats
+#   - MLR_Storage_Catchment_BetaMatrix.csv: Legacy-style beta matrix for plotting
 #   - QA_MLR_model_fits.png: Predicted vs observed for each metric
 #
 # Author: Based on Pamela Sullivan/Keira Johnson code, adapted by Sidney Bush
@@ -56,7 +58,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -74,15 +79,26 @@ output_dir <- OUTPUT_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
+# Modeling switches
+# Keep defaults aligned with legacy behavior until you decide otherwise.
+MODEL_USE_SCALED_PREDICTORS <- FALSE
+MODEL_USE_ITERATIVE_VIF <- FALSE
+VIF_THRESHOLD <- 10
+
 # -----------------------------------------------------------------------------
 # 2. LOAD SITE-AVERAGED DATA
 # -----------------------------------------------------------------------------
 
+site_file <- file.path(output_dir, MASTER_SITE_FILE)
+if (!file.exists(site_file)) {
+  site_file <- file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv")
+}
+
 HJA_Ave <- read_csv(
-  file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
+  site_file,
   show_col_types = FALSE
 ) %>%
-  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
+  filter(!site %in% SITE_EXCLUDE_STANDARD)
 
 # -----------------------------------------------------------------------------
 # 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
@@ -112,10 +128,13 @@ outcome_vars <- c(
 # Selected key predictors based on theoretical importance
 
 predictor_vars <- c(
-  "Elevation_mean_m",
   "Slope_mean",
   "Harvest",
+  "Landslide_Total",
+  "Landslide_Young",
   "Lava1_per",
+  "Lava2_per",
+  "Ash_Per",
   "Pyro_per"
 )
 
@@ -124,92 +143,157 @@ predictor_vars <- c(
 # -----------------------------------------------------------------------------
 
 results_list <- list()
+model_summary_list <- list()
+model_objects <- list()
 
-for (outcome in outcome_vars) {
+fit_mlr_with_vif <- function(data_in, outcome, predictors,
+                             use_scaled_predictors = FALSE,
+                             use_iterative_vif = FALSE,
+                             vif_threshold = 10) {
+  predictor_keep <- predictors[predictors %in% names(data_in)]
+  if (!(outcome %in% names(data_in)) || length(predictor_keep) == 0) {
+    return(NULL)
+  }
 
-  # Create formula: outcome ~ all predictors
-  formula_full <- as.formula(paste(outcome, "~", paste(predictor_vars, collapse = " + ")))
-
-  # Fit full model
-  data_for_model <- HJA_Ave %>%
-    dplyr::select(all_of(c(outcome, predictor_vars))) %>%
+  model_df <- data_in %>%
+    dplyr::select(all_of(c(outcome, predictor_keep))) %>%
     na.omit()
 
-  if (nrow(data_for_model) < 5) {
-    next  # Skip if too few observations
+  if (nrow(model_df) < 5) {
+    return(NULL)
   }
 
-  lm_full <- lm(formula_full, data = data_for_model)
+  if (use_scaled_predictors) {
+    model_df <- model_df %>%
+      mutate(across(all_of(predictor_keep), ~ as.numeric(scale(.x))))
+  }
 
-  # Stepwise AIC (backward selection)
-  # Skip if AIC is -infinity (can happen with small sample sizes)
+  formula_full <- as.formula(paste(outcome, "~", paste(predictor_keep, collapse = " + ")))
+  lm_full <- tryCatch(lm(formula_full, data = model_df), error = function(e) NULL)
+  if (is.null(lm_full)) {
+    return(NULL)
+  }
+
   lm_aic <- tryCatch(
     stepAIC(lm_full, direction = "backward", trace = 0),
-    error = function(e) {
-      return(NULL)
-    }
+    error = function(e) NULL
   )
-
   if (is.null(lm_aic)) {
-    next
+    return(NULL)
   }
 
-  # Extract retained variables (excluding intercept)
-  retained_vars <- names(coef(lm_aic))[-1]
+  if (use_iterative_vif) {
+    # iterative VIF pruning until all retained predictors are <= threshold
+    repeat {
+      retained_vars <- setdiff(names(coef(lm_aic)), "(Intercept)")
+      if (length(retained_vars) <= 1) {
+        break
+      }
 
+      vif_vals <- tryCatch(vif(lm_aic), error = function(e) NULL)
+      if (is.null(vif_vals)) {
+        break
+      }
+      if (max(vif_vals, na.rm = TRUE) <= vif_threshold) {
+        break
+      }
+
+      drop_var <- names(which.max(vif_vals))
+      retained_next <- setdiff(retained_vars, drop_var)
+      if (length(retained_next) == 0) {
+        return(NULL)
+      }
+
+      lm_next <- lm(
+        as.formula(paste(outcome, "~", paste(retained_next, collapse = " + "))),
+        data = model_df
+      )
+      lm_aic <- tryCatch(
+        stepAIC(lm_next, direction = "backward", trace = 0),
+        error = function(e) lm_next
+      )
+    }
+  }
+
+  retained_vars <- setdiff(names(coef(lm_aic)), "(Intercept)")
   if (length(retained_vars) == 0) {
-    next  # Skip if no variables retained
+    return(NULL)
   }
 
-  # Check VIF (only if more than 1 predictor)
   if (length(retained_vars) > 1) {
-    vif_vals <- vif(lm_aic)
-    vif_df <- data.frame(
-      variable = names(vif_vals),
-      VIF = as.numeric(vif_vals)
-    )
+    vif_vals <- tryCatch(vif(lm_aic), error = function(e) NULL)
+    if (is.null(vif_vals)) {
+      vif_df <- data.frame(variable = retained_vars, VIF = NA_real_)
+    } else {
+      vif_df <- data.frame(variable = names(vif_vals), VIF = as.numeric(vif_vals))
+    }
   } else {
-    vif_df <- data.frame(
-      variable = retained_vars,
-      VIF = NA
-    )
+    vif_df <- data.frame(variable = retained_vars, VIF = NA_real_)
   }
 
-  # Extract model summary
   lm_summary <- summary(lm_aic)
   coef_df <- as.data.frame(lm_summary$coefficients)
   coef_df$variable <- rownames(coef_df)
   rownames(coef_df) <- NULL
-
-  # Remove intercept from coefficient table
   coef_df <- coef_df %>% filter(variable != "(Intercept)")
 
-  # Compute standardized beta coefficients
-  # Scale predictors and outcome, then refit
-  data_scaled <- data_for_model %>%
-    mutate(across(all_of(c(outcome, retained_vars)), scale))
-
-  formula_scaled <- as.formula(paste(outcome, "~", paste(retained_vars, collapse = " + ")))
-  lm_scaled <- lm(formula_scaled, data = data_scaled)
+  beta_df_data <- model_df
+  beta_df_data[[outcome]] <- as.numeric(scale(beta_df_data[[outcome]]))
+  lm_beta <- lm(
+    as.formula(paste(outcome, "~", paste(retained_vars, collapse = " + "))),
+    data = beta_df_data
+  )
   beta_df <- data.frame(
-    variable = names(coef(lm_scaled))[-1],
-    beta_std = as.numeric(coef(lm_scaled)[-1])
+    variable = names(coef(lm_beta))[-1],
+    beta_std = as.numeric(coef(lm_beta)[-1])
   )
 
-  # Merge coefficient table with VIF and beta
   result_df <- coef_df %>%
     left_join(vif_df, by = "variable") %>%
     left_join(beta_df, by = "variable") %>%
     mutate(
       outcome = outcome,
       R2 = lm_summary$r.squared,
-      R2_adj = lm_summary$adj.r.squared
+      R2_adj = lm_summary$adj.r.squared,
+      RMSE = sqrt(mean(residuals(lm_aic)^2, na.rm = TRUE))
     ) %>%
-    dplyr::select(outcome, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj)
+    dplyr::select(outcome, variable, beta_std, `Pr(>|t|)`, VIF, R2, R2_adj, RMSE)
 
-  colnames(result_df) <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj")
+  names(result_df) <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE")
 
-  results_list[[outcome]] <- result_df
+  summary_df <- tibble(
+    Outcome = outcome,
+    N = nrow(model_df),
+    Predictors_Final = paste(retained_vars, collapse = "; "),
+    R2 = lm_summary$r.squared,
+    R2_adj = lm_summary$adj.r.squared,
+    RMSE = sqrt(mean(residuals(lm_aic)^2, na.rm = TRUE)),
+    AIC = AIC(lm_aic)
+  )
+
+  list(
+    coefficients = result_df,
+    summary = summary_df,
+    model = lm_aic,
+    data = model_df
+  )
+}
+
+for (outcome in outcome_vars) {
+  fit_obj <- fit_mlr_with_vif(
+    HJA_Ave,
+    outcome,
+    predictor_vars,
+    use_scaled_predictors = MODEL_USE_SCALED_PREDICTORS,
+    use_iterative_vif = MODEL_USE_ITERATIVE_VIF,
+    vif_threshold = VIF_THRESHOLD
+  )
+  if (is.null(fit_obj)) {
+    next
+  }
+  results_list[[outcome]] <- fit_obj$coefficients
+  model_summary_list[[outcome]] <- fit_obj$summary
+  model_objects[[outcome]] <- fit_obj
 }
 
 # -----------------------------------------------------------------------------
@@ -217,10 +301,20 @@ for (outcome in outcome_vars) {
 # -----------------------------------------------------------------------------
 
 results_combined <- bind_rows(results_list)
+model_summary <- bind_rows(model_summary_list)
+beta_matrix <- results_combined %>%
+  dplyr::select(Predictor, Outcome, Beta_Std) %>%
+  tidyr::pivot_wider(names_from = Outcome, values_from = Beta_Std)
 
 # Save results
 write.csv(results_combined,
           file.path(output_dir, "MLR_Storage_Catchment_Results.csv"),
+          row.names = FALSE)
+write.csv(model_summary,
+          file.path(output_dir, "MLR_Storage_Catchment_ModelSummary.csv"),
+          row.names = FALSE)
+write.csv(beta_matrix,
+          file.path(output_dir, "MLR_Storage_Catchment_BetaMatrix.csv"),
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
@@ -230,32 +324,15 @@ write.csv(results_combined,
 plot_list <- list()
 
 for (outcome in outcome_vars) {
-
-  formula_full <- as.formula(paste(outcome, "~", paste(predictor_vars, collapse = " + ")))
-
-  data_for_model <- HJA_Ave %>%
-    dplyr::select(all_of(c(outcome, predictor_vars, "site"))) %>%
-    na.omit()
-
-  if (nrow(data_for_model) < 5) {
+  if (!(outcome %in% names(model_objects))) {
     next
   }
 
-  lm_full <- lm(formula_full, data = data_for_model)
-  lm_aic <- tryCatch(
-    stepAIC(lm_full, direction = "backward", trace = 0),
-    error = function(e) {
-      return(NULL)
-    }
-  )
+  model_obj <- model_objects[[outcome]]$model
+  data_for_model <- model_objects[[outcome]]$data
+  data_for_model$predicted <- predict(model_obj, data_for_model)
 
-  if (is.null(lm_aic)) {
-    next
-  }
-
-  data_for_model$predicted <- predict(lm_aic, data_for_model)
-
-  r2_adj <- round(summary(lm_aic)$adj.r.squared, 2)
+  r2_adj <- round(summary(model_obj)$adj.r.squared, 2)
 
   p <- ggplot(data_for_model, aes(x = .data[[outcome]], y = predicted)) +
     geom_point(size = 2, alpha = 0.7) +

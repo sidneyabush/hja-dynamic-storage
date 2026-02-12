@@ -49,7 +49,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -79,7 +82,10 @@ if (!dir.exists(output_dir)) {
 # -----------------------------------------------------------------------------
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
-  mutate(date = as.Date(DATE, "%m/%d/%Y")) %>%
+  mutate(
+    date = as.Date(DATE, "%m/%d/%Y"),
+    SITECODE = standardize_site_code(SITECODE)
+  ) %>%
   # Filter to chemistry sites and water year range
   filter(
     SITECODE %in% SITE_ORDER_CHEMISTRY,
@@ -97,13 +103,7 @@ EC <- read.delim(file.path(ec_dir, "CF01201_v3.txt"), sep = ",")
 # Aggregate to daily mean SC
 EC_daily <- EC %>%
   mutate(date = as.Date(DATE_TIME, "%Y-%m-%d")) %>%
-  # Fix site name mismatch (GSMACK → GSWSMC)
-  mutate(
-    SITECODE = case_when(
-      SITECODE == "GSMACK" ~ "GSWSMC",
-      .default = SITECODE
-    )
-  ) %>%
+  mutate(SITECODE = standardize_site_code(SITECODE)) %>%
   # Filter to chemistry sites
   filter(SITECODE %in% SITE_ORDER_CHEMISTRY) %>%
   group_by(SITECODE, date) %>%
@@ -178,7 +178,10 @@ annual_bf_prop <- EC_Q %>%
     sd_bf = sd(GW_prop, na.rm = TRUE),
     n_days = n(),
     .groups = "drop"
-  )
+  ) %>%
+  # Match legacy output site codes and site set
+  mutate(SITECODE = to_legacy_hydro_site_code(SITECODE)) %>%
+  filter(SITECODE != "GSWSMC")
 
 # -----------------------------------------------------------------------------
 # 8. SAVE OUTPUTS

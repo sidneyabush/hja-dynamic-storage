@@ -12,7 +12,7 @@
 #   5. Save results to CSV
 #
 # Inputs:
-#   - HJA_StorageMetrics_Annual_All.csv (from 04_Aggregate_All_Storage_Metrics.R)
+#   - master_annual.csv (from aggregate_metrics.R)
 #
 # Outputs:
 #   - ANOVA_results.csv: ANOVA F-statistics and p-values
@@ -29,6 +29,7 @@ library(readr)
 library(tidyr)
 library(ggplot2)
 library(patchwork)
+library(multcompView)
 
 theme_set(theme_bw(base_size = 12))
 
@@ -52,7 +53,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -74,11 +78,16 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 # 2. LOAD ANNUAL STORAGE METRICS
 # -----------------------------------------------------------------------------
 
+annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)
+if (!file.exists(annual_file)) {
+  annual_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+}
+
 HJA_annual <- read_csv(
-  file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
+  annual_file,
   show_col_types = FALSE
 ) %>%
-  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK")) %>%
+  filter(!site %in% SITE_EXCLUDE_STANDARD) %>%
   mutate(site = factor(site, levels = site_order))
 
 # -----------------------------------------------------------------------------
@@ -146,6 +155,7 @@ write.csv(anova_results,
 # -----------------------------------------------------------------------------
 
 tukey_results <- data.frame()
+tukey_group_letters <- data.frame()
 
 for (metric in storage_metrics) {
   # Check if metric exists and ANOVA was significant
@@ -170,12 +180,29 @@ for (metric in storage_metrics) {
 
   tukey_results <- rbind(tukey_results, tukey_df %>%
     select(metric, comparison, diff, lwr, upr, p_adj = `p adj`))
+
+  # Grouping letters by site for compact significance display
+  pvals <- setNames(tukey_df$`p adj`, tukey_df$comparison)
+  letters <- multcompLetters(pvals)$Letters
+  letters_df <- data.frame(
+    metric = metric,
+    site = names(letters),
+    group_letter = as.character(letters),
+    stringsAsFactors = FALSE
+  )
+  tukey_group_letters <- rbind(tukey_group_letters, letters_df)
 }
 
 # Save Tukey HSD results
 if (nrow(tukey_results) > 0) {
   write.csv(tukey_results,
             file.path(output_dir, "Tukey_HSD_results.csv"),
+            row.names = FALSE)
+}
+
+if (nrow(tukey_group_letters) > 0) {
+  write.csv(tukey_group_letters,
+            file.path(output_dir, "Tukey_Group_Letters.csv"),
             row.names = FALSE)
 }
 

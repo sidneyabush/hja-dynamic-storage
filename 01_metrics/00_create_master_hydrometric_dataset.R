@@ -9,7 +9,7 @@
 #   2. Interpolate missing values using OLS (pairs) or MLR (triplets)
 #   3. Aggregate station data to watershed level
 #   4. Add discharge data
-#   5. Create GSLOOK_FULL composite from component watersheds
+#   5. Create GSLOOK composite from component watersheds
 #
 # Inputs (from all_hydromet/):
 #   - Temperature_original_&_filled_1979_2023_v2.csv
@@ -24,7 +24,7 @@
 #   - watersheds_met_data_q.csv: Daily P, T, RH, NR, VPD, Q for all watersheds
 #
 # Methods preserved from original 1440-line script. Helper functions are in
-# 00_utils_hydromet.R for maintainability.
+# helpers/hydromet_utils.R for maintainability.
 # -----------------------------------------------------------------------------
 
 library(readr)
@@ -52,14 +52,21 @@ script_dir <- tryCatch({
   }
 })
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- file.path(getwd(), "00_Data_Preprocessing")
+  script_dir <- getwd()
 }
 
 # Source helper functions
-source(file.path(script_dir, "00_utils_hydromet.R"))
+helpers_path <- file.path(script_dir, "helpers", "hydromet_utils.R")
+if (!file.exists(helpers_path)) {
+  helpers_path <- file.path(dirname(script_dir), "helpers", "hydromet_utils.R")
+}
+source(helpers_path)
 
 # Source configuration (paths, sites, water year range)
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -75,6 +82,8 @@ if (file.exists(config_path)) {
 
 met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
 output_dir <- file.path(OUTPUT_DIR, "MET")
+wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
+wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
 # Create output directories
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
@@ -128,28 +137,46 @@ site_mapping <- list(
 cat("Loading meteorological data...\n")
 
 # Temperature
-Temp <- make_inter_long("Temperature_original_&_filled_1979_2023_v2.csv", "Temp", met_dir) %>%
+Temp <- make_inter_long(
+  "Temperature_original_&_filled_1979_2023_v2.csv",
+  "Temp",
+  met_dir,
+  date_start = wy_start_date,
+  date_end = wy_end_date
+) %>%
   select(DATE, SITECODE, Temp) %>%
   rename(T_C = Temp)
 
 # Precipitation
-Precip <- make_inter_long("Precipitation_original_&_filled_1979_2023.csv", "Precip", met_dir) %>%
+Precip <- make_inter_long(
+  "Precipitation_original_&_filled_1979_2023.csv",
+  "Precip",
+  met_dir,
+  date_start = wy_start_date,
+  date_end = wy_end_date
+) %>%
   select(DATE, SITECODE, Precip) %>%
   rename(P_mm_d = Precip)
 
 # Add Mack Creek precipitation
-MACK_Precip <- read_mack_precip("MS00403_v2.csv", met_dir)
+MACK_Precip <- read_mack_precip(
+  "MS00403_v2.csv",
+  met_dir,
+  recode_map = SITECODE_RECODE_TO_GSMACK
+)
 Precip <- bind_rows(Precip, MACK_Precip)
 
 # Relative humidity
 RH <- read_csv(file.path(met_dir, "MS00102_v9.csv"), show_col_types = FALSE) %>%
   mutate(DATE = parse_my_date(DATE)) %>%
+  filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   select(SITECODE, DATE, RELHUM_MEAN_DAY) %>%
   rename(RH_d_pct = RELHUM_MEAN_DAY)
 
 # Net radiation
 NetRad <- read_csv(file.path(met_dir, "MS05025_v3.csv"), show_col_types = FALSE) %>%
   mutate(DATE = parse_my_date(DATE)) %>%
+  filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   select(SITECODE, DATE, NR_TOT_MEAN_DAY) %>%
   rename(NR_Wm2_d = NR_TOT_MEAN_DAY)
 
@@ -163,7 +190,7 @@ combined_met <- Temp %>%
   full_join(Precip, by = c("DATE", "SITECODE")) %>%
   full_join(RH, by = c("DATE", "SITECODE")) %>%
   full_join(NetRad, by = c("DATE", "SITECODE")) %>%
-  filter(DATE >= ymd("1997-10-01")) %>%
+  filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   arrange(SITECODE, DATE)
 
 # -----------------------------------------------------------------------------
@@ -197,7 +224,12 @@ combined_met_clean <- combined_met %>%
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")
 
 # Run interpolation
-results <- process_station_groups(combined_met_clean, station_groups, variables)
+results <- process_station_groups(
+  combined_met_clean,
+  station_groups,
+  variables,
+  plot_dir = file.path(output_dir, "plots")
+)
 
 interpolated_data <- results$data
 
@@ -208,6 +240,12 @@ cat("\nInterpolation complete.\n")
 # -----------------------------------------------------------------------------
 
 cat("Creating watershed-level datasets...\n")
+
+# Legacy RH triplet diagnostics
+triplet_models <- plot_triplet_station_comparisons(
+  interpolated_data,
+  plot_dir = file.path(output_dir, "plots")
+)
 
 # Variables including VPD
 watershed_variables <- c(variables, "VPD_kPa")
@@ -226,15 +264,16 @@ cat("Adding discharge data...\n")
 
 # Load drainage areas
 da_df <- read_csv(file.path(met_dir, "drainage_area.csv"), show_col_types = FALSE) %>%
-  mutate(SITECODE = recode(SITECODE, "GSWSMC" = "GSMACK"))
+  mutate(SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK)))
 
 # Load and process discharge
 discharge <- read_csv(file.path(met_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
   mutate(
     DATE = parse_my_date(DATE),
-    SITECODE = recode(SITECODE, "GSWSMC" = "GSMACK")
+    SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK))
   ) %>%
-  filter(!SITECODE %in% c("GSWSMA", "GSWSMF")) %>%
+  filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
+  filter(!SITECODE %in% SITE_EXCLUDE_RAW) %>%
   group_by(DATE, SITECODE) %>%
   summarise(MEAN_Q = sum(MEAN_Q, na.rm = TRUE), .groups = "drop")
 
@@ -253,33 +292,29 @@ if ("SITECODE.x" %in% names(all_watersheds_data)) {
 }
 
 # -----------------------------------------------------------------------------
-# CREATE GSLOOK_FULL COMPOSITE
+# CREATE GSLOOK COMPOSITE
 # -----------------------------------------------------------------------------
 
-cat("Creating GSLOOK_FULL composite...\n")
-
-# Update drainage area lookup
-da_df_full <- da_df %>%
-  mutate(SITECODE = recode(SITECODE, "GSLOOK" = "GSLOOK_FULL"))
+cat("Creating GSLOOK composite...\n")
 
 # Component watersheds for Lookout
-gslook_components <- c("GSWS01", "GSWS06", "LONGER", "COLD")
+gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
 
-# Build composite (average of component watersheds)
+# Build composite met variables (average of component watersheds)
 gslook_full_df <- all_watersheds_data %>%
   filter(SITECODE %in% gslook_components) %>%
   group_by(DATE) %>%
   summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)), .groups = "drop") %>%
-  mutate(SITECODE = "GSLOOK_FULL") %>%
+  mutate(SITECODE = "GSLOOK") %>%
   select(DATE, SITECODE, everything())
 
 # Get GSLOOK discharge for the composite
 gslook_q_full <- discharge %>%
   filter(SITECODE == "GSLOOK") %>%
-  left_join(da_df_full, by = "SITECODE") %>%
+  left_join(da_df, by = "SITECODE") %>%
   mutate(
     Q_mm_d = MEAN_Q * 0.0283168 * 86400 / DA_M2,
-    SITECODE = "GSLOOK_FULL"
+    SITECODE = "GSLOOK"
   ) %>%
   select(DATE, SITECODE, Q_mm_d)
 
@@ -290,7 +325,7 @@ gslook_full_df <- gslook_full_df %>%
 
 # Add to master table
 all_watersheds_data <- bind_rows(
-  all_watersheds_data %>% filter(SITECODE != "GSLOOK_FULL"),
+  all_watersheds_data %>% filter(SITECODE != "GSLOOK"),
   gslook_full_df
 )
 
@@ -302,7 +337,7 @@ if ("Q_mm_d.x" %in% names(all_watersheds_data)) {
 }
 
 # Update watershed datasets list
-watershed_datasets[["GSLOOK_FULL"]] <- gslook_full_df
+watershed_datasets[["GSLOOK"]] <- gslook_full_df
 
 # -----------------------------------------------------------------------------
 # SAVE OUTPUT

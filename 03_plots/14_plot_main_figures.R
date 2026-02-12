@@ -40,10 +40,13 @@ script_dir <- tryCatch({
   }
 })
 if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- file.path(getwd(), "07_Plots")
+  script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -61,17 +64,8 @@ for (d in c(main_dir, supp_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE)
 }
 
-# Site order using WS## format (not GSWS##)
-site_order <- c("WS09", "WS10", "WS01", "Look", "WS02",
-                "WS03", "WS06", "WS07", "WS08", "Mack")
-
-# Site colors
-site_colors <- c(
-  "WS09" = "#882255", "WS10" = "#AA4499", "WS01" = "#CC6677",
-  "Look" = "#DDCC77", "WS02" = "#999933", "WS03" = "#117733",
-  "WS06" = "#44AA99", "WS07" = "#88CCEE", "WS08" = "#6699CC",
-  "Mack" = "#332288"
-)
+site_order <- SITE_ORDER_HYDROMETRIC
+site_colors <- SITE_COLORS
 
 # Metric labels
 metric_labels <- c(
@@ -102,19 +96,7 @@ theme_set(theme_pub)
 standardize_sites <- function(df) {
   df %>%
     mutate(
-      site = case_when(
-        site == "GSWS01" ~ "WS01",
-        site == "GSWS02" ~ "WS02",
-        site == "GSWS03" ~ "WS03",
-        site == "GSWS06" ~ "WS06",
-        site == "GSWS07" ~ "WS07",
-        site == "GSWS08" ~ "WS08",
-        site == "GSWS09" ~ "WS09",
-        site == "GSWS10" ~ "WS10",
-        site %in% c("GSWSMC", "GSMACK") ~ "Mack",
-        site %in% c("GSLOOK", "GSLOOK_FULL", "Look_FULL") ~ "Look",
-        TRUE ~ site
-      )
+      site = standardize_site_code(site)
     ) %>%
     filter(site %in% site_order) %>%
     mutate(site = factor(site, levels = site_order))
@@ -133,14 +115,7 @@ if (!file.exists(annual_file)) {
 }
 
 annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
-  rename_with(~ case_when(
-    .x == "recession_curve_slope" ~ "RCS",
-    .x == "fdc_slope" ~ "FDC",
-    .x == "S_annual_mm" ~ "SD",
-    .x == "mean_bf" ~ "CHS",
-    .x == "DS_sum" ~ "WB",
-    TRUE ~ .x
-  )) %>%
+  rename_legacy_storage_metrics() %>%
   standardize_sites()
 
 cat("  Loaded annual data:", nrow(annual_data), "rows\n")

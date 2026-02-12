@@ -5,7 +5,7 @@
 #          patterns of covariation among hydrometric storage indicators
 #
 # Workflow:
-#   1. Load annual storage metrics (from Correlations_Metrics.R output)
+#   1. Load annual storage metrics (from aggregate_metrics.R output)
 #   2. Select storage metrics for PCA
 #   3. Remove outliers (z-score > 3)
 #   4. Normalize/scale features
@@ -15,11 +15,14 @@
 #      - Variance explained by each PC
 #
 # Inputs:
-#   - HJA_Stor_Temp_Yr.csv: Annual storage + temperature data
+#   - master_annual.csv: Annual master data table
 #
 # Outputs:
 #   - QA_PCA_biplot.png: PC1 vs PC2 with feature loadings
 #   - QA_PCA_variance_explained.png: Scree plot
+#   - PCA_Loadings.csv: PC loadings by metric
+#   - PCA_Variance_Explained.csv: Variance explained by component
+#   - PCA_Scores_PC1_PC2.csv: Site-year scores for PC1 and PC2
 #
 # Author: Pamela Sullivan (original), Sidney Bush (adapted)
 # Date: 2026-01-23
@@ -54,7 +57,10 @@ if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
   script_dir <- getwd()
 }
 
-config_path <- file.path(dirname(script_dir), "config.R")
+config_path <- file.path(script_dir, "config.R")
+if (!file.exists(config_path)) {
+  config_path <- file.path(dirname(script_dir), "config.R")
+}
 if (!file.exists(config_path)) {
   config_path <- file.path(getwd(), "config.R")
 }
@@ -78,11 +84,19 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 # This file was created by 06_Aggregate_All_Metrics.R and contains all annual
 # storage metrics, temperature metrics, and catchment characteristics
 
+annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)
+if (!file.exists(annual_file)) {
+  annual_file <- file.path(output_dir, "HJA_Stor_Temp_Yr.csv")
+}
+if (!file.exists(annual_file)) {
+  annual_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+}
+
 HJA_Yr <- read_csv(
-  file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv"),
+  annual_file,
   show_col_types = FALSE
 ) %>%
-  filter(!site %in% c("GSLOOK_FULL", "GSWSMA", "GSWSMF", "GSMACK"))  # Exclude non-analysis sites
+  filter(!site %in% SITE_EXCLUDE_STANDARD)
 
 # -----------------------------------------------------------------------------
 # 3. SELECT FEATURES FOR PCA
@@ -100,10 +114,11 @@ features <- c(
 )
 
 site_column <- "site"
+year_column <- "year"
 
 # Select features - keep all sites even with partial data
 HJA_selected <- HJA_Yr %>%
-  select(all_of(site_column), all_of(features))
+  select(all_of(c(site_column, year_column)), all_of(features))
 
 # -----------------------------------------------------------------------------
 # 4. OUTLIER REMOVAL (Z-SCORE > 3)
@@ -119,7 +134,7 @@ HJA_clean <- HJA_selected %>%
 # Impute missing values with column means so all sites can be included
 
 scaled_features <- HJA_clean %>%
-  select(all_of(site_column), all_of(features)) %>%
+  select(all_of(c(site_column, year_column)), all_of(features)) %>%
   mutate(across(all_of(features), ~ {
     if (all(is.na(.))) {
       .
@@ -134,7 +149,7 @@ scaled_features <- HJA_clean %>%
 # -----------------------------------------------------------------------------
 
 pca_result <- prcomp(
-  scaled_features %>% select(-site),
+  scaled_features %>% select(-site, -year),
   center = TRUE,
   scale. = TRUE
 )
@@ -146,6 +161,7 @@ pca_result <- prcomp(
 # PCA scores (PC1 and PC2)
 pca_df <- as.data.frame(pca_result$x[, 1:2])
 pca_df$site <- factor(scaled_features$site, levels = site_order)
+pca_df$year <- scaled_features$year
 
 # Loadings (rotation matrix)
 loadings <- as.data.frame(pca_result$rotation[, 1:2])
@@ -217,6 +233,16 @@ explained_df <- data.frame(
   PC = paste0("PC", 1:length(explained_var)),
   Variance_Explained = explained_var
 )
+
+write.csv(loadings,
+          file.path(output_dir, "PCA_Loadings.csv"),
+          row.names = FALSE)
+write.csv(explained_df,
+          file.path(output_dir, "PCA_Variance_Explained.csv"),
+          row.names = FALSE)
+write.csv(pca_df %>% select(site, year, PC1, PC2),
+          file.path(output_dir, "PCA_Scores_PC1_PC2.csv"),
+          row.names = FALSE)
 
 # Scree plot
 p_scree <- ggplot(explained_df, aes(x = PC, y = Variance_Explained)) +
