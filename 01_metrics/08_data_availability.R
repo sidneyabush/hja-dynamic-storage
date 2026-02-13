@@ -140,7 +140,7 @@ site_metric_matrix <- site_info %>%
 # -----------------------------------------------------------------------------
 # Load discharge data for hydrometric date ranges
 discharge <- read_csv(
-  file.path(base_dir, "Q", "HF00402_v14.csv"),
+  file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(Date = as.Date(DATE, "%m/%d/%Y"))
@@ -156,7 +156,7 @@ hydro_ranges <- discharge %>%
   rename(site_code = SITECODE)
 
 # Load EC data for chemistry date ranges
-ec_file <- file.path(base_dir, "EC", "CF01201_v3.txt")
+ec_file <- file.path(EC_DIR, "CF01201_v3.txt")
 if (file.exists(ec_file)) {
   ec_data <- read_delim(ec_file, delim = "\t", show_col_types = FALSE)
 
@@ -180,11 +180,7 @@ if (file.exists(ec_file)) {
 }
 
 # Load water balance data
-wb_file <- file.path(
-  base_dir,
-  "DynamicStorage",
-  "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"
-)
+wb_file <- resolve_water_balance_daily_file()
 if (file.exists(wb_file)) {
   wb_data <- read_csv(wb_file, show_col_types = FALSE) %>%
     mutate(Date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y")))
@@ -216,7 +212,7 @@ date_ranges <- site_info %>%
 # Load master met dataset
 met_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
 if (!file.exists(met_file)) {
-  met_file <- file.path(base_dir, "MET", "watersheds_met_data_q.csv")
+  met_file <- file.path(MET_DIR, "watersheds_met_data_q.csv")
 }
 
 if (file.exists(met_file)) {
@@ -321,6 +317,124 @@ comprehensive_summary <- site_info %>%
     by = "site_code"
   )
 
+# -----------------------------------------------------------------------------
+# ECO RESPONSE AVAILABILITY (WY 1997-2020)
+# -----------------------------------------------------------------------------
+
+eco_file <- file.path(OUT_MET_ECO_DIR, "stream_thermal_lowflow_metrics_annual.csv")
+
+if (file.exists(eco_file)) {
+  eco_data <- read_csv(eco_file, show_col_types = FALSE) %>%
+    mutate(
+      site = standardize_site_code(site),
+      year = as.integer(year)
+    ) %>%
+    filter(site %in% SITE_ORDER_HYDROMETRIC, year >= WY_START, year <= WY_END)
+
+  eco_response_availability <- eco_data %>%
+    group_by(site) %>%
+    summarise(
+      n_wy_total = n_distinct(year),
+      n_wy_T_7DMax = sum(is.finite(T_7DMax)),
+      n_wy_Q_7Q5 = sum(is.finite(Q_7Q5)),
+      n_wy_T_Q7Q5 = sum(is.finite(T_Q7Q5)),
+      .groups = "drop"
+    ) %>%
+    right_join(tibble(site = SITE_ORDER_HYDROMETRIC), by = "site") %>%
+    mutate(
+      n_wy_total = ifelse(is.na(n_wy_total), 0L, n_wy_total),
+      n_wy_T_7DMax = ifelse(is.na(n_wy_T_7DMax), 0L, n_wy_T_7DMax),
+      n_wy_Q_7Q5 = ifelse(is.na(n_wy_Q_7Q5), 0L, n_wy_Q_7Q5),
+      n_wy_T_Q7Q5 = ifelse(is.na(n_wy_T_Q7Q5), 0L, n_wy_T_Q7Q5),
+      missing_reason = case_when(
+        site == "WS09" & n_wy_T_7DMax == 0 ~ "No GSWS09 stream-temperature records in HT00451_v10.txt",
+        n_wy_T_7DMax == 0 ~ "No stream-temperature WY records",
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+
+  eco_response_wy_coverage <- eco_data %>%
+    select(site, year, T_7DMax, Q_7Q5, T_Q7Q5) %>%
+    pivot_longer(
+      cols = c(T_7DMax, Q_7Q5, T_Q7Q5),
+      names_to = "response",
+      values_to = "value"
+    ) %>%
+    group_by(site, response) %>%
+    summarise(
+      n_wy_with_data = sum(is.finite(value)),
+      first_wy_with_data = ifelse(any(is.finite(value)), min(year[is.finite(value)]), NA_integer_),
+      last_wy_with_data = ifelse(any(is.finite(value)), max(year[is.finite(value)]), NA_integer_),
+      .groups = "drop"
+    ) %>%
+    arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC), response)
+} else {
+  eco_response_availability <- tibble(
+    site = SITE_ORDER_HYDROMETRIC,
+    n_wy_total = 0L,
+    n_wy_T_7DMax = 0L,
+    n_wy_Q_7Q5 = 0L,
+    n_wy_T_Q7Q5 = 0L,
+    missing_reason = "Eco response file not found: stream_thermal_lowflow_metrics_annual.csv"
+  )
+  eco_response_wy_coverage <- tibble(
+    site = character(),
+    response = character(),
+    n_wy_with_data = integer(),
+    first_wy_with_data = integer(),
+    last_wy_with_data = integer()
+  )
+}
+
+# HT004 stream-temperature source coverage (file-level input audit).
+ht004_temp_file <- file.path(STREAM_TEMP_DIR, "HT00451_v10.txt")
+if (file.exists(ht004_temp_file)) {
+  ht004_temp_raw <- read_csv(ht004_temp_file, show_col_types = FALSE) %>%
+    mutate(
+      site_raw = as.character(SITECODE),
+      site = standardize_site_code(site_raw),
+      datetime = as.POSIXct(DATE_TIME, tz = "UTC"),
+      temp_val = WATERTEMP_MEAN
+    )
+
+  stream_temp_source_coverage <- ht004_temp_raw %>%
+    filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+    group_by(site_raw, site) %>%
+    summarise(
+      n_records = n(),
+      n_non_na_temp = sum(is.finite(temp_val), na.rm = TRUE),
+      first_datetime = min(datetime, na.rm = TRUE),
+      last_datetime = max(datetime, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+
+  if (!("WS09" %in% stream_temp_source_coverage$site)) {
+    stream_temp_source_coverage <- bind_rows(
+      stream_temp_source_coverage,
+      tibble(
+        site_raw = "GSWS09",
+        site = "WS09",
+        n_records = 0L,
+        n_non_na_temp = 0L,
+        first_datetime = as.POSIXct(NA),
+        last_datetime = as.POSIXct(NA)
+      )
+    ) %>%
+      arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+  }
+} else {
+  stream_temp_source_coverage <- tibble(
+    site_raw = character(),
+    site = character(),
+    n_records = integer(),
+    n_non_na_temp = integer(),
+    first_datetime = as.POSIXct(character()),
+    last_datetime = as.POSIXct(character())
+  )
+}
+
 
 # -----------------------------------------------------------------------------
 # SAVE OUTPUT TABLES
@@ -347,5 +461,23 @@ write.csv(
 write.csv(
   metrics_info,
   file.path(support_dir, "storage_metrics_definitions.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  eco_response_availability,
+  file.path(support_dir, "eco_response_availability_by_site.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  eco_response_wy_coverage,
+  file.path(support_dir, "eco_response_wy_coverage.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  stream_temp_source_coverage,
+  file.path(support_dir, "stream_temp_source_coverage_ht00451.csv"),
   row.names = FALSE
 )

@@ -31,18 +31,48 @@ if (USE_LOCAL_DATA) {
   # Local data paths (relative to repo root)
   BASE_DATA_DIR <- file.path(REPO_DIR, "data")
   OUTPUT_DIR <- file.path(REPO_DIR, "outputs")
+  EXPLORATORY_PLOTS_DIR <- file.path(REPO_DIR, "data", "exploratory_plots")
 } else {
-  # Box cloud storage paths (update these for your system)
+  # Box cloud storage paths.
   BOX_BASE_DIR <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
-  BASE_DATA_DIR <- file.path(BOX_BASE_DIR, "03_Data")
-  OUTPUT_DIR <- file.path(BOX_BASE_DIR, "05_Outputs")
+
+  # Default to the cleaned final workflow root.
+  FINAL_WORKFLOW_ROOT <- file.path(BOX_BASE_DIR, "final_workflow")
+
+  # Prefer modern folder layout: final_workflow/inputs.
+  # Backward-compatible fallback: final_workflow/01_Raw_Data.
+  candidate_input_dirs <- c(
+    file.path(FINAL_WORKFLOW_ROOT, "inputs"),
+    file.path(FINAL_WORKFLOW_ROOT, "01_Raw_Data")
+  )
+  first_existing_input <- candidate_input_dirs[dir.exists(candidate_input_dirs)]
+  if (length(first_existing_input) == 0) {
+    BASE_DATA_DIR <- candidate_input_dirs[1]
+  } else {
+    BASE_DATA_DIR <- first_existing_input[1]
+  }
+
+  # Prefer modern output layout: final_workflow/outputs.
+  # Backward-compatible fallback remains 05_Outputs/final_workflow.
+  candidate_output_dirs <- c(
+    file.path(FINAL_WORKFLOW_ROOT, "outputs"),
+    file.path(BOX_BASE_DIR, "05_Outputs")
+  )
+  first_existing_output <- candidate_output_dirs[dir.exists(candidate_output_dirs)]
+  if (length(first_existing_output) == 0) {
+    OUTPUT_DIR <- candidate_output_dirs[1]
+  } else {
+    OUTPUT_DIR <- first_existing_output[1]
+  }
+  EXPLORATORY_PLOTS_DIR <- file.path(BOX_BASE_DIR, "03_Data", "exploratory_plots")
 }
 
 # Keep current workflow outputs grouped under one subfolder in 05_Outputs.
 USE_CONSOLIDATED_OUTPUT_SUBDIR <- TRUE
 CONSOLIDATED_OUTPUT_SUBDIR <- "final_workflow"
 
-if (USE_CONSOLIDATED_OUTPUT_SUBDIR) {
+if (USE_CONSOLIDATED_OUTPUT_SUBDIR &&
+    basename(normalizePath(OUTPUT_DIR, winslash = "/", mustWork = FALSE)) != "outputs") {
   OUTPUT_DIR <- file.path(OUTPUT_DIR, CONSOLIDATED_OUTPUT_SUBDIR)
 }
 
@@ -53,19 +83,47 @@ FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
 BASE_DATA_DIR_OVERRIDE <- Sys.getenv("HJA_BASE_DATA_DIR", unset = "")
 OUTPUT_DIR_OVERRIDE <- Sys.getenv("HJA_OUTPUT_DIR", unset = "")
 FIGURES_DIR_OVERRIDE <- Sys.getenv("HJA_FIGURES_DIR", unset = "")
+EXPLORATORY_PLOTS_DIR_OVERRIDE <- Sys.getenv("HJA_EXPLORATORY_PLOTS_DIR", unset = "")
 
 if (nzchar(BASE_DATA_DIR_OVERRIDE)) BASE_DATA_DIR <- BASE_DATA_DIR_OVERRIDE
 if (nzchar(OUTPUT_DIR_OVERRIDE)) OUTPUT_DIR <- OUTPUT_DIR_OVERRIDE
 if (nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- FIGURES_DIR_OVERRIDE
+if (nzchar(EXPLORATORY_PLOTS_DIR_OVERRIDE)) EXPLORATORY_PLOTS_DIR <- EXPLORATORY_PLOTS_DIR_OVERRIDE
 if (!nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
+if (!nzchar(EXPLORATORY_PLOTS_DIR_OVERRIDE) && !exists("EXPLORATORY_PLOTS_DIR")) {
+  EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
+}
 
-# Subdirectories
-DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "Q")
-ET_DIR <- file.path(BASE_DATA_DIR, "DynamicStorage")
-EC_DIR <- file.path(BASE_DATA_DIR, "EC")
-ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "Isotopes")
-STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "Stream_T")
-MET_DIR <- file.path(BASE_DATA_DIR, "MET")
+# Input subdirectories
+DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "q")
+EC_DIR <- file.path(BASE_DATA_DIR, "ec")
+ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "isotopes")
+STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "stream_t")
+MET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
+CATCHMENT_CHARACTERISTICS_DIR <- file.path(BASE_DATA_DIR, "catchment_characteristics")
+
+# Legacy input subdirectories (fallbacks for mixed-case historical trees)
+LEGACY_DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "Q")
+LEGACY_EC_DIR <- file.path(BASE_DATA_DIR, "EC")
+LEGACY_ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "Isotopes")
+LEGACY_STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "Stream_T")
+LEGACY_MET_DIR <- file.path(BASE_DATA_DIR, "MET")
+LEGACY_ALL_HYDROMET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
+LEGACY_CATCHMENT_DIR <- file.path(BASE_DATA_DIR, "DynamicStorage")
+
+first_existing_dir <- function(...) {
+  candidates <- unlist(list(...), use.names = FALSE)
+  hits <- candidates[dir.exists(candidates)]
+  if (length(hits) == 0) candidates[1] else hits[1]
+}
+
+DISCHARGE_DIR <- first_existing_dir(DISCHARGE_DIR, LEGACY_DISCHARGE_DIR)
+EC_DIR <- first_existing_dir(EC_DIR, LEGACY_EC_DIR)
+ISOTOPE_DIR <- first_existing_dir(ISOTOPE_DIR, LEGACY_ISOTOPE_DIR)
+STREAM_TEMP_DIR <- first_existing_dir(STREAM_TEMP_DIR, LEGACY_STREAM_TEMP_DIR)
+MET_DIR <- first_existing_dir(MET_DIR, LEGACY_ALL_HYDROMET_DIR, LEGACY_MET_DIR)
+CATCHMENT_CHARACTERISTICS_DIR <- first_existing_dir(CATCHMENT_CHARACTERISTICS_DIR, LEGACY_CATCHMENT_DIR)
+EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
 
 # Create output directory if it doesn't exist
 if (!dir.exists(OUTPUT_DIR)) {
@@ -82,11 +140,12 @@ OUT_MET_SUPPORT_DIR <- file.path(OUT_METRICS_DIR, "support")
 
 OUT_MASTER_DIR <- file.path(OUTPUT_DIR, "master")
 
-OUT_STATS_DIR <- file.path(OUTPUT_DIR, "stats")
+OUT_STATS_DIR <- file.path(OUTPUT_DIR, "models")
 OUT_STATS_ANOVA_DIR <- file.path(OUT_STATS_DIR, "anova_tukey")
 OUT_STATS_PCA_DIR <- file.path(OUT_STATS_DIR, "pca")
-OUT_STATS_MLR_CATCH_CHARS_DIR <- file.path(OUT_STATS_DIR, "mlr_catch_chars_storage")
-OUT_STATS_MLR_ECO_DIR <- file.path(OUT_STATS_DIR, "mlr_storage_eco")
+OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR <- file.path(OUT_STATS_DIR, "watershed_char_storage_mlr")
+OUT_MODELS_STORAGE_ECOVAR_MLR_DIR <- file.path(OUT_STATS_DIR, "storage_ecovar_mlr")
+OUT_STATS_VALIDATION_DIR <- file.path(OUT_STATS_DIR, "validation")
 
 OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")
 OUT_TABLES_MLR_DIR <- file.path(OUT_TABLES_DIR, "mlr")
@@ -102,10 +161,13 @@ for (d in c(
   OUT_STATS_DIR,
   OUT_STATS_ANOVA_DIR,
   OUT_STATS_PCA_DIR,
-  OUT_STATS_MLR_CATCH_CHARS_DIR,
-  OUT_STATS_MLR_ECO_DIR,
+  OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR,
+  OUT_MODELS_STORAGE_ECOVAR_MLR_DIR,
+  OUT_STATS_VALIDATION_DIR,
   OUT_TABLES_DIR,
-  OUT_TABLES_MLR_DIR
+  OUT_TABLES_MLR_DIR,
+  EXPLORATORY_PLOTS_DIR,
+  EXPLORATORY_ET_METHODS_DIR
 )) {
   if (!dir.exists(d)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
@@ -244,6 +306,17 @@ FIG_POINT_SIZE_LARGE <- 3.0
 FIG_WIDTH_SCALE <- 1.35
 FIG_HEIGHT_SCALE <- 1.35
 
+# Global label/annotation behavior.
+# Use these in plotting scripts so labels are consistently readable.
+FIG_LABEL_CHECK_OVERLAP <- TRUE
+FIG_LABEL_CLIP <- "off"         # "off" prevents annotation clipping at panel bounds
+FIG_LABEL_PLOT_MARGIN_PT <- 18  # extra margin so outer labels are not cut
+FIG_MEAN_LINE_LINETYPES <- c(
+  "solid", "dashed", "dotdash", "longdash",
+  "twodash", "dotted", "22", "42", "F2"
+)
+FIG_MEAN_LABEL_DIGITS <- 2
+
 # 10-color palette for hydrometric sites (colorblind-friendly)
 SITE_COLORS <- c(
   "WS09" = "#882255",
@@ -261,6 +334,17 @@ SITE_COLORS <- c(
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
+
+# Publication plot theme: no title/subtitle and no grid lines.
+theme_pub <- function(base_size = FIG_BASE_SIZE) {
+  ggplot2::theme_classic(base_size = base_size) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_blank(),
+      plot.subtitle = ggplot2::element_blank(),
+      panel.grid.major = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+}
 
 #' Get water year from date
 #' @param date A Date object
@@ -316,6 +400,14 @@ to_legacy_hydro_site_code <- function(site_code) {
   )
 }
 
+make_panel_label_map <- function(values) {
+  values <- as.character(values)
+  if (length(values) == 0) return(character())
+  idx <- seq_along(values)
+  labels <- paste0(LETTERS[((idx - 1) %% 26) + 1], ") ", values)
+  stats::setNames(labels, values)
+}
+
 rename_legacy_storage_metrics <- function(df) {
   hits <- names(LEGACY_STORAGE_RENAME_MAP)[names(LEGACY_STORAGE_RENAME_MAP) %in% names(df)]
   if (length(hits) == 0) {
@@ -325,3 +417,58 @@ rename_legacy_storage_metrics <- function(df) {
 }
 
 SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))
+
+# Derived water-balance daily file should come from workflow outputs, not raw inputs.
+resolve_water_balance_daily_file <- function() {
+  candidates <- c(
+    file.path(OUT_MET_SUPPORT_DIR, "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
+    file.path(OUT_MET_SUPPORT_DIR, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
+    file.path(dirname(BASE_DATA_DIR), "outputs", "metrics", "support", "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
+    file.path(dirname(BASE_DATA_DIR), "outputs", "metrics", "support", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
+    file.path(BASE_DATA_DIR, "derived", "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
+    file.path(BASE_DATA_DIR, "derived", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
+    file.path(BASE_DATA_DIR, "DynamicStorage", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
+  )
+  hits <- candidates[file.exists(candidates)]
+  if (length(hits) == 0) {
+    stop(
+      paste0(
+        "Missing derived water-balance daily file. Checked:\n- ",
+        paste(candidates, collapse = "\n- ")
+      )
+    )
+  }
+  hits[1]
+}
+
+resolve_drainage_area_file <- function() {
+  candidates <- c(
+    file.path(CATCHMENT_CHARACTERISTICS_DIR, "drainage_area.csv"),
+    file.path(DISCHARGE_DIR, "drainage_area.csv"),
+    file.path(BASE_DATA_DIR, "catchment_characteristics", "drainage_area.csv"),
+    file.path(BASE_DATA_DIR, "Q", "drainage_area.csv")
+  )
+  hits <- candidates[file.exists(candidates)]
+  if (length(hits) == 0) {
+    stop(
+      paste0(
+        "Missing drainage area file. Checked:\n- ",
+        paste(candidates, collapse = "\n- ")
+      )
+    )
+  }
+  hits[1]
+}
+
+resolve_catchment_characteristics_file <- function() {
+  canonical <- file.path(CATCHMENT_CHARACTERISTICS_DIR, "catchment_char.csv")
+  if (!file.exists(canonical)) {
+    stop(
+      paste0(
+        "Missing canonical catchment characteristics file: ",
+        canonical
+      )
+    )
+  }
+  canonical
+}

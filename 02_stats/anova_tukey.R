@@ -30,8 +30,6 @@ library(ggplot2)
 library(patchwork)
 library(multcompView)
 
-theme_set(theme_bw(base_size = 12))
-
 # Clear environment
 rm(list = ls())
 
@@ -65,6 +63,8 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 12))
+
 # Use configuration values
 site_order <- SITE_ORDER_HYDROMETRIC
 base_dir   <- BASE_DATA_DIR
@@ -80,7 +80,7 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
 if (!file.exists(annual_file)) {
-  annual_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
 }
 
 HJA_annual <- read_csv(

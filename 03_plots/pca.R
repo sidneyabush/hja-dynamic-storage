@@ -30,7 +30,7 @@ if (!file.exists(config_path)) config_path <- file.path(getwd(), "config.R")
 source(config_path)
 
 main_dir <- file.path(FIGURES_DIR, "main")
-supp_dir <- file.path(FIGURES_DIR, "supp", "stats", "pca")
+supp_dir <- file.path(FIGURES_DIR, "supp", "analysis", "pca")
 table_dir <- file.path(OUT_TABLES_DIR, "pca")
 for (d in c(main_dir, supp_dir, table_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
@@ -38,14 +38,24 @@ for (d in c(main_dir, supp_dir, table_dir)) {
 
 # Remove stale catchment-characteristics PCA outputs (deprecated).
 unlink(file.path(supp_dir, c(
-  "catch_chars_mlr_pca_biplot.png",
-  "catch_chars_mlr_pca_biplot.pdf",
-  "catch_chars_mlr_pca_scree.png",
-  "catch_chars_mlr_pca_scree.pdf"
+  "watershed_char_storage_mlr_pca_biplot.png",
+  "watershed_char_storage_mlr_pca_biplot.pdf",
+  "watershed_char_storage_mlr_pca_scree.png",
+  "watershed_char_storage_mlr_pca_scree.pdf"
+)))
+unlink(file.path(supp_dir, c(
+  "storage_ecovar_mlr_pca_biplot.png",
+  "storage_ecovar_mlr_pca_biplot.pdf",
+  "storage_ecovar_mlr_pca_scree.png",
+  "storage_ecovar_mlr_pca_scree.pdf"
 )))
 unlink(file.path(table_dir, c(
-  "catch_chars_mlr_pca_variance_table.csv",
-  "catch_chars_mlr_pca_loading_table.csv"
+  "watershed_char_storage_mlr_pca_variance_table.csv",
+  "watershed_char_storage_mlr_pca_loading_table.csv"
+)))
+unlink(file.path(table_dir, c(
+  "storage_ecovar_mlr_pca_variance_table.csv",
+  "storage_ecovar_mlr_pca_loading_table.csv"
 )))
 
 scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
@@ -105,21 +115,24 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
     label.padding = grid::unit(0.12, "lines"),
     size = FIG_ANNOT_TEXT_SIZE,
     nudge_x = 0.05,
-    nudge_y = 0.05
+    nudge_y = 0.05,
+    check_overlap = FIG_LABEL_CHECK_OVERLAP
   ) +
   scale_color_manual(values = SITE_COLORS) +
   labs(
     x = paste0("PC1 (", number(pc1_pct, accuracy = 0.1), "%)"),
     y = paste0("PC2 (", number(pc2_pct, accuracy = 0.1), "%)")
   ) +
-  theme_classic(base_size = FIG_BASE_SIZE) +
+  theme_pub() +
   theme(
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     legend.position = "right",
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
-    axis.line = element_blank()
-  )
+    axis.line = element_blank(),
+    plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
+  ) +
+  coord_cartesian(clip = FIG_LABEL_CLIP)
 
 ggsave(file.path(main_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(main_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
@@ -131,7 +144,7 @@ p_scree <- vexp %>%
   geom_text(aes(label = percent(Variance_Explained, accuracy = 0.1)), vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE) +
   labs(x = NULL, y = "Variance explained") +
   scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.08))) +
-  theme_classic(base_size = FIG_BASE_SIZE) +
+  theme_pub() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
@@ -146,117 +159,4 @@ ggsave(file.path(supp_dir, "pca_scree.pdf"), p_scree, width = 7 * FIG_WIDTH_SCAL
 write_csv(vexp, file.path(table_dir, "pca_variance_table.csv"))
 write_csv(loads, file.path(table_dir, "pca_loading_table.csv"))
 
-# Eco-model PCA plots (if eco PCA outputs exist)
-eco_scores_file <- file.path(OUT_STATS_PCA_DIR, "eco_mlr_pca_scores_pc1_pc2.csv")
-eco_loads_file <- file.path(OUT_STATS_PCA_DIR, "eco_mlr_pca_loadings.csv")
-eco_var_file <- file.path(OUT_STATS_PCA_DIR, "eco_mlr_pca_variance_explained.csv")
-
-if (file.exists(eco_scores_file) && file.exists(eco_loads_file) && file.exists(eco_var_file)) {
-  eco_scores <- read_csv(eco_scores_file, show_col_types = FALSE) %>%
-    mutate(site = standardize_site_code(site)) %>%
-    filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-    mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
-
-  eco_loads <- read_csv(eco_loads_file, show_col_types = FALSE)
-  eco_vexp <- read_csv(eco_var_file, show_col_types = FALSE)
-
-  eco_pc1_pct <- ifelse(nrow(eco_vexp) >= 1, 100 * eco_vexp$Variance_Explained[1], NA_real_)
-  eco_pc2_pct <- ifelse(nrow(eco_vexp) >= 2, 100 * eco_vexp$Variance_Explained[2], NA_real_)
-
-  eco_score_lim <- max(abs(c(eco_scores$PC1, eco_scores$PC2)), na.rm = TRUE)
-  eco_load_lim <- max(abs(c(eco_loads$PC1, eco_loads$PC2)), na.rm = TRUE)
-  eco_arrow_scale <- ifelse(
-    is.finite(eco_score_lim) && is.finite(eco_load_lim) && eco_load_lim > 0,
-    0.75 * eco_score_lim / eco_load_lim,
-    1
-  )
-
-  eco_loads_plot <- eco_loads %>%
-    mutate(
-      PC1s = PC1 * eco_arrow_scale,
-      PC2s = PC2 * eco_arrow_scale,
-      pretty_label = dplyr::recode(
-        feature,
-        "RCS" = "Recession Slope",
-        "RBI" = "Flashiness (RBI)",
-        "FDC" = "FDC Slope",
-        "SD" = "Storage-Discharge",
-        "WB" = "Water Balance",
-        "CHS" = "CHS",
-        "MTT" = "Mean Transit Time (MTT)",
-        "Fyw" = "Young Water Fraction (Fyw)",
-        "DR" = "Damping Ratio (DR)",
-        "Lava1_per" = "Lava-1",
-        "Lava2_per" = "Lava-2",
-        "Ash_Per" = "Ash",
-        "Landslide_Total" = "LS Total",
-        "Landslide_Young" = "LS Young",
-        .default = feature
-      )
-    )
-
-  p_eco_biplot <- ggplot(eco_scores, aes(x = PC1, y = PC2, color = site)) +
-    geom_hline(yintercept = 0, linewidth = 0.3, color = "grey70") +
-    geom_vline(xintercept = 0, linewidth = 0.3, color = "grey70") +
-    geom_point(size = FIG_POINT_SIZE_LARGE + 0.8, alpha = 0.85) +
-    geom_segment(
-      data = eco_loads_plot,
-      aes(x = 0, y = 0, xend = PC1s, yend = PC2s),
-      inherit.aes = FALSE,
-      arrow = arrow(length = unit(0.18, "cm")),
-      color = "black",
-      linewidth = 0.5
-    ) +
-    geom_label(
-      data = eco_loads_plot,
-      aes(x = PC1s, y = PC2s, label = pretty_label),
-      inherit.aes = FALSE,
-      color = "black",
-      fill = scales::alpha("white", 0.75),
-      label.size = 0,
-      label.padding = grid::unit(0.12, "lines"),
-      size = FIG_ANNOT_TEXT_SIZE + 0.8,
-      nudge_x = 0.05,
-      nudge_y = 0.05
-    ) +
-    scale_color_manual(values = SITE_COLORS) +
-    labs(
-      x = paste0("PC1 (", number(eco_pc1_pct, accuracy = 0.1), "%)"),
-      y = paste0("PC2 (", number(eco_pc2_pct, accuracy = 0.1), "%)")
-    ) +
-    theme_classic(base_size = FIG_BASE_SIZE) +
-    theme(
-      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
-      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-      legend.position = "right",
-      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
-      axis.line = element_blank()
-    )
-
-  ggsave(file.path(supp_dir, "eco_mlr_pca_biplot.png"), p_eco_biplot, width = 10.5 * FIG_WIDTH_SCALE, height = 8.5 * FIG_HEIGHT_SCALE, dpi = 300)
-  ggsave(file.path(supp_dir, "eco_mlr_pca_biplot.pdf"), p_eco_biplot, width = 10.5 * FIG_WIDTH_SCALE, height = 8.5 * FIG_HEIGHT_SCALE)
-
-  p_eco_scree <- eco_vexp %>%
-    mutate(PC = factor(PC, levels = PC)) %>%
-    ggplot(aes(x = PC, y = Variance_Explained)) +
-    geom_col(fill = "grey55", color = "black", linewidth = 0.3) +
-    geom_text(aes(label = percent(Variance_Explained, accuracy = 0.1)), vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE) +
-    labs(x = NULL, y = "Variance explained") +
-    scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.08))) +
-    theme_classic(base_size = FIG_BASE_SIZE) +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
-      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
-      axis.line = element_blank()
-    )
-
-  ggsave(file.path(supp_dir, "eco_mlr_pca_scree.png"), p_eco_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE, dpi = 300)
-  ggsave(file.path(supp_dir, "eco_mlr_pca_scree.pdf"), p_eco_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE)
-
-  write_csv(eco_vexp, file.path(table_dir, "eco_mlr_pca_variance_table.csv"))
-  write_csv(eco_loads, file.path(table_dir, "eco_mlr_pca_loading_table.csv"))
-}
-
-# Catchment-characteristics PCA plots removed by design.
+# Catchment-characteristics and eco-model PCA companion plots removed by design.

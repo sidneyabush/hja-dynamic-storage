@@ -76,30 +76,11 @@ wy_start <- 1997
 wy_end <- 2020
 
 # -----------------------------------------------------------------------------
-# MUTED, COHESIVE PALETTE (consistent across rows)
+# GREYSCALE PALETTE (print-safe, manuscript-ready)
 # -----------------------------------------------------------------------------
-# Precipitation — darker, calm blue
-col_precip <- "#4A6FA5"
-
-# Temperature — subdued orange (not yellow, not red)
-col_temp <- "#D08C2F"
-
-# SWE — darker glacier teal
-col_swe <- "#4F9A8A"
-
-# Negative anomaly tints (same hues, much lighter)
-col_precip_neg <- "#C9D7EB"
-col_temp_neg <- "#F0D9B5"
-col_swe_neg <- "#CFE5E1"
-
-# Top row (variable identity by lightness)
 col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray
-
-# Bottom row anomalies (same variable identity)
-# Positive = same gray as top row
-# Negative = lighter tint of same gray
 col_precip_neg <- "#BFBFBF"
 col_temp_neg <- "#D9D9D9"
 col_swe_neg <- "#E6E6E6"
@@ -109,18 +90,16 @@ col_swe_neg <- "#E6E6E6"
 # THEME
 # -----------------------------------------------------------------------------
 
-theme_pub <- theme_classic(base_size = FIG_BASE_SIZE) +
+theme_pub_base <- theme_pub() +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
-    plot.title = element_blank(),
-    plot.subtitle = element_blank(),
     plot.caption = element_blank(),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE)
   )
 
-theme_set(theme_pub)
+theme_set(theme_pub_base)
 
 # -----------------------------------------------------------------------------
 # LOAD DATA
@@ -255,18 +234,21 @@ p1 <- ggplot(precip_monthly, aes(month, med)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
   labs(y = "Precipitation (mm)", x = NULL) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p2 <- ggplot(temp_monthly, aes(month, med)) +
   geom_col(fill = col_temp, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(y = "Temperature (°C)", x = NULL)
+  labs(y = "Temperature (°C)", x = NULL) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p3 <- ggplot(swe_monthly, aes(month, med)) +
   geom_col(fill = col_swe, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
   labs(y = "SWE (mm)", x = NULL) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Bottom row: Anomalies (no titles; no legends)
 p4 <- ggplot(precip_annual, aes(water_year, anom)) +
@@ -279,8 +261,9 @@ p4 <- ggplot(precip_annual, aes(water_year, anom)) +
   scale_fill_manual(values = c("TRUE" = col_precip, "FALSE" = col_precip_neg)) +
   guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = NULL, x = "Water Year", y = "Anomaly (mm)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 4))
+  labs(x = "Water Year", y = "Anomaly (mm)") +
+  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p5 <- ggplot(temp_annual, aes(water_year, anom)) +
   geom_col(
@@ -292,8 +275,9 @@ p5 <- ggplot(temp_annual, aes(water_year, anom)) +
   scale_fill_manual(values = c("TRUE" = col_temp, "FALSE" = col_temp_neg)) +
   guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = NULL, x = "Water Year", y = "Anomaly (°C)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 4))
+  labs(x = "Water Year", y = "Anomaly (°C)") +
+  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p6 <- ggplot(swe_annual, aes(water_year, anom)) +
   geom_col(
@@ -305,8 +289,9 @@ p6 <- ggplot(swe_annual, aes(water_year, anom)) +
   scale_fill_manual(values = c("TRUE" = col_swe, "FALSE" = col_swe_neg)) +
   guides(fill = "none") +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(title = NULL, x = "Water Year", y = "Anomaly (mm)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 4))
+  labs(x = "Water Year", y = "Anomaly (mm)") +
+  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # -----------------------------------------------------------------------------
 # COMBINE AND SAVE (no overall title; no caption; panel labels a)–f))
@@ -326,14 +311,14 @@ fig_combined <- (p1 | p2 | p3) /
 ggsave(
   file.path(output_dir, "met_context.png"),
   fig_combined,
-  width = 12 * FIG_WIDTH_SCALE,
-  height = 7 * FIG_HEIGHT_SCALE,
+  width = 13 * FIG_WIDTH_SCALE,
+  height = 8.5 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
   file.path(output_dir, "met_context.pdf"),
   fig_combined,
-  width = 12 * FIG_WIDTH_SCALE,
-  height = 7 * FIG_HEIGHT_SCALE
+  width = 13 * FIG_WIDTH_SCALE,
+  height = 8.5 * FIG_HEIGHT_SCALE
 )

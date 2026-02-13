@@ -20,8 +20,6 @@ library(scales)
 library(colorspace)
 library(tidyr)
 
-theme_set(theme_classic(base_size = 14))
-
 # Clear environment
 rm(list = ls())
 
@@ -56,15 +54,18 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 14))
+
 # Use configuration values
-base_dir <- BASE_DATA_DIR
 output_dir <- OUT_MET_DYNAMIC_DIR
+discharge_dir <- DISCHARGE_DIR
+catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 sites_keep <- SITE_ORDER_HYDROMETRIC
 
 # Read & prep data
-da_df <- read_csv(file.path(base_dir, "Q", "drainage_area.csv"), show_col_types = FALSE) %>%
+da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = standardize_site_code(SITECODE))
-discharge <- read_csv(file.path(base_dir, "Q", "HF00402_v14.csv"), show_col_types = FALSE) %>%
+discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
   # Standardize site codes (e.g., GSWSMC -> Mack, GSLOOK -> Look)
   mutate(SITECODE = standardize_site_code(SITECODE)) %>%
   # Filter to water years 1997-2020 and hydrometric sites

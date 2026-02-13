@@ -39,7 +39,7 @@ if (!grepl("final_workflow$", OUTPUT_DIR)) {
   stop("Safety check failed. OUTPUT_DIR must end with 'final_workflow'.")
 }
 
-targets <- c("metrics", "master", "stats", "tables", "figs", "MET")
+targets <- c("metrics", "master", "models", "tables", "figs", "MET")
 for (nm in targets) {
   p <- file.path(OUTPUT_DIR, nm)
   if (dir.exists(p)) unlink(p, recursive = TRUE, force = TRUE)

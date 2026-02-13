@@ -34,8 +34,6 @@ library(MASS)         # for stepAIC()
 library(car)          # for vif()
 library(tidyr)
 
-theme_set(theme_classic(base_size = 12))
-
 # Clear environment
 rm(list = ls())
 
@@ -69,24 +67,31 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 12))
+
 # Use configuration values
 site_order <- SITE_ORDER_HYDROMETRIC
 base_dir   <- BASE_DATA_DIR
-output_dir <- OUT_STATS_MLR_CATCH_CHARS_DIR
+output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
-file_prefix <- "catch_chars_storage_mlr"
+file_prefix <- "watershed_char_storage_mlr"
 
 # Remove deprecated PCA-screening output for catchment-characteristics MLR.
 unlink(file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")))
 
 VIF_THRESHOLD <- 10
 LOW_N_THRESHOLD_CATCH <- 10
+USE_MUMIN_LOOCV <- TRUE
 
 env_vif_threshold <- suppressWarnings(as.numeric(Sys.getenv("HJA_MLR_VIF_THRESHOLD", unset = "")))
 if (!is.na(env_vif_threshold) && is.finite(env_vif_threshold) && env_vif_threshold > 0) {
   VIF_THRESHOLD <- env_vif_threshold
+}
+
+if (USE_MUMIN_LOOCV && !requireNamespace("MuMIn", quietly = TRUE)) {
+  stop("MuMIn is required for catchment-model LOOCV. Install with: install.packages('MuMIn')")
 }
 
 # -----------------------------------------------------------------------------
@@ -158,8 +163,24 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
   calc_loocv_stats <- function(model_formula, df) {
     n <- nrow(df)
     if (n < 6) {
-      return(list(rmse_loocv = NA_real_, r2_loocv = NA_real_))
+      return(list(
+        rmse_loocv = NA_real_,
+        r2_loocv = NA_real_,
+        rmse_loocv_mean_runs = NA_real_
+      ))
     }
+
+    rmse_loocv <- NA_real_
+    if (USE_MUMIN_LOOCV) {
+      model_obj <- tryCatch(lm(model_formula, data = df), error = function(e) NULL)
+      if (!is.null(model_obj)) {
+        rmse_loocv <- tryCatch(
+          as.numeric(MuMIn::loo(model_obj, type = "rmse")),
+          error = function(e) NA_real_
+        )
+      }
+    }
+
     response <- all.vars(model_formula)[1]
     obs <- df[[response]]
     preds <- rep(NA_real_, n)
@@ -173,13 +194,25 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
 
     valid <- is.finite(obs) & is.finite(preds)
     if (sum(valid) < 3) {
-      return(list(rmse_loocv = NA_real_, r2_loocv = NA_real_))
+      return(list(
+        rmse_loocv = NA_real_,
+        r2_loocv = NA_real_,
+        rmse_loocv_mean_runs = NA_real_
+      ))
     }
-    rmse_loocv <- sqrt(mean((obs[valid] - preds[valid])^2, na.rm = TRUE))
+    errs <- obs[valid] - preds[valid]
+    if (!is.finite(rmse_loocv)) {
+      rmse_loocv <- sqrt(mean(errs^2, na.rm = TRUE))
+    }
+    rmse_loocv_mean_runs <- mean(abs(errs), na.rm = TRUE)
     sst <- sum((obs[valid] - mean(obs[valid], na.rm = TRUE))^2, na.rm = TRUE)
-    sse <- sum((obs[valid] - preds[valid])^2, na.rm = TRUE)
+    sse <- sum(errs^2, na.rm = TRUE)
     r2_loocv <- ifelse(sst > 0, 1 - (sse / sst), NA_real_)
-    list(rmse_loocv = rmse_loocv, r2_loocv = r2_loocv)
+    list(
+      rmse_loocv = rmse_loocv,
+      r2_loocv = r2_loocv,
+      rmse_loocv_mean_runs = rmse_loocv_mean_runs
+    )
   }
 
   predictor_keep <- predictors[predictors %in% names(data_in)]
@@ -392,8 +425,10 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
   summary_df <- summary_df %>%
     mutate(
       RMSE_LOOCV = loocv$rmse_loocv,
+      RMSE_LOOCV_MEAN_RUNS = loocv$rmse_loocv_mean_runs,
       R2_LOOCV = loocv$r2_loocv,
-      delta_RMSE_LOOCV_minus_model = RMSE_LOOCV - RMSE
+      delta_RMSE_LOOCV_minus_model = RMSE_LOOCV - RMSE,
+      delta_RMSE_LOOCV_mean_runs_minus_model = RMSE_LOOCV_MEAN_RUNS - RMSE
     )
 
   list(
@@ -582,3 +617,35 @@ flags <- strict$summary %>%
 write.csv(flags,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
+
+# Explicit LOOCV validation output (models + tables validation folders)
+loocv_validation <- strict$summary %>%
+  transmute(
+    model_family = "watershed_char_storage_mlr",
+    method = Method,
+    outcome = Outcome,
+    n = N,
+    rmse_model = RMSE,
+    rmse_loocv = RMSE_LOOCV,
+    rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
+    r2_model = R2,
+    r2_loocv = R2_LOOCV,
+    delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
+    delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
+  ) %>%
+  arrange(outcome)
+
+write.csv(
+  loocv_validation,
+  file.path(OUT_STATS_VALIDATION_DIR, "watershed_char_storage_mlr_loocv_validation.csv"),
+  row.names = FALSE
+)
+
+if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
+  dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
+}
+write.csv(
+  loocv_validation,
+  file.path(OUT_TABLES_DIR, "validation", "watershed_char_storage_mlr_loocv_validation.csv"),
+  row.names = FALSE
+)

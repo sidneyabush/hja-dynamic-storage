@@ -105,7 +105,7 @@ table {
 
 
 ```{r catch-summary}
-mlr1_strict <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_summary_strict.csv"), show_col_types = FALSE)
+mlr1_strict <- read_csv(path("stats", "watershed_char_storage_mlr", "watershed_char_storage_mlr_summary_strict.csv"), show_col_types = FALSE)
 if (!("low_n_flag" %in% names(mlr1_strict))) mlr1_strict$low_n_flag <- NA
 mlr1_selected <- mlr1_strict %>%
   mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
@@ -151,7 +151,7 @@ catch_screen <- catch_best %>%
 ```
 
 ```{r catch-predictor-frequency}
-catch_coef <- read_csv(path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_results_strict.csv"), show_col_types = FALSE)
+catch_coef <- read_csv(path("stats", "watershed_char_storage_mlr", "watershed_char_storage_mlr_results_strict.csv"), show_col_types = FALSE)
 catch_predictor_freq <- catch_coef %>%
   mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
   group_by(Predictor) %>%
@@ -166,17 +166,17 @@ kable(catch_predictor_freq, caption = "Watershed-characteristics predictors reta
 ```
 
 ```{r catch-model-avg}
-catch_avg_file <- path("stats", "mlr_catch_chars_storage", "catch_chars_storage_mlr_model_avg_coef.csv")
+catch_avg_file <- path("stats", "watershed_char_storage_mlr", "watershed_char_storage_mlr_model_avg_coef.csv")
 if (file.exists(catch_avg_file)) {
   cat("All watershed-model-averaged coefficients are saved here:\n\n")
   cat(paste0("- ", catch_avg_file, "\n"))
 } else {
-  kable(tibble(note = "Run `02_stats/catchment_storage_mlr.R` to generate catch_chars_storage_mlr_model_avg_coef.csv"))
+  kable(tibble(note = "Run `02_stats/watershed_char_storage_mlr.R` to generate watershed_char_storage_mlr_model_avg_coef.csv"))
 }
 ```
 
 ```{r catch-beta-fig, out.width='75%'}
-knitr::include_graphics(fig("supp", "stats", "mlr", "catch_chars_storage_mlr_beta.png"))
+knitr::include_graphics(fig("main", "watershed_char_storage_mlr_beta.png"))
 ```
 
 ## Using Storage Metrics to Predict Ecological Variables
@@ -199,63 +199,8 @@ knitr::include_graphics(fig("supp", "stats", "mlr", "catch_chars_storage_mlr_bet
 - Ecological MLR results below are from the single best model by AICc for each response
 - Ecological MLR does not use coefficient model averaging
 
-```{r eco-pca-values}
-eco_pca_var <- read_csv(path("stats", "pca", "eco_mlr_pca_variance_explained.csv"), show_col_types = FALSE) %>%
-  mutate(cum_var = cumsum(Variance_Explained)) %>%
-  mutate(across(c(Variance_Explained, cum_var), ~ round(.x, 4)))
-
-eco_pca_load_file <- path("stats", "pca", "eco_mlr_pca_loadings.csv")
-eco_pca_load <- read_csv(eco_pca_load_file, show_col_types = FALSE) %>%
-  mutate(abs_pc1 = abs(PC1), abs_pc2 = abs(PC2))
-
-kable(eco_pca_var, caption = "Eco-model PCA variance explained by component.")
-cat("Eco-model PCA loadings file path:\n\n")
-cat(paste0("- ", eco_pca_load_file, "\n"))
-```
-
-```{r eco-pca-figs, out.width='90%', fig.align='center'}
-knitr::include_graphics(
-  fig("supp", "stats", "pca", "eco_mlr_pca_biplot.png")
-)
-```
-
-```{r eco-pca-screening, include=FALSE}
-eco_screen <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_pca_screening.csv"), show_col_types = FALSE)
-eco_sel <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_model_selection.csv"), show_col_types = FALSE)
-
-best_sets <- eco_sel %>%
-  filter(Method == "strict") %>%
-  group_by(Response) %>%
-  slice_min(order_by = AICc, n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(Response, Candidate_Set)
-
-eco_screen_best <- eco_screen %>%
-  filter(Method == "strict") %>%
-  inner_join(best_sets, by = c("Response", "Candidate_Set")) %>%
-  mutate(
-    pca_decision = ifelse(retained_after_pca, "retained", "dropped"),
-    significant_pcs = if ("significant_pcs" %in% names(.)) significant_pcs else NA_character_,
-    why_dropped = dplyr::case_when(
-      retained_after_pca ~ NA_character_,
-      !significant_any_pc ~ "not significant on retained PC(s)",
-      drop_reason == "collinear_pair" ~ "dropped as collinear pair (abs(r) >= 0.7) with lower PCA score",
-      TRUE ~ "dropped in PCA screening"
-    )
-  ) %>%
-  transmute(
-    response = Response,
-    predictor = Predictor,
-    pca_decision,
-    significant_pcs,
-    why_dropped
-  ) %>%
-  arrange(response, desc(pca_decision), predictor)
-
-```
-
 ```{r eco-summary}
-mlr2_strict <- read_csv(path("stats", "mlr_storage_eco", "storage_eco_mlr_summary_strict.csv"), show_col_types = FALSE)
+mlr2_strict <- read_csv(path("stats", "storage_ecovar_mlr", "storage_ecovar_mlr_summary_strict.csv"), show_col_types = FALSE)
 if (!("low_n_flag" %in% names(mlr2_strict))) mlr2_strict$low_n_flag <- NA
 mlr2_selected <- mlr2_strict %>%
   transmute(
@@ -275,14 +220,14 @@ kable(mlr2_selected)
 
 
 ```{r eco-beta-fig, out.width='75%'}
-knitr::include_graphics(fig("supp", "stats", "mlr", "storage_eco_mlr_beta.png"))
+knitr::include_graphics(fig("main", "storage_ecovar_mlr_beta.png"))
 ```
 
 AICc < 2 candidate models (storage to ecological variables)
 
 ```{r eco-candidates-delta2}
-eco_candidates_file <- path("stats", "mlr_storage_eco", "storage_eco_mlr_model_selection.csv")
-eco_out_file <- path("tables", "mlr", "storage_eco_mlr_aicc_lt2.csv")
+eco_candidates_file <- path("stats", "storage_ecovar_mlr", "storage_ecovar_mlr_model_selection.csv")
+eco_out_file <- path("tables", "mlr", "storage_ecovar_mlr_aicc_lt2.csv")
 cat(paste0("Table path: ", eco_out_file, "\n\n"))
 
 if (file.exists(eco_candidates_file)) {
@@ -315,7 +260,7 @@ if (file.exists(eco_candidates_file)) {
     error = function(e) NULL
   )
 } else {
-  kable(tibble(note = "Run `02_stats/predict_thermal_lowflow.R` to generate storage_eco_mlr_model_selection.csv"))
+  kable(tibble(note = "Run `02_stats/storage_ecovar_mlr.R` to generate storage_ecovar_mlr_model_selection.csv"))
 }
 ```
 
@@ -346,23 +291,4 @@ kable(
 
 ### Eco model
 
-```{r model-screening-eco}
-hr <- "<hr style='border:0;border-top:2px solid #9aa4af;margin:0;'>"
-eco_groups <- split(eco_screen_best, eco_screen_best$response)
-eco_with_sep <- dplyr::bind_rows(lapply(seq_along(eco_groups), function(i) {
-  block <- eco_groups[[i]]
-  if (i < length(eco_groups)) {
-    sep <- as_tibble(as.data.frame(matrix(hr, nrow = 1, ncol = ncol(block)), stringsAsFactors = FALSE))
-    names(sep) <- names(block)
-    dplyr::bind_rows(block, sep)
-  } else {
-    block
-  }
-}))
-
-kable(
-  eco_with_sep,
-  caption = "Eco-model PCA screening decisions for the best AICc candidate set for each response",
-  escape = FALSE
-)
-```
+Eco-model screening now uses constrained predictor sets, stepwise AICc, VIF checks, and correlated-predictor exclusions; PCA screening is not used.

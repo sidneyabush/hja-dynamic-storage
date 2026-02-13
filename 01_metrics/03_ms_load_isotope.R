@@ -64,8 +64,8 @@ if (file.exists(config_path)) {
 # SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
 
-base_dir <- BASE_DATA_DIR
 output_dir <- OUT_MET_MOBILE_DIR
+isotope_dir <- ISOTOPE_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) {
@@ -77,7 +77,7 @@ if (!dir.exists(output_dir)) {
 # -----------------------------------------------------------------------------
 
 mtt_fyw <- read_csv(
-  file.path(base_dir, "Isotopes", "MTT_FYW.csv"),
+  file.path(isotope_dir, "MTT_FYW.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(
@@ -98,7 +98,7 @@ mtt_fyw <- read_csv(
 # -----------------------------------------------------------------------------
 
 damping <- read_csv(
-  file.path(base_dir, "Isotopes", "DampingRatios_2025-07-07.csv"),
+  file.path(isotope_dir, "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(

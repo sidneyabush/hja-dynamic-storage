@@ -4,15 +4,15 @@
 # This script makes standalone plots for watershed-controls MLR results.
 #
 # Inputs:
-#   - catch_chars_storage_mlr_model_avg_coef.csv
-#   - catch_chars_storage_mlr_summary.csv
+#   - watershed_char_storage_mlr_model_avg_coef.csv
+#   - watershed_char_storage_mlr_summary.csv
 #
 # Outputs:
-#   - catch_chars_storage_mlr_beta.png
-#   - catch_chars_storage_mlr_beta.pdf
-#   - catch_chars_storage_mlr_model_perf.csv
-#   - catch_chars_storage_mlr_coef.csv
-#   - catch_chars_storage_mlr_table.csv
+#   - watershed_char_storage_mlr_beta.png
+#   - watershed_char_storage_mlr_beta.pdf
+#   - watershed_char_storage_mlr_model_perf.csv
+#   - watershed_char_storage_mlr_coef.csv
+#   - watershed_char_storage_mlr_table.csv
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -49,17 +49,17 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-output_dir <- OUT_STATS_MLR_CATCH_CHARS_DIR
-plot_dir <- file.path(FIGURES_DIR, "supp", "stats", "mlr")
+output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
+plot_dir <- file.path(FIGURES_DIR, "main")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
-model_avg_file <- file.path(output_dir, "catch_chars_storage_mlr_model_avg_coef.csv")
-summary_file <- file.path(output_dir, "catch_chars_storage_mlr_summary.csv")
+model_avg_file <- file.path(output_dir, "watershed_char_storage_mlr_model_avg_coef.csv")
+summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
 
-if (!file.exists(model_avg_file)) stop("Missing file: catch_chars_storage_mlr_model_avg_coef.csv")
-if (!file.exists(summary_file)) stop("Missing file: catch_chars_storage_mlr_summary.csv")
+if (!file.exists(model_avg_file)) stop("Missing file: watershed_char_storage_mlr_model_avg_coef.csv")
+if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_summary.csv")
 
 mlr_model_avg <- read_csv(model_avg_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
@@ -117,16 +117,18 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
     name = "Beta"
   ) +
   labs(x = NULL, y = NULL) +
-  theme_classic(base_size = FIG_BASE_SIZE) +
+  theme_pub() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-    legend.position = "right"
-  )
+    legend.position = "right",
+    plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
+  ) +
+  coord_cartesian(clip = FIG_LABEL_CLIP)
 
 ggsave(
-  file.path(plot_dir, "catch_chars_storage_mlr_beta.png"),
+  file.path(plot_dir, "watershed_char_storage_mlr_beta.png"),
   p_beta,
   width = 11 * FIG_WIDTH_SCALE,
   height = 7 * FIG_HEIGHT_SCALE,
@@ -134,7 +136,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(plot_dir, "catch_chars_storage_mlr_beta.pdf"),
+  file.path(plot_dir, "watershed_char_storage_mlr_beta.pdf"),
   p_beta,
   width = 11 * FIG_WIDTH_SCALE,
   height = 7 * FIG_HEIGHT_SCALE
@@ -142,12 +144,12 @@ ggsave(
 
 write_csv(
   perf_df,
-  file.path(table_dir, "catch_chars_storage_mlr_model_perf.csv")
+  file.path(table_dir, "watershed_char_storage_mlr_model_perf.csv")
 )
 
 write_csv(
   coef_df,
-  file.path(table_dir, "catch_chars_storage_mlr_coef.csv")
+  file.path(table_dir, "watershed_char_storage_mlr_coef.csv")
 )
 
 results_table <- coef_df %>%
@@ -156,5 +158,5 @@ results_table <- coef_df %>%
 
 write_csv(
   results_table,
-  file.path(table_dir, "catch_chars_storage_mlr_table.csv")
+  file.path(table_dir, "watershed_char_storage_mlr_table.csv")
 )

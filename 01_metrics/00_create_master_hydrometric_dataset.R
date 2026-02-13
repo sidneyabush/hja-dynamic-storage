@@ -80,8 +80,11 @@ if (file.exists(config_path)) {
 # DIRECTORIES
 # -----------------------------------------------------------------------------
 
-met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
+met_dir <- MET_DIR
+discharge_dir <- DISCHARGE_DIR
+catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 output_dir <- OUT_MET_SUPPORT_DIR
+exploratory_plot_dir <- EXPLORATORY_ET_METHODS_DIR
 wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
@@ -226,7 +229,7 @@ results <- process_station_groups(
   combined_met_clean,
   station_groups,
   variables,
-  plot_dir = NULL
+  plot_dir = exploratory_plot_dir
 )
 
 interpolated_data <- results$data
@@ -238,8 +241,6 @@ cat("\nInterpolation complete.\n")
 # -----------------------------------------------------------------------------
 
 cat("Creating watershed-level datasets...\n")
-
-# no diagnostic plot exports in this workflow step
 
 # Variables including VPD
 watershed_variables <- c(variables, "VPD_kPa")
@@ -257,11 +258,11 @@ all_watersheds_data <- bind_rows(watershed_datasets)
 cat("Adding discharge data...\n")
 
 # Load drainage areas
-da_df <- read_csv(file.path(met_dir, "drainage_area.csv"), show_col_types = FALSE) %>%
+da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK)))
 
 # Load and process discharge
-discharge <- read_csv(file.path(met_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
+discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
   mutate(
     DATE = parse_my_date(DATE),
     SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK))

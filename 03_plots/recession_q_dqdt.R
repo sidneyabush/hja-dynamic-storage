@@ -46,12 +46,12 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-theme_set(theme_classic(base_size = FIG_BASE_SIZE))
+theme_set(theme_pub())
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 
-da_path <- file.path(DISCHARGE_DIR, "drainage_area.csv")
+da_path <- resolve_drainage_area_file()
 q_path <- file.path(DISCHARGE_DIR, "HF00402_v14.csv")
 
 if (!file.exists(da_path) || !file.exists(q_path)) {
@@ -115,17 +115,20 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
     inherit.aes = FALSE,
     color = "black",
     size = FIG_ANNOT_TEXT_SIZE,
-    hjust = 0
+    hjust = 0,
+    check_overlap = FIG_LABEL_CHECK_OVERLAP
   ) +
-  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE, axes = "all_x", axis.labels = "margins") +
+  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE, axes = "margins", axis.labels = "margins") +
   scale_color_manual(values = SITE_COLORS, guide = "none") +
   labs(x = "log Q (mm day-1)", y = "log -dQ/dt (mm day-1)") +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
     strip.background = element_blank(),
-    strip.text = element_text(hjust = 0)
-  )
+    strip.text = element_text(hjust = 0),
+    plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
+  ) +
+  coord_cartesian(clip = FIG_LABEL_CLIP)
 
 ggsave(
   file.path(plot_dir, "rcs_curve_by_site.png"),

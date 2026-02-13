@@ -67,6 +67,7 @@ for (d in c(main_dir, supp_dir)) {
 site_order <- SITE_ORDER_HYDROMETRIC
 site_order_iso <- SITE_ORDER_ALL
 site_colors <- SITE_COLORS
+site_labels_panel <- make_panel_label_map(site_order)
 
 # Metric labels
 metric_labels <- c(
@@ -76,7 +77,7 @@ metric_labels <- c(
 )
 
 # Publication theme
-theme_pub <- theme_classic(base_size = FIG_BASE_SIZE) +
+theme_pub_base <- theme_pub() +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
     axis.line = element_blank(),
@@ -88,7 +89,7 @@ theme_pub <- theme_classic(base_size = FIG_BASE_SIZE) +
     legend.position = "none"
   )
 
-theme_set(theme_pub)
+theme_set(theme_pub_base)
 
 # -----------------------------------------------------------------------------
 # HELPER: Standardize site names to WS## format
@@ -112,7 +113,7 @@ cat("Loading data...\n")
 # Annual storage metrics
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
 if (!file.exists(annual_file)) {
-  annual_file <- file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
 }
 
 annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
@@ -127,7 +128,7 @@ if (!file.exists(isotope_file)) {
   isotope_file <- file.path(OUT_MET_MOBILE_DIR, "Isotope_Metrics_Site.csv")
 }
 if (!file.exists(isotope_file)) {
-  isotope_file <- file.path(base_dir, "Isotopes", "Isotope_Metrics_Site.csv")
+  isotope_file <- file.path(ISOTOPE_DIR, "Isotope_Metrics_Site.csv")
 }
 
 if (file.exists(isotope_file)) {
@@ -135,7 +136,7 @@ if (file.exists(isotope_file)) {
     standardize_sites(allowed_sites = site_order_iso)
 
   # Add MTT1/MTT2 columns from raw isotope table when available.
-  mtt_file <- file.path(base_dir, "Isotopes", "MTT_FYW.csv")
+  mtt_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
   if (file.exists(mtt_file)) {
     mean_or_na <- function(x) {
       if (all(is.na(x))) {
@@ -278,7 +279,7 @@ if (file.exists(isotope_file)) {
 }
 
 # CHS data
-chs_file <- file.path(base_dir, "EC", "CHS_annual_baseflow.csv")
+chs_file <- file.path(EC_DIR, "CHS_annual_baseflow.csv")
 if (!file.exists(chs_file)) {
   chs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop.csv")
 }
@@ -316,6 +317,7 @@ if (file.exists(chs_file)) {
 cat("\nCreating Figure 3: Dynamic Storage...\n")
 
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
+metric_labels_panel <- make_panel_label_map(metric_labels[dynamic_metrics])
 
 dynamic_long <- annual_data %>%
   select(site, year, any_of(dynamic_metrics)) %>%
@@ -353,11 +355,11 @@ fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
     width = 0.3, linewidth = 0.5, na.rm = TRUE
   ) +
   facet_wrap(~metric, scales = "free_y", ncol = 2,
-             axes = "all_x", axis.labels = "margins",
-             labeller = labeller(metric = metric_labels)) +
+             axes = "margins", axis.labels = "margins",
+             labeller = labeller(metric = metric_labels_panel)) +
   scale_color_manual(values = site_colors) +
   scale_x_discrete(limits = site_order, drop = FALSE) +
-  labs(x = NULL, y = "Mean ± 1 SD")
+  labs(x = NULL, y = "Value")
 
 ggsave(file.path(main_dir, "ds_summary.png"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
@@ -456,13 +458,12 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 
 cat("\nCreating Supplement: Dynamic Storage Time Series...\n")
 
-# Calculate site means for labels
+# Calculate site means for dashed reference lines
 site_means_dynamic <- dynamic_long %>%
   group_by(site, metric) %>%
   summarise(
     mean_val = mean(value, na.rm = TRUE),
-    x_pos = min(year, na.rm = TRUE),
-    y_pos = max(value, na.rm = TRUE),
+    x_pos = max(year, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -474,20 +475,42 @@ dynamic_line_data <- dynamic_long %>%
 supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) +
   geom_line(data = dynamic_line_data, linewidth = 0.5, na.rm = TRUE) +
   geom_point(size = FIG_POINT_SIZE_SMALL, na.rm = TRUE) +
+  geom_hline(
+    data = site_means_dynamic,
+    aes(yintercept = mean_val),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.35,
+    linetype = "dashed",
+    na.rm = TRUE
+  ) +
   geom_text(
     data = site_means_dynamic,
-    aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
-    hjust = 0, vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE, color = "black", na.rm = TRUE
+    aes(x = x_pos, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
+    inherit.aes = FALSE,
+    hjust = 1.02,
+    vjust = -0.2,
+    size = FIG_ANNOT_TEXT_SIZE,
+    color = "black",
+    check_overlap = FIG_LABEL_CHECK_OVERLAP,
+    na.rm = TRUE
   ) +
   facet_grid(metric ~ site, scales = "free_y",
-             labeller = labeller(metric = metric_labels), drop = FALSE) +
+             labeller = labeller(metric = metric_labels_panel, site = site_labels_panel), drop = FALSE) +
   scale_color_manual(values = site_colors) +
   labs(x = "Water Year", y = NULL) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = FIG_AXIS_TEXT_SIZE),
     strip.text.y = element_text(angle = 0, size = FIG_STRIP_TEXT_SIZE),
-    strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE)
-  )
+    strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE),
+    plot.margin = margin(
+      FIG_LABEL_PLOT_MARGIN_PT,
+      FIG_LABEL_PLOT_MARGIN_PT,
+      FIG_LABEL_PLOT_MARGIN_PT,
+      FIG_LABEL_PLOT_MARGIN_PT
+    )
+  ) +
+  coord_cartesian(clip = FIG_LABEL_CLIP)
 
 ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
@@ -504,8 +527,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     group_by(site) %>%
     summarise(
       mean_val = mean(CHS, na.rm = TRUE),
-      x_pos = min(year, na.rm = TRUE),
-      y_pos = max(CHS, na.rm = TRUE),
+      x_pos = max(year, na.rm = TRUE),
       .groups = "drop"
     )
   chs_line_data <- chs_data %>%
@@ -516,14 +538,39 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
   supp_chs_ts <- ggplot(chs_data, aes(x = year, y = CHS, color = site)) +
     geom_line(data = chs_line_data, linewidth = 0.6, na.rm = TRUE) +
     geom_point(size = FIG_POINT_SIZE_SMALL, na.rm = TRUE) +
+    geom_hline(
+      data = chs_means,
+      aes(yintercept = mean_val, linetype = site),
+      inherit.aes = FALSE,
+      color = "black",
+      linewidth = 0.35,
+      na.rm = TRUE
+    ) +
     geom_text(
       data = chs_means,
-      aes(x = x_pos, y = y_pos, label = sprintf("%.2f", mean_val)),
-      hjust = 0, vjust = -0.3, size = FIG_ANNOT_TEXT_SIZE, color = "black", na.rm = TRUE
+      aes(x = x_pos, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
+      inherit.aes = FALSE,
+      hjust = 1.02,
+      vjust = -0.2,
+      size = FIG_ANNOT_TEXT_SIZE,
+      color = "black",
+      check_overlap = FIG_LABEL_CHECK_OVERLAP,
+      na.rm = TRUE
     ) +
-    facet_wrap(~site, ncol = 2, drop = FALSE, axes = "all_x", axis.labels = "margins") +
+    facet_wrap(~site, ncol = 2, drop = FALSE, axes = "margins", axis.labels = "margins",
+               labeller = labeller(site = site_labels_panel)) +
     scale_color_manual(values = site_colors) +
-    labs(x = "Water Year", y = "Baseflow Fraction (CHS)")
+    scale_linetype_manual(values = FIG_MEAN_LINE_LINETYPES, guide = "none") +
+    labs(x = "Water Year", y = "Baseflow Fraction (CHS)") +
+    theme(
+      plot.margin = margin(
+        FIG_LABEL_PLOT_MARGIN_PT,
+        FIG_LABEL_PLOT_MARGIN_PT,
+        FIG_LABEL_PLOT_MARGIN_PT,
+        FIG_LABEL_PLOT_MARGIN_PT
+      )
+    ) +
+    coord_cartesian(clip = FIG_LABEL_CLIP)
 
   ggsave(file.path(supp_dir, "ms_chs_annual_ts.png"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
   ggsave(file.path(supp_dir, "ms_chs_annual_ts.pdf"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)

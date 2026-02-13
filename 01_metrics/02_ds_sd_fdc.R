@@ -51,9 +51,8 @@ if (file.exists(config_path)) {
 }
 
 # 1) Directories & input
-data_dir   <- ET_DIR
 output_dir <- OUT_MET_DYNAMIC_DIR
-input_file <- file.path(data_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
+input_file <- resolve_water_balance_daily_file()
 stopifnot(file.exists(input_file))
 
 # 2) Read data, filter sites, parse date & compute water-year

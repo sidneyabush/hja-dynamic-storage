@@ -8,8 +8,8 @@
 #   - master_annual.csv
 #
 # Outputs:
-#   - catch_chars_storage_mlr_corr.png
-#   - storage_eco_model_corrplot.png
+#   - watershed_char_storage_mlr_corr.png
+#   - storage_ecovar_mlr_corrplot.png
 # -----------------------------------------------------------------------------
 
 library(dplyr)
@@ -48,10 +48,18 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-theme_set(theme_classic(base_size = FIG_BASE_SIZE))
+theme_set(
+  theme_pub() +
+    theme(
+      plot.title = element_blank(),
+      plot.subtitle = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+)
 
 output_dir <- OUT_MASTER_DIR
-plot_dir <- file.path(FIGURES_DIR, "supp", "stats", "correlations")
+plot_dir <- file.path(FIGURES_DIR, "supp", "analysis", "correlations")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 
 # Clear prior correlation files so the folder reflects current workflow outputs.
@@ -100,10 +108,17 @@ if (length(watershed_predictors) >= 2) {
     outline.col = "white",
     lab = TRUE,
     lab_size = FIG_TILE_TEXT_SIZE
-  ) + labs(title = "Watershed Characteristics MLR Predictor Correlation Matrix")
+  ) +
+    labs(x = NULL, y = NULL) +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
 
   ggsave(
-    file.path(plot_dir, "catch_chars_storage_mlr_corr.png"),
+    file.path(plot_dir, "watershed_char_storage_mlr_corr.png"),
     p_catchment,
     width = 9 * FIG_WIDTH_SCALE,
     height = 9 * FIG_HEIGHT_SCALE,
@@ -120,7 +135,7 @@ if (!file.exists(annual_file)) {
   annual_file <- file.path(OUTPUT_DIR, MASTER_ANNUAL_FILE)
 }
 if (!file.exists(annual_file)) {
-  annual_file <- file.path(BASE_DATA_DIR, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
 }
 
 HJA_Yr <- read_csv(
@@ -174,10 +189,17 @@ if (length(eco_corr_vars) >= 2) {
     outline.col = "white",
     lab = TRUE,
     lab_size = FIG_TILE_TEXT_SIZE
-  ) + labs(title = "Storage Eco MLR Predictor/Response Correlation Matrix")
+  ) +
+    labs(x = NULL, y = NULL) +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
 
   ggsave(
-    file.path(plot_dir, "storage_eco_mlr_corr.png"),
+    file.path(plot_dir, "storage_ecovar_mlr_corr.png"),
     p_eco,
     width = 11 * FIG_WIDTH_SCALE,
     height = 11 * FIG_HEIGHT_SCALE,

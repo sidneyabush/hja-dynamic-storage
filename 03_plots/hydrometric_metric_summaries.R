@@ -48,7 +48,7 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-theme_set(theme_classic(base_size = FIG_BASE_SIZE))
+theme_set(theme_pub())
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
@@ -69,7 +69,7 @@ if (!file.exists(annual_file)) {
   annual_file <- file.path(OUTPUT_DIR, MASTER_ANNUAL_FILE)
 }
 if (!file.exists(annual_file)) {
-  annual_file <- file.path(BASE_DATA_DIR, "DynamicStorage", "HJA_StorageMetrics_Annual_All.csv")
+  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
 }
 if (!file.exists(annual_file)) {
   stop("master_annual.csv not found.")
@@ -152,7 +152,7 @@ for (m in metric_order) {
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
     geom_line(data = df_line, linewidth = 0.5) +
     geom_point(size = FIG_POINT_SIZE_SMALL) +
-    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE, axes = "all_x", axis.labels = "margins") +
+    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE, axes = "margins", axis.labels = "margins") +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = "Water Year", y = axis_labels[[m]]) +
     theme(
@@ -205,8 +205,8 @@ if (nrow(summary_sel) > 0) {
   p_grid <- ggplot(summary_sel, aes(x = site, y = mean_val, color = site)) +
     geom_point(size = FIG_POINT_SIZE_MED) +
     geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val), width = 0.2) +
-    geom_text(aes(label = group, y = label_y), size = FIG_ANNOT_TEXT_SIZE, vjust = 0) +
-    facet_wrap(~metric_label, ncol = 2, scales = "free_y", axes = "all_x", axis.labels = "margins") +
+    geom_text(aes(label = group, y = label_y), size = FIG_ANNOT_TEXT_SIZE, vjust = 0, check_overlap = FIG_LABEL_CHECK_OVERLAP) +
+    facet_wrap(~metric_label, ncol = 2, scales = "free_y", axes = "margins", axis.labels = "margins") +
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = NULL, y = "Mean +/- 1 SD") +
@@ -217,8 +217,10 @@ if (nrow(summary_sel) > 0) {
       panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
       axis.line = element_blank(),
       strip.background = element_blank(),
-      strip.text = element_text(hjust = 0, size = FIG_STRIP_TEXT_SIZE)
-    )
+      strip.text = element_text(hjust = 0, size = FIG_STRIP_TEXT_SIZE),
+      plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
+    ) +
+    coord_cartesian(clip = FIG_LABEL_CLIP)
 
   ggsave(
     file.path(plot_dir, "storage_metric_ave_grid.png"),

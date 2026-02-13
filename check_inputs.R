@@ -29,20 +29,17 @@ repo_root <- find_repo_root(start_dir)
 source(file.path(repo_root, "config.R"))
 
 required_files <- c(
-  file.path(BASE_DATA_DIR, "all_hydromet", "Temperature_original_&_filled_1979_2023_v2.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "Precipitation_original_&_filled_1979_2023.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "MS00102_v9.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "MS05025_v3.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "MS00403_v2.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "HF00402_v14.csv"),
-  file.path(BASE_DATA_DIR, "all_hydromet", "drainage_area.csv"),
-  file.path(BASE_DATA_DIR, "Q", "HF00402_v14.csv"),
-  file.path(BASE_DATA_DIR, "Q", "drainage_area.csv"),
-  file.path(BASE_DATA_DIR, "DynamicStorage", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
-  file.path(BASE_DATA_DIR, "DynamicStorage", "Catchment_Charc.csv"),
-  file.path(BASE_DATA_DIR, "Isotopes", "MTT_FYW.csv"),
-  file.path(BASE_DATA_DIR, "Isotopes", "DampingRatios_2025-07-07.csv"),
-  file.path(BASE_DATA_DIR, "Stream_T", "HT00401_v8.csv")
+  file.path(MET_DIR, "Temperature_original_&_filled_1979_2023_v2.csv"),
+  file.path(MET_DIR, "Precipitation_original_&_filled_1979_2023.csv"),
+  file.path(MET_DIR, "MS00102_v9.csv"),
+  file.path(MET_DIR, "MS05025_v3.csv"),
+  file.path(MET_DIR, "MS00403_v2.csv"),
+  file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
+  resolve_drainage_area_file(),
+  resolve_catchment_characteristics_file(),
+  file.path(ISOTOPE_DIR, "MTT_FYW.csv"),
+  file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv"),
+  file.path(STREAM_TEMP_DIR, "HT00451_v10.txt")
 )
 
 missing_files <- required_files[!file.exists(required_files)]
@@ -58,9 +55,9 @@ if (length(missing_files) > 0) {
 
 # Accept any known EC filename used across legacy/current variants.
 ec_candidates <- c(
-  file.path(BASE_DATA_DIR, "EC", "CF01201_v3.txt"),
-  file.path(BASE_DATA_DIR, "EC", "CF01203_v8.csv"),
-  file.path(BASE_DATA_DIR, "EC", "CF01203_v9.csv")
+  file.path(EC_DIR, "CF01201_v3.txt"),
+  file.path(EC_DIR, "CF01203_v8.csv"),
+  file.path(EC_DIR, "CF01203_v9.csv")
 )
 if (!any(file.exists(ec_candidates))) {
   stop(
@@ -85,14 +82,17 @@ check_columns <- function(path, required_cols) {
   }
 }
 
-check_columns(file.path(BASE_DATA_DIR, "Q", "HF00402_v14.csv"), c("DATE", "SITECODE", "MEAN_Q"))
-temp_cols <- names(suppressMessages(read_csv(file.path(BASE_DATA_DIR, "Stream_T", "HT00401_v8.csv"), n_max = 0, show_col_types = FALSE)))
-if (!all(c("DATE", "SITECODE") %in% temp_cols)) {
-  stop("Missing required columns in Stream_T/HT00401_v8.csv: DATE and/or SITECODE")
+check_columns(file.path(DISCHARGE_DIR, "HF00402_v14.csv"), c("DATE", "SITECODE", "MEAN_Q"))
+temp_cols <- names(suppressMessages(read_csv(file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"), n_max = 0, show_col_types = FALSE)))
+if (!all(c("DATE_TIME", "SITECODE") %in% temp_cols)) {
+  stop("Missing required columns in Stream_T/HT00451_v10.txt: DATE_TIME and/or SITECODE")
 }
-if (!any(c("AIRTEMP_MEAN_DAY", "WATERTEMP_MEAN") %in% temp_cols)) {
-  stop("Missing stream temperature column in Stream_T/HT00401_v8.csv (expected AIRTEMP_MEAN_DAY or WATERTEMP_MEAN)")
+if (!("WATERTEMP_MEAN" %in% temp_cols)) {
+  stop("Missing stream temperature column in Stream_T/HT00451_v10.txt (expected WATERTEMP_MEAN)")
 }
-check_columns(file.path(BASE_DATA_DIR, "DynamicStorage", "Catchment_Charc.csv"), c("Site"))
+check_columns(resolve_catchment_characteristics_file(), c("Site"))
+
+# Derived file check (must come from workflow outputs)
+invisible(resolve_water_balance_daily_file())
 
 message("Input check passed.")

@@ -29,8 +29,6 @@ library(zoo)
 library(tibble)
 library(lubridate)
 
-theme_set(theme_classic(base_size = 12))
-
 # Clear environment
 rm(list = ls())
 
@@ -64,6 +62,8 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 12))
+
 # -----------------------------------------------------------------------------
 # 1. SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
@@ -72,7 +72,6 @@ base_dir    <- BASE_DATA_DIR
 output_dir  <- OUT_MET_EXTENDED_DIR
 
 discharge_dir <- DISCHARGE_DIR
-storage_dir   <- ET_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -171,7 +170,7 @@ write.csv(last_peak,
 # 5. LOAD WATER BALANCE DATA
 # -----------------------------------------------------------------------------
 
-DS_dat <- read.csv(file.path(storage_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")) %>%
+DS_dat <- read.csv(resolve_water_balance_daily_file()) %>%
   mutate(
     SITECODE = standardize_site_code(SITECODE),
     DATE = as.Date(DATE, "%m/%d/%y"),

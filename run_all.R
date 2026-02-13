@@ -89,8 +89,8 @@ for (s in metric_scripts) run_script(s)
 stats_scripts <- c(
   "02_stats/anova_tukey.R",
   "02_stats/pca.R",
-  "02_stats/catchment_storage_mlr.R",
-  "02_stats/predict_thermal_lowflow.R"
+  "02_stats/watershed_char_storage_mlr.R",
+  "02_stats/storage_ecovar_mlr.R"
 )
 for (s in stats_scripts) run_script(s)
 
@@ -99,8 +99,8 @@ plot_scripts <- c(
   "03_plots/anova_tukey.R",
   "03_plots/pca.R",
   "03_plots/correlations.R",
-  "03_plots/catchment_controls_mlr.R",
-  "03_plots/predict_thermal_lowflow.R",
+  "03_plots/watershed_char_storage_mlr.R",
+  "03_plots/storage_ecovar_mlr.R",
   "03_plots/recession_q_dqdt.R",
   "03_plots/hydrometric_metric_summaries.R",
   "03_plots/met_context.R",

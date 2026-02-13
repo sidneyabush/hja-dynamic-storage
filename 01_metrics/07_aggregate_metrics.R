@@ -48,8 +48,6 @@ library(ggplot2)
 library(GGally)
 library(ggcorrplot)
 
-theme_set(theme_classic(base_size = 12))
-
 # Clear environment
 rm(list = ls())
 
@@ -83,6 +81,8 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 12))
+
 # -----------------------------------------------------------------------------
 # 1. SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
@@ -93,6 +93,8 @@ mobile_dir  <- OUT_MET_MOBILE_DIR
 extended_dir <- OUT_MET_EXTENDED_DIR
 eco_dir <- OUT_MET_ECO_DIR
 master_dir <- OUT_MASTER_DIR
+isotope_dir <- ISOTOPE_DIR
+catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
 # Create output directory if needed
 if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
@@ -100,6 +102,20 @@ if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
 # -----------------------------------------------------------------------------
 # 2. LOAD ALL METRIC FILES
 # -----------------------------------------------------------------------------
+
+assert_unique_keys <- function(df, keys, df_name) {
+  dupes <- df %>%
+    count(across(all_of(keys)), name = "n") %>%
+    filter(n > 1)
+  if (nrow(dupes) > 0) {
+    stop(
+      paste0(
+        "Non-unique join keys detected in ", df_name, " for keys (",
+        paste(keys, collapse = ", "), ")."
+      )
+    )
+  }
+}
 
 # --- DYNAMIC STORAGE METRICS ---
 
@@ -114,6 +130,7 @@ rbi_recession <- read_csv(
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, RCS, RBI)
+assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
 
 # Storage-Discharge, FDC, Q percentiles (SD, FDC)
 fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
@@ -126,6 +143,7 @@ storage_fdc <- read_csv(
 ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
+assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
 
 # --- MOBILE STORAGE METRICS ---
 
@@ -142,6 +160,7 @@ baseflow <- read_csv(
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, CHS)
+assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
 # --- EXTENDED DYNAMIC STORAGE METRICS ---
 
@@ -158,6 +177,7 @@ wb_storage <- read_csv(
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, WB)
+assert_unique_keys(wb_storage, c("site", "year"), "wb_storage")
 
 # --- RESPONSE VARIABLES ---
 
@@ -185,6 +205,7 @@ thermal_lowflow <- read_csv(
     T_at_Q7Q5 = ifelse(is.na(T_at_Q7Q5), temp_at_q5_7d_C, T_at_Q7Q5),
     T_Q7Q5 = ifelse(is.na(T_Q7Q5), temp_during_q5_7d_C, T_Q7Q5)
   )
+assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
 # -----------------------------------------------------------------------------
 # 3. MERGE ALL ANNUAL METRICS
@@ -200,6 +221,7 @@ HJA_annual <- rbi_recession %>%
   # Set factor levels for consistent ordering
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site, year)
+assert_unique_keys(HJA_annual, c("site", "year"), "HJA_annual")
 
 # Save annual metrics
 write.csv(HJA_annual,
@@ -228,24 +250,26 @@ HJA_avg <- HJA_annual %>%
 
 # Mean Transit Time and Young Water Fraction
 mtt_fyw <- read_csv(
-  file.path(base_dir, "Isotopes", "MTT_FYW.csv"),
+  file.path(isotope_dir, "MTT_FYW.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(site = standardize_site_code(site)) %>%
   select(site, MTT = MTTM, Fyw = FYWM) %>%
-  filter(!is.na(site), site != "")
+  filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
 # Damping ratios
 damping_ratios <- read_csv(
-  file.path(base_dir, "Isotopes", "DampingRatios_2025-07-07.csv"),
+  file.path(isotope_dir, "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(site = standardize_site_code(site)) %>%
-  select(site, DR = DR_Overall, DR_err = DR__err)
+  select(site, DR = DR_Overall, DR_err = DR__err) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC)
 
 # Merge isotope metrics
 isotope_metrics <- mtt_fyw %>%
   full_join(damping_ratios, by = "site")
+assert_unique_keys(isotope_metrics, c("site"), "isotope_metrics")
 
 # Add isotope metrics to site averages
 HJA_avg <- HJA_avg %>%
@@ -256,11 +280,13 @@ HJA_avg <- HJA_avg %>%
 # -----------------------------------------------------------------------------
 
 catchment_chars <- read_csv(
-  file.path(base_dir, "DynamicStorage", "Catchment_Charc.csv"),
+  resolve_catchment_characteristics_file(),
   show_col_types = FALSE
 ) %>%
   rename(site = Site) %>%
-  mutate(site = standardize_site_code(site))
+  mutate(site = standardize_site_code(site)) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC)
+assert_unique_keys(catchment_chars, c("site"), "catchment_chars")
 
 HJA_avg <- HJA_avg %>%
   left_join(catchment_chars, by = "site")

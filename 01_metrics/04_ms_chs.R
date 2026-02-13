@@ -26,8 +26,6 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 
-theme_set(theme_classic(base_size = 12))
-
 # Clear environment
 rm(list = ls())
 
@@ -60,6 +58,8 @@ if (file.exists(config_path)) {
 } else {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
+
+theme_set(theme_pub(base_size = 12))
 
 # -----------------------------------------------------------------------------
 # 1. SETUP: Directories (from config.R)

@@ -2,15 +2,15 @@
 # Stream Temperature & Low-Flow Metrics for Storage Manuscript
 # -----------------------------------------------------------------------------
 # Purpose: Calculate ecologically-relevant thermal and low-flow metrics:
-#   1. Maximum 7-day moving average stream temperature (per calendar year)
-#   2. Q5 of 7-day moving average discharge (per calendar year)
+#   1. Maximum 7-day moving average stream temperature (per water year)
+#   2. Q5 of 7-day moving average discharge (per water year)
 #   3. Stream temperature during Q5 low-flow period
 #   4. Q5_CV: Coefficient of variation of stream temp during low-flow period
 #
-# Timeline: Calendar Years 1997-2020
+# Timeline: Water Years 1997-2020
 #
 # Inputs:
-#   - HT00401_v8.csv daily stream temperature data
+#   - HT00451_v10.txt stream temperature data
 #   - HF00402_v14.csv discharge data (daily)
 #   - drainage_area.csv for normalization
 #
@@ -29,8 +29,6 @@ library(tidyr)
 library(zoo)        # for rollmean()
 library(ggplot2)
 library(patchwork)
-
-theme_set(theme_classic(base_size = 12))
 
 # Clear environment
 rm(list = ls())
@@ -65,6 +63,8 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
+theme_set(theme_pub(base_size = 12))
+
 # -----------------------------------------------------------------------------
 # 1. SETUP: Directories and site list (from config.R)
 # -----------------------------------------------------------------------------
@@ -73,6 +73,7 @@ base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
 temp_dir      <- STREAM_TEMP_DIR
 discharge_dir <- DISCHARGE_DIR
+catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -81,22 +82,36 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 sites_keep <- SITE_ORDER_HYDROMETRIC
 target_years <- WY_START:WY_END
 
+assert_unique_keys <- function(df, keys, df_name) {
+  dupes <- df %>%
+    count(across(all_of(keys)), name = "n") %>%
+    filter(n > 1)
+  if (nrow(dupes) > 0) {
+    stop(
+      paste0(
+        "Non-unique join keys detected in ", df_name, " for keys (",
+        paste(keys, collapse = ", "), ")."
+      )
+    )
+  }
+}
+
 # -----------------------------------------------------------------------------
 # 2. LOAD & PROCESS STREAM TEMPERATURE DATA
 # -----------------------------------------------------------------------------
 
 # Load daily stream temperature file
-temp_file <- file.path(temp_dir, "HT00401_v8.csv")
+temp_file <- file.path(temp_dir, "HT00451_v10.txt")
 if (!file.exists(temp_file)) {
   stop("Missing stream temperature file: ", temp_file)
 }
 
 temp_raw <- read_csv(temp_file, show_col_types = FALSE) %>%
   mutate(
-    date = as.Date(DATE),
+    date = as.Date(DATE_TIME),
     site = standardize_site_code(SITECODE)
   ) %>%
-  select(site, date, temp_mean_C = AIRTEMP_MEAN_DAY) %>%
+  select(site, date, temp_mean_C = WATERTEMP_MEAN) %>%
   filter(site %in% sites_keep)
 
 # Aggregate to daily mean stream temperature per site-date
@@ -124,12 +139,15 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
   )
 }
 
+# WS09 has no stream-temperature records in HT00451 source.
+# Keep WS09 in downstream annual masters; temp responses remain NA for WS09.
+
 # -----------------------------------------------------------------------------
 # 3. LOAD & PROCESS DISCHARGE DATA
 # -----------------------------------------------------------------------------
 
 # Load drainage areas
-da_df <- read_csv(file.path(discharge_dir, "drainage_area.csv"),
+da_df <- read_csv(resolve_drainage_area_file(),
                   show_col_types = FALSE)
 
 # Load discharge
@@ -165,7 +183,7 @@ temp_rolling <- temp_daily %>%
   group_by(site) %>%
   calc_7day_rolling("temp_mean_C") %>%
   ungroup() %>%
-  mutate(year = year(date)) %>%
+  mutate(year = get_water_year(date)) %>%
   rename(temp_7d_avg_C = rolling_7d)
 
 # 7-day rolling average discharge (by site)
@@ -173,14 +191,14 @@ discharge_rolling <- discharge %>%
   group_by(site) %>%
   calc_7day_rolling("Q_mm_d") %>%
   ungroup() %>%
-  mutate(year = year(date)) %>%
+  mutate(year = get_water_year(date)) %>%
   rename(Q_7d_avg_mm_d = rolling_7d)
 
 # -----------------------------------------------------------------------------
-# 5. EXTRACT ANNUAL METRICS (PER CALENDAR YEAR)
+# 5. EXTRACT ANNUAL METRICS (PER WATER YEAR)
 # -----------------------------------------------------------------------------
 
-# 5.1 Maximum 7-day average temperature per calendar year
+# 5.1 Maximum 7-day average temperature per water year
 t_7dmax <- temp_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -193,8 +211,9 @@ t_7dmax <- temp_rolling %>%
     T_7DMax = temp_7d_avg_C
   ) %>%
   ungroup()
+assert_unique_keys(t_7dmax, c("site", "year"), "t_7dmax")
 
-# 5.2 Q5 of 7-day average discharge per calendar year
+# 5.2 Q5 of 7-day average discharge per water year
 q_7q5 <- discharge_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -202,6 +221,7 @@ q_7q5 <- discharge_rolling %>%
     Q_7Q5 = quantile(Q_7d_avg_mm_d, probs = 0.05, na.rm = TRUE),
     .groups = "drop"
   )
+assert_unique_keys(q_7q5, c("site", "year"), "q_7q5")
 
 # Representative date at Q5 threshold (closest 7-day Q to annual Q5)
 q_7q5_date <- discharge_rolling %>%
@@ -215,6 +235,7 @@ q_7q5_date <- discharge_rolling %>%
     date_q_7q5 = date
   ) %>%
   ungroup()
+assert_unique_keys(q_7q5_date, c("site", "year"), "q_7q5_date")
 
 # 5.3 Temperature at and during Q5 low-flow period
 # - T_at_Q7Q5: temperature on representative Q5 date
@@ -226,6 +247,7 @@ temp_at_q5 <- q_7q5_date %>%
       rename(T_at_Q7Q5 = temp_mean_C),
     by = c("site", "date_q_7q5" = "date")
   )
+assert_unique_keys(temp_at_q5, c("site", "year"), "temp_at_q5")
 
 q5_period_temp <- discharge_rolling %>%
   filter(year %in% target_years, !is.na(Q_7d_avg_mm_d)) %>%
@@ -245,13 +267,14 @@ q5_period_temp <- discharge_rolling %>%
       T_Q7Q5
     )
   )
+assert_unique_keys(q5_period_temp, c("site", "year"), "q5_period_temp")
 
 # 5.4 Q5_CV: Coefficient of variation of stream temp during low-flow period
 # CV of daily mean stream temperature during Aug-Oct (late-summer recession)
 # Lower values indicate greater thermal buffering by subsurface storage
 temp_cv_lowflow <- temp_daily %>%
   mutate(
-    year = year(date),
+    year = get_water_year(date),
     month_num = month(date)
   ) %>%
   filter(year %in% target_years, month_num %in% 8:10) %>%  # Aug-Oct
@@ -264,6 +287,7 @@ temp_cv_lowflow <- temp_daily %>%
   ) %>%
   mutate(Q5_CV = temp_sd / temp_mean) %>%
   select(site, year, Q5_CV)
+assert_unique_keys(temp_cv_lowflow, c("site", "year"), "temp_cv_lowflow")
 
 # -----------------------------------------------------------------------------
 # 6. COMBINE METRICS INTO MASTER TABLE
@@ -291,6 +315,7 @@ master_metrics <- t_7dmax %>%
     wateryear = year
   ) %>%
   arrange(site, year)
+assert_unique_keys(master_metrics, c("site", "year"), "master_metrics")
 
 # Save output
 output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv")
