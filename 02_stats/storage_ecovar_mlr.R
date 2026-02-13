@@ -5,9 +5,9 @@
 #          separately for each site and response.
 #
 # Response metrics:
-#   1) T_7DMax
-#   2) Q_7Q5
-#   3) T_Q7Q5
+#   T_7DMax
+#   Q_7Q5
+#   T_Q7Q5
 #
 # Inputs:
 #   - master_annual.csv

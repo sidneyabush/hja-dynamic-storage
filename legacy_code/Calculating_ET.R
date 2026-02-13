@@ -241,7 +241,6 @@ et_monthly_summary <- et_long %>%
   )
 
 # Preview result
-print(head(et_monthly_summary, 15))
 
 # Final dataset: Only Zhang method, all variables retained
 zhang_export <- results_complete %>%

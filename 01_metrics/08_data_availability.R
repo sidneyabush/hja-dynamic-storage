@@ -2,9 +2,9 @@
 # Data Availability Summary - Sites, Metrics, and Date Ranges
 # -----------------------------------------------------------------------------
 # Purpose: Generate comprehensive tables showing data availability for:
-#   1. Which sites can be used for each storage metric
-#   2. Date ranges for each metric/site combination
-#   3. Meteorological variables and their date ranges
+#   Which sites can be used for each storage metric
+#   Date ranges for each metric/site combination
+#   Meteorological variables and their date ranges
 #
 # Output Tables:
 #   - Site_Metric_Availability.csv: Sites × Metrics matrix

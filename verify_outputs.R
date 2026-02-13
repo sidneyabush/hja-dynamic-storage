@@ -82,4 +82,3 @@ for (m in unique(letters_df$metric)) {
   }
 }
 
-message("Output verification passed.")

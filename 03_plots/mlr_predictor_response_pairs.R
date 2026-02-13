@@ -33,6 +33,7 @@ source(config_path)
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "mlr")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
+site_labels_panel <- make_panel_label_map(SITE_ORDER_HYDROMETRIC)
 
 # Keep only the two site-faceted figures for clarity.
 unlink(file.path(plot_dir, c(
@@ -92,7 +93,13 @@ if (file.exists(eco_results_path) && file.exists(annual_path)) {
       alpha = 0.4,
       show.legend = FALSE
     ) +
-    facet_wrap(~site, ncol = 2) +
+    facet_wrap(
+      ~site,
+      ncol = 2,
+      labeller = labeller(site = site_labels_panel),
+      axes = "margins",
+      axis.labels = "margins"
+    ) +
     guides(color = guide_legend(ncol = 1, override.aes = list(size = 2, alpha = 1))) +
     labs(x = "Predictor (scaled 0-1)", y = "Response (scaled 0-1)") +
     theme_pub() +
@@ -157,7 +164,13 @@ if (file.exists(catch_results_path) && file.exists(site_path)) {
 
   catch_plot <- ggplot(catch_long, aes(x = x_scaled, y = y_scaled, color = combo)) +
     geom_point(size = 2.0, alpha = 0.9) +
-    facet_wrap(~site, ncol = 2) +
+    facet_wrap(
+      ~site,
+      ncol = 2,
+      labeller = labeller(site = site_labels_panel),
+      axes = "margins",
+      axis.labels = "margins"
+    ) +
     guides(color = guide_legend(ncol = 1, override.aes = list(size = 2.4, alpha = 1))) +
     labs(x = "Predictor (scaled 0-1)", y = "Outcome (scaled 0-1)") +
     theme_pub() +

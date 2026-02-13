@@ -108,7 +108,6 @@ standardize_sites <- function(df, allowed_sites = site_order) {
 # LOAD DATA
 # -----------------------------------------------------------------------------
 
-cat("Loading data...\n")
 
 # Annual storage metrics
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
@@ -120,7 +119,6 @@ annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
   rename_legacy_storage_metrics() %>%
   standardize_sites(allowed_sites = site_order)
 
-cat("  Loaded annual data:", nrow(annual_data), "rows\n")
 
 # Isotope data for mobile storage (site-level metrics)
 isotope_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
@@ -314,7 +312,6 @@ if (file.exists(chs_file)) {
 # FIGURE 3: DYNAMIC STORAGE (RBI, RCS, FDC, SD)
 # -----------------------------------------------------------------------------
 
-cat("\nCreating Figure 3: Dynamic Storage...\n")
 
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
 metric_labels_panel <- make_panel_label_map(metric_labels[dynamic_metrics])
@@ -363,13 +360,11 @@ fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
 
 ggsave(file.path(main_dir, "ds_summary.png"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
-cat("  Saved Figure 3\n")
 
 # -----------------------------------------------------------------------------
 # FIGURE 4: MOBILE ISOTOPE (MTT, Fyw, DR)
 # -----------------------------------------------------------------------------
 
-cat("Creating Figure 4: Mobile Isotope Storage...\n")
 
 if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
   make_mobile_panel <- function(df, y_col, y_lab, err_col = NULL) {
@@ -407,7 +402,6 @@ if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
 # FIGURE 5: CHS (BASEFLOW FRACTION)
 # -----------------------------------------------------------------------------
 
-cat("Creating Figure 5: CHS...\n")
 
 if (!is.null(chs_data) && nrow(chs_data) > 0) {
   # Summary stats
@@ -456,7 +450,6 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 # SUPPLEMENT: FACETED TIME SERIES - DYNAMIC STORAGE
 # -----------------------------------------------------------------------------
 
-cat("\nCreating Supplement: Dynamic Storage Time Series...\n")
 
 # Calculate site means for dashed reference lines
 site_means_dynamic <- dynamic_long %>%
@@ -514,7 +507,6 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
 
 ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
-cat("  Saved Dynamic Storage Time Series\n")
 
 # -----------------------------------------------------------------------------
 # SUPPLEMENT: FACETED TIME SERIES - CHS
@@ -581,13 +573,10 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
 # SUMMARY
 # -----------------------------------------------------------------------------
 
-cat("\n=== FIGURES COMPLETE ===\n")
-cat("\nMain Text figures:", main_dir, "\n")
 for (f in list.files(main_dir, pattern = "\\.(png|pdf)$")) {
   cat("  -", f, "\n")
 }
 
-cat("\nSupplement figures:", supp_dir, "\n")
 for (f in list.files(supp_dir, pattern = "\\.(png|pdf)$")) {
   cat("  -", f, "\n")
 }

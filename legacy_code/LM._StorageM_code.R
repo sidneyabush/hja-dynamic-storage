@@ -217,7 +217,6 @@ for (i in seq_along(row_names)) {
 }
 
 # View the matrix
-print(beta_matrix)
 
 
 #### At this point we are only using the variables that had a VIF less than 10 to re-run the models 
@@ -356,7 +355,6 @@ for (i in seq_along(row_names)) {
 }
 
 # View the matrix
-print(beta_matrix)
 #plot
 
 values<-seq(-3,2,0.1)

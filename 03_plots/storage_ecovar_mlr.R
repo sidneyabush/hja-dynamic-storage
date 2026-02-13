@@ -145,6 +145,7 @@ response_labels <- tibble(
   Response = response_order,
   Response_label = response_order
 )
+response_labels_panel <- make_panel_label_map(response_labels$Response_label)
 
 r2_lookup <- model_summary %>%
   transmute(
@@ -200,7 +201,14 @@ beta_plot_df <- full_grid %>%
 p_beta <- ggplot(beta_plot_df, aes(x = Site, y = Predictor, fill = beta_fill)) +
   geom_tile(color = "white", linewidth = 0.25) +
   geom_text(aes(label = tile_label), size = FIG_TILE_TEXT_SIZE, lineheight = 0.9) +
-  facet_wrap(~ Response_label, ncol = 1, scales = "fixed") +
+  facet_wrap(
+    ~Response_label,
+    ncol = 1,
+    scales = "fixed",
+    labeller = labeller(Response_label = response_labels_panel),
+    axes = "margins",
+    axis.labels = "margins"
+  ) +
   scale_fill_gradient2(
     low = "firebrick4",
     mid = "white",
@@ -255,7 +263,7 @@ save_plot_safe(
   height = 13 * FIG_HEIGHT_SCALE
 )
 
-# Companion performance heatmap: site x response R2
+# Companion performance heatmap: site x response adjusted R2
 r2_heat_df <- expand_grid(
   Site = site_order,
   Response = response_order
@@ -266,7 +274,7 @@ r2_heat_df <- expand_grid(
   ) %>%
   left_join(
     model_summary %>%
-      transmute(Site = as.character(Site), Response = as.character(Response), R2),
+      transmute(Site = as.character(Site), Response = as.character(Response), adj_r2 = R2_adj),
     by = c("Site", "Response")
   ) %>%
   left_join(coverage_df, by = c("Site", "Response")) %>%
@@ -274,12 +282,12 @@ r2_heat_df <- expand_grid(
     Site = factor(Site, levels = site_order),
     Response = factor(Response, levels = response_order),
     r2_label = case_when(
-      is.finite(R2) ~ sprintf("%.2f", R2),
+      is.finite(adj_r2) ~ sprintf("%.2f", adj_r2),
       TRUE ~ "-"
     )
   )
 
-p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = R2)) +
+p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = adj_r2)) +
   geom_tile(color = "white", linewidth = 0.35) +
   geom_text(aes(label = r2_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
@@ -290,7 +298,7 @@ p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = R2)) +
     limits = c(0, 1),
     oob = scales::squish,
     na.value = "white",
-    name = "R2"
+    name = "Adj R2"
   ) +
   labs(x = "Site", y = "Response") +
   theme_pub() +
@@ -337,7 +345,7 @@ save_csv_safe(
     transmute(
       Site = as.character(Site),
       Response = as.character(Response),
-      R2,
+      Adj_R2 = adj_r2,
       model_status,
       reason_not_fit,
       n_response

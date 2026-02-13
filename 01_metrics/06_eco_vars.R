@@ -2,10 +2,10 @@
 # Stream Temperature & Low-Flow Metrics for Storage Manuscript
 # -----------------------------------------------------------------------------
 # Purpose: Calculate ecologically-relevant thermal and low-flow metrics:
-#   1. Maximum 7-day moving average stream temperature (per water year)
-#   2. Q5 of 7-day moving average discharge (per water year)
-#   3. Stream temperature during Q5 low-flow period
-#   4. Q5_CV: Coefficient of variation of stream temp during low-flow period
+#   Maximum 7-day moving average stream temperature (per water year)
+#   Q5 of 7-day moving average discharge (per water year)
+#   Stream temperature during Q5 low-flow period
+#   Q5_CV: Coefficient of variation of stream temp during low-flow period
 #
 # Timeline: Water Years 1997-2020
 #
@@ -66,7 +66,7 @@ if (file.exists(config_path)) {
 theme_set(theme_pub(base_size = 12))
 
 # -----------------------------------------------------------------------------
-# 1. SETUP: Directories and site list (from config.R)
+# SETUP: Directories and site list (from config.R)
 # -----------------------------------------------------------------------------
 
 base_dir      <- BASE_DATA_DIR
@@ -97,7 +97,7 @@ assert_unique_keys <- function(df, keys, df_name) {
 }
 
 # -----------------------------------------------------------------------------
-# 2. LOAD & PROCESS STREAM TEMPERATURE DATA
+# LOAD & PROCESS STREAM TEMPERATURE DATA
 # -----------------------------------------------------------------------------
 
 # Load daily stream temperature file
@@ -143,7 +143,7 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
 # Keep WS09 in downstream annual masters; temp responses remain NA for WS09.
 
 # -----------------------------------------------------------------------------
-# 3. LOAD & PROCESS DISCHARGE DATA
+# LOAD & PROCESS DISCHARGE DATA
 # -----------------------------------------------------------------------------
 
 # Load drainage areas
@@ -165,7 +165,7 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"),
   arrange(site, date)
 
 # -----------------------------------------------------------------------------
-# 4. CALCULATE 7-DAY MOVING AVERAGES
+# CALCULATE 7-DAY MOVING AVERAGES
 # -----------------------------------------------------------------------------
 
 # Function to calculate 7-day rolling mean
@@ -195,10 +195,10 @@ discharge_rolling <- discharge %>%
   rename(Q_7d_avg_mm_d = rolling_7d)
 
 # -----------------------------------------------------------------------------
-# 5. EXTRACT ANNUAL METRICS (PER WATER YEAR)
+# EXTRACT ANNUAL METRICS (PER WATER YEAR)
 # -----------------------------------------------------------------------------
 
-# 5.1 Maximum 7-day average temperature per water year
+# Maximum 7-day average temperature per water year
 t_7dmax <- temp_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -213,7 +213,7 @@ t_7dmax <- temp_rolling %>%
   ungroup()
 assert_unique_keys(t_7dmax, c("site", "year"), "t_7dmax")
 
-# 5.2 Q5 of 7-day average discharge per water year
+# Q5 of 7-day average discharge per water year
 q_7q5 <- discharge_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -237,7 +237,7 @@ q_7q5_date <- discharge_rolling %>%
   ungroup()
 assert_unique_keys(q_7q5_date, c("site", "year"), "q_7q5_date")
 
-# 5.3 Temperature at and during Q5 low-flow period
+# Temperature at and during Q5 low-flow period
 # - T_at_Q7Q5: temperature on representative Q5 date
 # - T_Q7Q5: mean temperature across all days with 7-day Q <= annual Q5
 temp_at_q5 <- q_7q5_date %>%
@@ -269,7 +269,7 @@ q5_period_temp <- discharge_rolling %>%
   )
 assert_unique_keys(q5_period_temp, c("site", "year"), "q5_period_temp")
 
-# 5.4 Q5_CV: Coefficient of variation of stream temp during low-flow period
+# Q5_CV: Coefficient of variation of stream temp during low-flow period
 # CV of daily mean stream temperature during Aug-Oct (late-summer recession)
 # Lower values indicate greater thermal buffering by subsurface storage
 temp_cv_lowflow <- temp_daily %>%
@@ -290,7 +290,7 @@ temp_cv_lowflow <- temp_daily %>%
 assert_unique_keys(temp_cv_lowflow, c("site", "year"), "temp_cv_lowflow")
 
 # -----------------------------------------------------------------------------
-# 6. COMBINE METRICS INTO MASTER TABLE
+# COMBINE METRICS INTO MASTER TABLE
 # -----------------------------------------------------------------------------
 
 # Merge all metrics by standardized site-year keys
@@ -322,7 +322,7 @@ output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv"
 write_csv(master_metrics, output_file)
 
 # -----------------------------------------------------------------------------
-# 7. SUMMARY STATISTICS
+# SUMMARY STATISTICS
 # -----------------------------------------------------------------------------
 
 summary_stats <- master_metrics %>%

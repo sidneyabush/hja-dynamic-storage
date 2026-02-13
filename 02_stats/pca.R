@@ -5,12 +5,12 @@
 #          patterns of covariation among hydrometric storage indicators
 #
 # Workflow:
-#   1. Load annual storage metrics (from aggregate_metrics.R output)
-#   2. Select storage metrics for PCA
-#   3. Remove outliers (z-score > 3)
-#   4. Normalize/scale features
-#   5. Run PCA
-#   6. Visualize:
+#   Load annual storage metrics (from aggregate_metrics.R output)
+#   Select storage metrics for PCA
+#   Remove outliers (z-score > 3)
+#   Normalize/scale features
+#   Run PCA
+#   Visualize:
 #      - PC1 vs PC2 biplot with loadings
 #      - Variance explained by each PC
 #
@@ -85,7 +85,7 @@ unlink(file.path(output_dir, c(
 )))
 
 # -----------------------------------------------------------------------------
-# 2. LOAD ANNUAL STORAGE METRICS
+# LOAD ANNUAL STORAGE METRICS
 # -----------------------------------------------------------------------------
 # This file was created by 06_Aggregate_All_Metrics.R and contains all annual
 # storage metrics, temperature metrics, and catchment characteristics
@@ -103,7 +103,7 @@ HJA_Yr <- read_csv(
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
 # -----------------------------------------------------------------------------
-# 3. SELECT FEATURES FOR PCA
+# SELECT FEATURES FOR PCA
 # -----------------------------------------------------------------------------
 
 # Core hydrometric storage metrics (annual values)
@@ -125,7 +125,7 @@ HJA_selected <- HJA_Yr %>%
   select(all_of(c(site_column, year_column)), all_of(features))
 
 # -----------------------------------------------------------------------------
-# 4. OUTLIER REMOVAL (Z-SCORE > 3)
+# OUTLIER REMOVAL (Z-SCORE > 3)
 # -----------------------------------------------------------------------------
 # Remove outliers only from non-missing values
 
@@ -133,7 +133,7 @@ HJA_clean <- HJA_selected %>%
   filter(if_all(all_of(features), ~ is.na(.) | abs((. - mean(., na.rm = TRUE)) / sd(., na.rm = TRUE)) < 3))
 
 # -----------------------------------------------------------------------------
-# 5. IMPUTE MISSING VALUES & NORMALIZE FEATURES
+# IMPUTE MISSING VALUES & NORMALIZE FEATURES
 # -----------------------------------------------------------------------------
 # Impute missing values with column means so all sites can be included
 
@@ -149,7 +149,7 @@ scaled_features <- HJA_clean %>%
   mutate(across(all_of(features), scale))
 
 # -----------------------------------------------------------------------------
-# 6. RUN PCA
+# RUN PCA
 # -----------------------------------------------------------------------------
 
 pca_result <- prcomp(
@@ -159,7 +159,7 @@ pca_result <- prcomp(
 )
 
 # -----------------------------------------------------------------------------
-# 7. EXTRACT PCA SCORES AND LOADINGS
+# EXTRACT PCA SCORES AND LOADINGS
 # -----------------------------------------------------------------------------
 
 # PCA scores (PC1 and PC2)
@@ -180,7 +180,7 @@ loadings_scaled <- loadings %>%
 
 
 # -----------------------------------------------------------------------------
-# 9. VARIANCE EXPLAINED BY EACH PC
+# VARIANCE EXPLAINED BY EACH PC
 # -----------------------------------------------------------------------------
 
 # Calculate variance explained

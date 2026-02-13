@@ -48,4 +48,3 @@ for (nm in targets) {
 # Recreate expected tree via config side effects.
 source(file.path(repo_root, "config.R"))
 
-message("Cleaned output subfolders in: ", OUTPUT_DIR)

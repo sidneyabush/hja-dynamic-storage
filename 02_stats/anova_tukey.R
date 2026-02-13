@@ -5,11 +5,11 @@
 #          using one-way ANOVA followed by Tukey HSD post-hoc tests
 #
 # Workflow:
-#   1. Load annual storage metrics (site-year observations)
-#   2. For each storage metric, run one-way ANOVA (site as factor)
-#   3. If ANOVA is significant (p < 0.05), run Tukey HSD post-hoc test
-#   4. Visualize site comparisons with boxplots and Tukey groupings
-#   5. Save results to CSV
+#   Load annual storage metrics (site-year observations)
+#   For each storage metric, run one-way ANOVA (site as factor)
+#   If ANOVA is significant (p < 0.05), run Tukey HSD post-hoc test
+#   Visualize site comparisons with boxplots and Tukey groupings
+#   Save results to CSV
 #
 # Inputs:
 #   - master_annual.csv (from aggregate_metrics.R)
@@ -75,7 +75,7 @@ output_dir <- OUT_STATS_ANOVA_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # -----------------------------------------------------------------------------
-# 2. LOAD ANNUAL STORAGE METRICS
+# LOAD ANNUAL STORAGE METRICS
 # -----------------------------------------------------------------------------
 
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
@@ -92,7 +92,7 @@ HJA_annual <- read_csv(
   mutate(site = factor(site, levels = site_order))
 
 # -----------------------------------------------------------------------------
-# 3. SELECT STORAGE METRICS FOR ANOVA
+# SELECT STORAGE METRICS FOR ANOVA
 # -----------------------------------------------------------------------------
 # NOTE: Q5norm, CV_Q5norm are NOT storage metrics - they are response variables
 # Storage metrics by type (using method abbreviations):
@@ -110,7 +110,7 @@ storage_metrics <- c(
 )
 
 # -----------------------------------------------------------------------------
-# 4. RUN ANOVA FOR EACH METRIC
+# RUN ANOVA FOR EACH METRIC
 # -----------------------------------------------------------------------------
 
 anova_results <- data.frame()
@@ -155,7 +155,7 @@ write.csv(anova_results,
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 5. RUN TUKEY HSD POST-HOC TESTS
+# RUN TUKEY HSD POST-HOC TESTS
 # -----------------------------------------------------------------------------
 
 tukey_results <- data.frame()
@@ -217,7 +217,7 @@ if (nrow(tukey_group_letters) > 0) {
 }
 
 # -----------------------------------------------------------------------------
-# 6. SUMMARY TABLE: SITE MEANS
+# SUMMARY TABLE: SITE MEANS
 # -----------------------------------------------------------------------------
 
 site_means <- HJA_annual %>%

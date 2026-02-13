@@ -84,7 +84,7 @@ if (file.exists(config_path)) {
 theme_set(theme_pub(base_size = 12))
 
 # -----------------------------------------------------------------------------
-# 1. SETUP: Directories (from config.R)
+# SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
 
 base_dir    <- BASE_DATA_DIR
@@ -100,7 +100,7 @@ catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
 
 # -----------------------------------------------------------------------------
-# 2. LOAD ALL METRIC FILES
+# LOAD ALL METRIC FILES
 # -----------------------------------------------------------------------------
 
 assert_unique_keys <- function(df, keys, df_name) {
@@ -208,7 +208,7 @@ thermal_lowflow <- read_csv(
 assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
 # -----------------------------------------------------------------------------
-# 3. MERGE ALL ANNUAL METRICS
+# MERGE ALL ANNUAL METRICS
 # -----------------------------------------------------------------------------
 
 HJA_annual <- rbi_recession %>%
@@ -229,7 +229,7 @@ write.csv(HJA_annual,
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 4. CALCULATE SITE AVERAGES
+# CALCULATE SITE AVERAGES
 # -----------------------------------------------------------------------------
 
 HJA_avg <- HJA_annual %>%
@@ -245,7 +245,7 @@ HJA_avg <- HJA_annual %>%
   )
 
 # -----------------------------------------------------------------------------
-# 5. ADD ISOTOPE METRICS (MTT, Fyw, DR) - SITE-LEVEL
+# ADD ISOTOPE METRICS (MTT, Fyw, DR) - SITE-LEVEL
 # -----------------------------------------------------------------------------
 
 # Mean Transit Time and Young Water Fraction
@@ -276,7 +276,7 @@ HJA_avg <- HJA_avg %>%
   left_join(isotope_metrics, by = "site")
 
 # -----------------------------------------------------------------------------
-# 6. ADD CATCHMENT CHARACTERISTICS
+# ADD CATCHMENT CHARACTERISTICS
 # -----------------------------------------------------------------------------
 
 catchment_chars <- read_csv(
@@ -297,7 +297,7 @@ write.csv(HJA_avg,
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 7. SAMPLE SIZE TRACKING
+# SAMPLE SIZE TRACKING
 # -----------------------------------------------------------------------------
 
 # Define all storage metrics by type (using method abbreviations)
@@ -338,7 +338,7 @@ sample_sizes <- annual_sample_sizes %>%
 # Save sample size table
 
 # -----------------------------------------------------------------------------
-# 8. QA: CORRELATION MATRIX (STORAGE METRICS ONLY)
+# QA: CORRELATION MATRIX (STORAGE METRICS ONLY)
 # -----------------------------------------------------------------------------
 
 # Storage metrics by type (Q5norm, CV_Q5norm are NOT storage metrics)
@@ -346,11 +346,6 @@ sample_sizes <- annual_sample_sizes %>%
 #   Mobile: CHS, MTT, Fyw, DR
 #   Extended Dynamic: WB
 # -----------------------------------------------------------------------------
-# 8. FINAL SUMMARY
+# FINAL SUMMARY
 # -----------------------------------------------------------------------------
 
-cat("\n=== AGGREGATION COMPLETE ===\n")
-cat(sprintf("Water years: %d - %d\n", WY_START, WY_END))
-cat(sprintf("Hydrometric sites: %d\n", length(unique(HJA_annual$site))))
-cat(sprintf("Annual observations: %d\n", nrow(HJA_annual)))
-cat(sprintf("Site averages: %d\n", nrow(HJA_avg)))

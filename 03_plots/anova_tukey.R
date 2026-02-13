@@ -109,6 +109,7 @@ build_faceted_plot <- function(df_long, metric_names, ncol_facets) {
   d <- df_long %>%
     filter(metric %in% metric_names) %>%
     mutate(metric = factor(metric, levels = metric_names))
+  metric_labels_panel <- make_panel_label_map(metric_names)
 
   letters_m <- letters_df %>%
     filter(metric %in% metric_names) %>%
@@ -150,7 +151,14 @@ build_faceted_plot <- function(df_long, metric_names, ncol_facets) {
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC, drop = FALSE) +
     scale_color_manual(values = SITE_COLORS) +
     scale_fill_manual(values = SITE_COLORS) +
-    facet_wrap(~metric, ncol = ncol_facets, scales = "free_y") +
+    facet_wrap(
+      ~metric,
+      ncol = ncol_facets,
+      scales = "free_y",
+      labeller = labeller(metric = metric_labels_panel),
+      axes = "margins",
+      axis.labels = "margins"
+    ) +
     labs(x = NULL, y = "Value") +
     theme_pub() +
     theme(
@@ -159,7 +167,7 @@ build_faceted_plot <- function(df_long, metric_names, ncol_facets) {
       axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
       axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       strip.background = element_blank(),
-      strip.text = element_text(size = FIG_AXIS_TITLE_SIZE, face = "bold"),
+      strip.text = element_text(size = FIG_AXIS_TITLE_SIZE),
       panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
       axis.line = element_blank(),
       plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)

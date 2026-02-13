@@ -13,7 +13,7 @@
 # Outputs: Annual storage depths and FDC slopes
 # -----------------------------------------------------------------------------
 
-# 0) Load libraries & clear environment
+# Load libraries & clear environment
 library(dplyr)
 library(lubridate)
 library(tidyr)
@@ -50,12 +50,12 @@ if (file.exists(config_path)) {
   stop("config.R not found. Please ensure config.R exists in the repo root.")
 }
 
-# 1) Directories & input
+# Directories & input
 output_dir <- OUT_MET_DYNAMIC_DIR
 input_file <- resolve_water_balance_daily_file()
 stopifnot(file.exists(input_file))
 
-# 2) Read data, filter sites, parse date & compute water-year
+# Read data, filter sites, parse date & compute water-year
 df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
   mutate(
     # robustly parse DATE into a Date object
@@ -87,7 +87,7 @@ df <- read.csv(input_file, stringsAsFactors = FALSE) %>%
   arrange(site, date)
 
 
-# 3) Helper functions
+# Helper functions
 compute_fdc <- function(Q) {
   Qpos <- Q[Q > 0]
   Qs   <- sort(Qpos, decreasing = TRUE)
@@ -106,9 +106,9 @@ deltaS <- function(Qu, Ql, k, p) {
   (Qu^(2 - p) - Ql^(2 - p)) / (k * (2 - p))
 }
 
-# 4) Site-water-year analysis function
+# Site-water-year analysis function
 analyze <- function(df_sub) {
-  # 4.1 Flow-duration thresholds
+  # Flow-duration thresholds
   fdc  <- compute_fdc(df_sub$Q)
   Q99  <- get_Q(fdc, 99)
   Q50  <- get_Q(fdc, 50)
@@ -124,7 +124,7 @@ analyze <- function(df_sub) {
     ))
   }
   
-  # 4.2 Recession data (rain-free falling limbs)
+  # Recession data (rain-free falling limbs)
   tmp <- df_sub %>%
     arrange(date) %>%
     mutate(
@@ -144,12 +144,12 @@ analyze <- function(df_sub) {
     ))
   }
   
-  # 4.3 Fit recession law
+  # Fit recession law
   fit   <- lm(log(dQ) ~ log(Q), data = rec)
   p_est <- coef(fit)["log(Q)"]
   k_est <- exp(coef(fit)["(Intercept)"])
   
-  # 4.4 Compute annual-mean extremes by water-year
+  # Compute annual-mean extremes by water-year
   yearly <- df_sub %>%
     group_by(wateryear) %>%
     summarize(
@@ -160,7 +160,7 @@ analyze <- function(df_sub) {
   Qmax_avg <- mean(yearly$yr_max, na.rm = TRUE)
   Qmin_avg <- mean(yearly$yr_min, na.rm = TRUE)
   
-  # 4.5 Compute dynamic storage depths
+  # Compute dynamic storage depths
   tibble(
     k             = k_est,
     p             = p_est,
@@ -175,13 +175,13 @@ analyze <- function(df_sub) {
   )
 }
 
-# 5) Compute overall results (across all water-years)
+# Compute overall results (across all water-years)
 overall <- df %>%
   group_by(site) %>%
   group_map(~ analyze(.x) %>% mutate(site = .y$site), .keep = TRUE) %>%
   bind_rows()
 
-# 6) Compute per-water-year results
+# Compute per-water-year results
 annual <- df %>%
   group_by(site, wateryear) %>%
   group_map(~ analyze(.x) %>% 
@@ -189,7 +189,7 @@ annual <- df %>%
             .keep = TRUE) %>%
   bind_rows()
 
-# 7) Add catchment areas & convert mm → m³
+# Add catchment areas & convert mm → m³
 areas_ha <- tibble(
   SITECODE = c("GSWS01","GSWS02","GSWS03","GSWS06","GSWS07",
                "GSWS08","GSWS09","GSWS10", "Mack", "Look"),
@@ -209,7 +209,7 @@ add_vol <- function(df_in) {
 overall_vol <- add_vol(overall)
 annual_vol  <- add_vol(annual)
 
-# 8) Calculate FDC slope (Q5-Q95), Q5norm, and CV_Q5norm
+# Calculate FDC slope (Q5-Q95), Q5norm, and CV_Q5norm
 # FDC slope: slope of log10(Q) ~ exceedance probability for 5th-95th percentile
 # Q5norm: 5th percentile discharge during Aug-Oct low-flow period (mm/day)
 # CV_Q5norm: coefficient of variation of annual Q5norm values
@@ -287,7 +287,7 @@ annual <- annual %>%
   left_join(Q5_annual, by = c("site", "wateryear")) %>%
   left_join(CV_Q5norm, by = "site")
 
-# 9) Save outputs (with wateryear in filenames for clarity)
+# Save outputs (with wateryear in filenames for clarity)
 write.csv(overall_vol,
           file = file.path(output_dir, "storage_overall_per_site.csv"),
           row.names = FALSE)

@@ -50,6 +50,7 @@ theme_set(theme_pub())
 
 plot_dir <- file.path(FIGURES_DIR, "supp", "hydrometric")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
+site_labels_panel <- make_panel_label_map(SITE_ORDER_HYDROMETRIC)
 
 da_path <- resolve_drainage_area_file()
 q_path <- file.path(DISCHARGE_DIR, "HF00402_v14.csv")
@@ -118,7 +119,15 @@ p_curve <- ggplot(recession_clean, aes(x = log(Q_mm_day), y = log(slope_mm_day),
     hjust = 0,
     check_overlap = FIG_LABEL_CHECK_OVERLAP
   ) +
-  facet_wrap(~site, ncol = 2, scales = "fixed", drop = FALSE, axes = "margins", axis.labels = "margins") +
+  facet_wrap(
+    ~site,
+    ncol = 2,
+    scales = "fixed",
+    drop = FALSE,
+    axes = "margins",
+    axis.labels = "margins",
+    labeller = labeller(site = site_labels_panel)
+  ) +
   scale_color_manual(values = SITE_COLORS, guide = "none") +
   labs(x = "log Q (mm day-1)", y = "log -dQ/dt (mm day-1)") +
   theme(

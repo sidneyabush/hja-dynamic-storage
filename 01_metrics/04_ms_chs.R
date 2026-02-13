@@ -62,7 +62,7 @@ if (file.exists(config_path)) {
 theme_set(theme_pub(base_size = 12))
 
 # -----------------------------------------------------------------------------
-# 1. SETUP: Directories (from config.R)
+# SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
 
 base_dir <- BASE_DATA_DIR
@@ -77,7 +77,7 @@ if (!dir.exists(output_dir)) {
 }
 
 # -----------------------------------------------------------------------------
-# 2. LOAD DISCHARGE DATA
+# LOAD DISCHARGE DATA
 # -----------------------------------------------------------------------------
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
@@ -94,7 +94,7 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
 # -----------------------------------------------------------------------------
-# 3. LOAD & PROCESS SPECIFIC CONDUCTANCE DATA
+# LOAD & PROCESS SPECIFIC CONDUCTANCE DATA
 # -----------------------------------------------------------------------------
 
 EC <- read.delim(file.path(ec_dir, "CF01201_v3.txt"), sep = ",")
@@ -110,7 +110,7 @@ EC_daily <- EC %>%
   filter(!is.na(daily_SC))
 
 # -----------------------------------------------------------------------------
-# 4. MERGE SC AND DISCHARGE
+# MERGE SC AND DISCHARGE
 # -----------------------------------------------------------------------------
 
 EC_Q <- left_join(
@@ -121,7 +121,7 @@ EC_Q <- left_join(
   filter(!is.na(MEAN_Q), !is.na(daily_SC))
 
 # -----------------------------------------------------------------------------
-# 5. FILTER TO COMPLETE WATER YEARS
+# FILTER TO COMPLETE WATER YEARS
 # -----------------------------------------------------------------------------
 
 # Get water year for each record
@@ -139,7 +139,7 @@ EC_Q <- EC_Q %>%
   semi_join(goodyears, by = c("SITECODE", "waterYear"))
 
 # -----------------------------------------------------------------------------
-# 6. CALCULATE BASEFLOW PROPORTION
+# CALCULATE BASEFLOW PROPORTION
 # -----------------------------------------------------------------------------
 
 # Define endmembers (per site, across all years)
@@ -164,7 +164,7 @@ EC_Q <- EC_Q %>%
   mutate(GW_prop = pmax(0, pmin(1, GW_prop)))
 
 # -----------------------------------------------------------------------------
-# 7. AGGREGATE TO ANNUAL MEAN BASEFLOW
+# AGGREGATE TO ANNUAL MEAN BASEFLOW
 # -----------------------------------------------------------------------------
 
 # CHS = Chemical Hydrograph Separation (method name)
@@ -183,7 +183,7 @@ annual_bf_prop <- EC_Q %>%
   filter(SITECODE != "GSWSMC")
 
 # -----------------------------------------------------------------------------
-# 8. SAVE OUTPUTS
+# SAVE OUTPUTS
 # -----------------------------------------------------------------------------
 
 # Save annual baseflow proportions
@@ -191,7 +191,7 @@ output_file <- file.path(output_dir, "annual_gw_prop.csv")
 write.csv(annual_bf_prop, output_file, row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 9. SUMMARY STATISTICS
+# SUMMARY STATISTICS
 # -----------------------------------------------------------------------------
 
 summary_stats <- annual_bf_prop %>%

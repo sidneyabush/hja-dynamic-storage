@@ -69,7 +69,7 @@ if (length(old_corr_files) > 0) {
 }
 
 # -----------------------------------------------------------------------------
-# 1. load data
+# load data
 # -----------------------------------------------------------------------------
 
 site_file <- file.path(output_dir, MASTER_SITE_FILE)
@@ -89,7 +89,7 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
 }
 
 # -----------------------------------------------------------------------------
-# 2. catch_chars MLR family correlation matrix
+# catch_chars MLR family correlation matrix
 # -----------------------------------------------------------------------------
 
 watershed_predictors <- c(
@@ -127,7 +127,7 @@ if (length(watershed_predictors) >= 2) {
 }
 
 # -----------------------------------------------------------------------------
-# 3. storage and ecological-variable MLR correlation matrix
+# storage and ecological-variable MLR correlation matrix
 # -----------------------------------------------------------------------------
 
 annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)

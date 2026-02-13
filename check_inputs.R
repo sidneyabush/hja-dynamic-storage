@@ -95,4 +95,3 @@ check_columns(resolve_catchment_characteristics_file(), c("Site"))
 # Derived file check (must come from workflow outputs)
 invisible(resolve_water_balance_daily_file())
 
-message("Input check passed.")

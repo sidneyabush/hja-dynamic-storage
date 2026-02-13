@@ -7,8 +7,8 @@
 # Usage: source("config.R") at the top of each analysis script
 #
 # For users running this code:
-#   1. Set USE_LOCAL_DATA = TRUE if data files are in the repo's data/ folder
-#   2. Set USE_LOCAL_DATA = FALSE and update BOX_BASE_DIR if using Box storage
+#   Set USE_LOCAL_DATA = TRUE if data files are in the repo's data/ folder
+#   Set USE_LOCAL_DATA = FALSE and update BOX_BASE_DIR if using Box storage
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------

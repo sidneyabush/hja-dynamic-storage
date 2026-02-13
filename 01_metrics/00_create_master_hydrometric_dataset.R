@@ -5,11 +5,11 @@
 #          watershed-level daily meteorological datasets with P, T, RH, NR, VPD, Q
 #
 # Workflow:
-#   1. Load meteorological data from multiple stations
-#   2. Interpolate missing values using OLS (pairs) or MLR (triplets)
-#   3. Aggregate station data to watershed level
-#   4. Add discharge data
-#   5. Create GSLOOK composite from component watersheds
+#   Load meteorological data from multiple stations
+#   Interpolate missing values using OLS (pairs) or MLR (triplets)
+#   Aggregate station data to watershed level
+#   Add discharge data
+#   Create GSLOOK composite from component watersheds
 #
 # Inputs (from all_hydromet/):
 #   - Temperature_original_&_filled_1979_2023_v2.csv
@@ -135,7 +135,6 @@ site_mapping <- list(
 # LOAD METEOROLOGICAL DATA
 # -----------------------------------------------------------------------------
 
-cat("Loading meteorological data...\n")
 
 # Temperature
 Temp <- make_inter_long(
@@ -185,7 +184,6 @@ NetRad <- read_csv(file.path(met_dir, "MS05025_v3.csv"), show_col_types = FALSE)
 # COMBINE AND FILTER DATA
 # -----------------------------------------------------------------------------
 
-cat("Combining meteorological datasets...\n")
 
 combined_met <- Temp %>%
   full_join(Precip, by = c("DATE", "SITECODE")) %>%
@@ -198,18 +196,15 @@ combined_met <- Temp %>%
 # INTERPOLATE MISSING VALUES
 # -----------------------------------------------------------------------------
 
-cat("Interpolating missing values...\n")
 
 # Extract station groups that need interpolation
 station_groups <- extract_station_groups(site_mapping)
 
-cat("Station pairs for OLS interpolation:\n")
 for (pair_name in names(station_groups$pairs)) {
   pair <- station_groups$pairs[[pair_name]]
   cat(sprintf("  - %s: %s and %s\n", pair_name, pair$site1, pair$site2))
 }
 
-cat("\nStation triplets for multiple regression:\n")
 for (triplet_name in names(station_groups$triplets)) {
   triplet <- station_groups$triplets[[triplet_name]]
   cat(sprintf("  - %s: %s, %s, and %s\n", triplet_name,
@@ -234,13 +229,11 @@ results <- process_station_groups(
 
 interpolated_data <- results$data
 
-cat("\nInterpolation complete.\n")
 
 # -----------------------------------------------------------------------------
 # CREATE WATERSHED DATASETS
 # -----------------------------------------------------------------------------
 
-cat("Creating watershed-level datasets...\n")
 
 # Variables including VPD
 watershed_variables <- c(variables, "VPD_kPa")
@@ -255,7 +248,6 @@ all_watersheds_data <- bind_rows(watershed_datasets)
 # ADD DISCHARGE DATA
 # -----------------------------------------------------------------------------
 
-cat("Adding discharge data...\n")
 
 # Load drainage areas
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
@@ -290,7 +282,6 @@ if ("SITECODE.x" %in% names(all_watersheds_data)) {
 # CREATE GSLOOK COMPOSITE
 # -----------------------------------------------------------------------------
 
-cat("Creating GSLOOK composite...\n")
 
 # Component watersheds for Lookout
 gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
@@ -340,10 +331,3 @@ watershed_datasets[["GSLOOK"]] <- gslook_full_df
 
 output_file <- file.path(output_dir, "watersheds_met_q.csv")
 write_csv(all_watersheds_data, output_file)
-
-cat("\n=== PROCESSING COMPLETE ===\n")
-cat("Output file:", output_file, "\n")
-cat("Watersheds:", length(unique(all_watersheds_data$SITECODE)), "\n")
-cat("Date range:", as.character(min(all_watersheds_data$DATE)), "to",
-    as.character(max(all_watersheds_data$DATE)), "\n")
-cat("Total records:", nrow(all_watersheds_data), "\n")

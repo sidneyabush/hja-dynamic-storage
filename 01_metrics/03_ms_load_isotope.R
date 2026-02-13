@@ -135,7 +135,6 @@ availability <- isotope_metrics %>%
   ) %>%
   select(site, in_hydrometric, has_MTT, has_Fyw, has_DR)
 
-print(availability)
 
 
 # -----------------------------------------------------------------------------

@@ -5,10 +5,10 @@
 #          the water balance approach (P - Q - ET)
 #
 # Method:
-#   1. Identify last hydrograph peak (>8% of annual max, before WY day 300)
-#   2. From that date forward, compute daily dS = P - Q - ET
-#   3. Calculate cumulative drawdown (ΔS_sum)
-#   4. Extract minimum (maximum drawdown) for each site-year
+#   Identify last hydrograph peak (>8% of annual max, before WY day 300)
+#   From that date forward, compute daily dS = P - Q - ET
+#   Calculate cumulative drawdown (ΔS_sum)
+#   Extract minimum (maximum drawdown) for each site-year
 #
 # Inputs:
 #   - HF00402_v14.csv: Daily discharge
@@ -65,7 +65,7 @@ if (file.exists(config_path)) {
 theme_set(theme_pub(base_size = 12))
 
 # -----------------------------------------------------------------------------
-# 1. SETUP: Directories (from config.R)
+# SETUP: Directories (from config.R)
 # -----------------------------------------------------------------------------
 
 base_dir    <- BASE_DATA_DIR
@@ -77,7 +77,7 @@ discharge_dir <- DISCHARGE_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # -----------------------------------------------------------------------------
-# 2. LOAD & PROCESS DISCHARGE DATA
+# LOAD & PROCESS DISCHARGE DATA
 # -----------------------------------------------------------------------------
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
@@ -112,7 +112,7 @@ discharge <- discharge %>%
 discharge <- discharge[complete.cases(discharge$Q_smoothed), ]
 
 # -----------------------------------------------------------------------------
-# 3. DEFINE FUNCTION TO FIND LAST SIGNIFICANT PEAK
+# DEFINE FUNCTION TO FIND LAST SIGNIFICANT PEAK
 # -----------------------------------------------------------------------------
 
 find_last_peak <- function(data, threshold_pct = 0.08) {
@@ -152,7 +152,7 @@ find_last_peak <- function(data, threshold_pct = 0.08) {
 }
 
 # -----------------------------------------------------------------------------
-# 4. IDENTIFY LAST PEAK FOR EACH SITE-YEAR
+# IDENTIFY LAST PEAK FOR EACH SITE-YEAR
 # -----------------------------------------------------------------------------
 
 last_peak <- discharge %>%
@@ -167,7 +167,7 @@ write.csv(last_peak,
           row.names = FALSE)
 
 # -----------------------------------------------------------------------------
-# 5. LOAD WATER BALANCE DATA
+# LOAD WATER BALANCE DATA
 # -----------------------------------------------------------------------------
 
 DS_dat <- read.csv(resolve_water_balance_daily_file()) %>%
@@ -179,14 +179,14 @@ DS_dat <- read.csv(resolve_water_balance_daily_file()) %>%
   filter(waterYear > 1997 & waterYear < 2020)
 
 # -----------------------------------------------------------------------------
-# 6. MERGE WITH LAST PEAK DATES
+# MERGE WITH LAST PEAK DATES
 # -----------------------------------------------------------------------------
 
 DS_dat <- left_join(DS_dat, last_peak, by = c("SITECODE", "waterYear"))
 DS_dat <- DS_dat[complete.cases(DS_dat$last_peak_date), ]
 
 # -----------------------------------------------------------------------------
-# 7. CALCULATE DYNAMIC STORAGE DRAWDOWN
+# CALCULATE DYNAMIC STORAGE DRAWDOWN
 # -----------------------------------------------------------------------------
 
 # Crop to recession period (from last peak onward)
@@ -205,7 +205,7 @@ DS_compute <- DS_dat_cropped %>%
   ungroup()
 
 # -----------------------------------------------------------------------------
-# 8. EXTRACT MAXIMUM DRAWDOWN (MINIMUM DS_SUM)
+# EXTRACT MAXIMUM DRAWDOWN (MINIMUM DS_SUM)
 # -----------------------------------------------------------------------------
 
 DS_max <- DS_compute %>%

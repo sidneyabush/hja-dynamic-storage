@@ -82,6 +82,7 @@ storage <- read_csv(annual_file, show_col_types = FALSE) %>%
 
 metric_order <- c("FDC", "RBI", "RCS", "SD", "WB", "CHS")
 metric_order <- metric_order[metric_order %in% names(storage)]
+site_labels_panel <- make_panel_label_map(SITE_ORDER_HYDROMETRIC)
 
 metric_prefix <- c(
   FDC = "ds",
@@ -152,7 +153,15 @@ for (m in metric_order) {
   p_ts <- ggplot(df, aes(x = year, y = value, color = site, group = site)) +
     geom_line(data = df_line, linewidth = 0.5) +
     geom_point(size = FIG_POINT_SIZE_SMALL) +
-    facet_wrap(~site, ncol = 2, scales = "free_y", drop = FALSE, axes = "margins", axis.labels = "margins") +
+    facet_wrap(
+      ~site,
+      ncol = 2,
+      scales = "free_y",
+      drop = FALSE,
+      axes = "margins",
+      axis.labels = "margins",
+      labeller = labeller(site = site_labels_panel)
+    ) +
     scale_color_manual(values = site_cols, guide = "none") +
     labs(x = "Water Year", y = axis_labels[[m]]) +
     theme(
@@ -201,15 +210,23 @@ if (nrow(summary_sel) > 0) {
       metric = factor(metric, levels = metric_order),
       metric_label = metric_labels_grid[as.character(metric)]
     )
+  metric_grid_panel <- make_panel_label_map(unique(as.character(summary_sel$metric_label)))
 
   p_grid <- ggplot(summary_sel, aes(x = site, y = mean_val, color = site)) +
     geom_point(size = FIG_POINT_SIZE_MED) +
     geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val), width = 0.2) +
     geom_text(aes(label = group, y = label_y), size = FIG_ANNOT_TEXT_SIZE, vjust = 0, check_overlap = FIG_LABEL_CHECK_OVERLAP) +
-    facet_wrap(~metric_label, ncol = 2, scales = "free_y", axes = "margins", axis.labels = "margins") +
+    facet_wrap(
+      ~metric_label,
+      ncol = 2,
+      scales = "free_y",
+      axes = "margins",
+      axis.labels = "margins",
+      labeller = labeller(metric_label = metric_grid_panel)
+    ) +
     scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC) +
     scale_color_manual(values = site_cols, guide = "none") +
-    labs(x = NULL, y = "Mean +/- 1 SD") +
+    labs(x = NULL, y = "Value") +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),

@@ -24,7 +24,7 @@ if (nzchar(env_repo_root)) {
   # Try to discover this script path robustly across Rscript/source/IDE run modes.
   script_path <- NA_character_
 
-  # 1) Look through call frames for an ofile ending in run_all.R
+  # Look through call frames for an ofile ending in run_all.R
   frame_ofiles <- unlist(lapply(sys.frames(), function(fr) {
     tryCatch(fr$ofile, error = function(e) NA_character_)
   }))
@@ -36,7 +36,7 @@ if (nzchar(env_repo_root)) {
     }
   }
 
-  # 2) Fall back to --file if running via Rscript
+  # Fall back to --file if running via Rscript
   if (is.na(script_path) || script_path == "") {
     args <- commandArgs(trailingOnly = FALSE)
     file_arg <- grep("^--file=", args, value = TRUE)
@@ -94,22 +94,29 @@ stats_scripts <- c(
 )
 for (s in stats_scripts) run_script(s)
 
-# Plots.
-plot_scripts <- c(
+# Plots: core manuscript set.
+plot_scripts_core <- c(
   "03_plots/anova_tukey.R",
   "03_plots/pca.R",
   "03_plots/correlations.R",
   "03_plots/watershed_char_storage_mlr.R",
   "03_plots/storage_ecovar_mlr.R",
-  "03_plots/recession_q_dqdt.R",
-  "03_plots/hydrometric_metric_summaries.R",
   "03_plots/met_context.R",
-  "03_plots/main_figures.R",
-  "03_plots/output_manifest.R"
+  "03_plots/dynamic_mobile_chs_figures.R"
 )
-for (s in plot_scripts) run_script(s)
+for (s in plot_scripts_core) run_script(s)
+
+# Optional plot diagnostics/exploratory set (off by default).
+include_optional_plots <- tolower(Sys.getenv("HJA_INCLUDE_OPTIONAL_PLOTS", unset = "false")) == "true"
+if (include_optional_plots) {
+  plot_scripts_optional <- c(
+    "03_plots/recession_q_dqdt.R",
+    "03_plots/hydrometric_metric_summaries.R",
+    "03_plots/mlr_predictor_response_pairs.R"
+  )
+  for (s in plot_scripts_optional) run_script(s)
+}
 
 # Post-run checks.
 run_script("verify_outputs.R")
 
-message("Run complete.")

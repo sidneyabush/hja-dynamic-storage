@@ -5,14 +5,14 @@
 #          best predict hydrometric storage metrics
 #
 # Workflow:
-#   1. Load site-averaged storage metrics and watershed attributes
-#   2. For each storage metric:
+#   Load site-averaged storage metrics and watershed attributes
+#   For each storage metric:
 #      a. Build full model with all watershed predictors
 #      b. Perform backward stepwise AIC selection
 #      c. Check VIF for multicollinearity (retain if VIF ≤ 10)
 #      d. Extract standardized beta coefficients and p-values
 #      e. Report model R² and adjusted R²
-#   3. Summarize results across all storage metrics
+#   Summarize results across all storage metrics
 #
 # Inputs:
 #   - master_site.csv (from 03b_aggregate_metrics.R)
@@ -95,7 +95,7 @@ if (USE_MUMIN_LOOCV && !requireNamespace("MuMIn", quietly = TRUE)) {
 }
 
 # -----------------------------------------------------------------------------
-# 2. LOAD SITE-AVERAGED DATA
+# LOAD SITE-AVERAGED DATA
 # -----------------------------------------------------------------------------
 
 site_file <- file.path(OUT_MASTER_DIR, MASTER_SITE_FILE)
@@ -114,7 +114,7 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
 }
 
 # -----------------------------------------------------------------------------
-# 3. DEFINE OUTCOME VARIABLES (STORAGE METRICS)
+# DEFINE OUTCOME VARIABLES (STORAGE METRICS)
 # -----------------------------------------------------------------------------
 # NOTE: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
 # Storage metrics by type (using method abbreviations):
@@ -135,7 +135,7 @@ outcome_vars <- c(
 )
 
 # -----------------------------------------------------------------------------
-# 4. DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
+# DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
 # -----------------------------------------------------------------------------
 # Note: Reduced predictor set to avoid overfitting (N=10 sites)
 # Selected key predictors based on theoretical importance
@@ -152,7 +152,7 @@ predictor_vars <- c(
 )
 
 # -----------------------------------------------------------------------------
-# 5. RUN STEPWISE REGRESSION FOR EACH STORAGE METRIC
+# RUN STEPWISE REGRESSION FOR EACH STORAGE METRIC
 # -----------------------------------------------------------------------------
 
 fit_mlr_with_vif <- function(data_in, outcome, predictors,

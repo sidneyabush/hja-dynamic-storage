@@ -81,7 +81,7 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_type
 # Need to update this function to take the log-log:
 # lm_model <- lm(log(recession_slope) ~ log(Q), data = recession_data)
 
-# 1) Recession slope
+# Recession slope
 calc_recession <- function(df) {
   tmp <- df %>%
     mutate(
@@ -95,7 +95,7 @@ calc_recession <- function(df) {
   tibble(slope = coef(lm(log(recession_slope) ~ log(Q), data = tmp))[2])
 }
 
-# 2) RBI
+# RBI
 calc_RBI <- function(df) {
   tmp <- df %>% mutate(dQ = Q - lag(Q)) %>% filter(!is.na(dQ))
   total_Q <- sum(df$Q, na.rm = TRUE)
