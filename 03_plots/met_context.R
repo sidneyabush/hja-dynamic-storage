@@ -74,6 +74,7 @@ if (!dir.exists(output_dir)) {
 
 wy_start <- 1997
 wy_end <- 2020
+wy_breaks <- seq(2000, wy_end, by = 5)
 
 # -----------------------------------------------------------------------------
 # GREYSCALE PALETTE (print-safe, manuscript-ready)
@@ -81,9 +82,6 @@ wy_end <- 2020
 col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray
-col_precip_neg <- "#BFBFBF"
-col_temp_neg <- "#D9D9D9"
-col_swe_neg <- "#E6E6E6"
 
 
 # -----------------------------------------------------------------------------
@@ -106,30 +104,32 @@ theme_set(theme_pub_base)
 # -----------------------------------------------------------------------------
 
 temp_data <- read_csv(
-  file.path(met_dir, "Temperature_filtered_post1997.csv"),
+  file.path(met_dir, "Temperature_original_&_filled_1979_2023_v2.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(
-    DATE = as.Date(DATE),
+    DATE = as.Date(DATE, tryFormats = c("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d")),
     month = month(DATE),
     year = year(DATE),
-    water_year = ifelse(month >= 10, year + 1, year)
+    water_year = ifelse(month >= 10, year + 1, year),
+    T_C = coalesce(CENMET_inter, CENMET)
   ) %>%
   filter(water_year >= wy_start & water_year <= wy_end) %>%
-  select(month, water_year, T_C = CENMET)
+  select(month, water_year, T_C)
 
 precip_data <- read_csv(
-  file.path(met_dir, "Precipitation_filtered_post1997.csv"),
+  file.path(met_dir, "Precipitation_original_&_filled_1979_2023.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(
-    DATE = as.Date(DATE),
+    DATE = as.Date(DATE, tryFormats = c("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d")),
     month = month(DATE),
     year = year(DATE),
-    water_year = ifelse(month >= 10, year + 1, year)
+    water_year = ifelse(month >= 10, year + 1, year),
+    P_mm = coalesce(CENMET_inter, CENMET)
   ) %>%
   filter(water_year >= wy_start & water_year <= wy_end) %>%
-  select(month, water_year, P_mm = CENMET)
+  select(month, water_year, P_mm)
 
 swe_data <- read_csv(
   file.path(met_dir, "SWE_original_&_filled_1997_2023_v5.csv"),
@@ -252,45 +252,27 @@ p3 <- ggplot(swe_monthly, aes(month, med)) +
 
 # Bottom row: Anomalies (no titles; no legends)
 p4 <- ggplot(precip_annual, aes(water_year, anom)) +
-  geom_col(
-    aes(fill = anom > 0),
-    color = "black",
-    linewidth = 0.15,
-    show.legend = FALSE
-  ) +
-  scale_fill_manual(values = c("TRUE" = col_precip, "FALSE" = col_precip_neg)) +
-  guides(fill = "none") +
+  geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   labs(x = "Water Year", y = "Anomaly (mm)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  scale_x_continuous(breaks = wy_breaks) +
+  coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p5 <- ggplot(temp_annual, aes(water_year, anom)) +
-  geom_col(
-    aes(fill = anom > 0),
-    color = "black",
-    linewidth = 0.15,
-    show.legend = FALSE
-  ) +
-  scale_fill_manual(values = c("TRUE" = col_temp, "FALSE" = col_temp_neg)) +
-  guides(fill = "none") +
+  geom_col(fill = col_temp, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   labs(x = "Water Year", y = "Anomaly (°C)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  scale_x_continuous(breaks = wy_breaks) +
+  coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p6 <- ggplot(swe_annual, aes(water_year, anom)) +
-  geom_col(
-    aes(fill = anom > 0),
-    color = "black",
-    linewidth = 0.15,
-    show.legend = FALSE
-  ) +
-  scale_fill_manual(values = c("TRUE" = col_swe, "FALSE" = col_swe_neg)) +
-  guides(fill = "none") +
+  geom_col(fill = col_swe, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   labs(x = "Water Year", y = "Anomaly (mm)") +
-  scale_x_continuous(breaks = seq(1998, 2020, by = 6)) +
+  scale_x_continuous(breaks = wy_breaks) +
+  coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # -----------------------------------------------------------------------------

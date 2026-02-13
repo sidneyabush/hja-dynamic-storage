@@ -568,67 +568,60 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   )
 }
 
-strict <- run_method(
-  method_name = "strict",
+model_run <- run_method(
+  method_name = "default",
   use_scaled_predictors = TRUE,
   use_iterative_vif = TRUE,
   enforce_correlated_exclusions = TRUE
 )
 
-strict$summary <- strict$summary %>%
+model_run$summary <- model_run$summary %>%
   mutate(
     low_n_flag = N < LOW_N_THRESHOLD_CATCH,
     confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
   )
 
-beta_matrix_strict <- strict$results %>%
+beta_matrix <- model_run$results %>%
   dplyr::select(Predictor, Outcome, Beta_Std) %>%
   tidyr::pivot_wider(names_from = Outcome, values_from = Beta_Std)
 
-# Save strict outputs as primary for downstream plotting
-write.csv(strict$results,
+# Save outputs as primary for downstream plotting
+write.csv(model_run$results,
           file.path(output_dir, paste0(file_prefix, "_results.csv")),
           row.names = FALSE)
-write.csv(strict$summary,
+write.csv(model_run$summary,
           file.path(output_dir, paste0(file_prefix, "_summary.csv")),
           row.names = FALSE)
-write.csv(beta_matrix_strict,
+write.csv(beta_matrix,
           file.path(output_dir, paste0(file_prefix, "_beta_matrix.csv")),
           row.names = FALSE)
-
-write.csv(strict$results,
-          file.path(output_dir, paste0(file_prefix, "_results_strict.csv")),
-          row.names = FALSE)
-write.csv(strict$summary,
-          file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
-          row.names = FALSE)
-write.csv(strict$selection,
+write.csv(model_run$selection,
           file.path(output_dir, paste0(file_prefix, "_stepwise_path.csv")),
           row.names = FALSE)
-write.csv(strict$model_selection,
+write.csv(model_run$model_selection,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
-write.csv(strict$model_avg,
+write.csv(model_run$model_avg,
           file.path(output_dir, paste0(file_prefix, "_model_avg_coef.csv")),
           row.names = FALSE)
-flags <- strict$summary %>%
+flags <- model_run$summary %>%
   filter(constraint_flag) %>%
-  arrange(Method, Outcome)
+  arrange(Outcome)
 write.csv(flags,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
 
 # Explicit LOOCV validation output (models + tables validation folders)
-loocv_validation <- strict$summary %>%
+loocv_validation <- model_run$summary %>%
   transmute(
     model_family = "watershed_char_storage_mlr",
-    method = Method,
     outcome = Outcome,
     n = N,
     rmse_model = RMSE,
     rmse_loocv = RMSE_LOOCV,
     rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
     r2_model = R2,
+    r2_adj_model = R2_adj,
     r2_loocv = R2_LOOCV,
     delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
     delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model

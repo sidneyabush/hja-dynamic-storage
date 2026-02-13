@@ -89,7 +89,9 @@ site_info <- site_info %>%
 base_dir <- BASE_DATA_DIR
 output_dir <- OUTPUT_DIR
 support_dir <- OUT_MET_SUPPORT_DIR
-if (!dir.exists(support_dir)) dir.create(support_dir, recursive = TRUE)
+if (!dir.exists(support_dir)) {
+  dir.create(support_dir, recursive = TRUE)
+}
 
 # -----------------------------------------------------------------------------
 # STORAGE METRICS AVAILABILITY TABLE
@@ -111,10 +113,10 @@ metrics_info <- tribble(
 
 # Response variables (NOT storage metrics, but used in analyses)
 response_vars <- tribble(
-  ~type      , ~method                 , ~abbreviation , ~variable_name       , ~requires     ,
-  "Response" , "Max 7-day Stream Temp" , "T_7DMax"     , "T_7DMax"            , "stream_temp" ,
-  "Response" , "Q5 of 7-day Discharge" , "Q_7Q5"       , "Q_7Q5"              , "hydrometric" ,
-  "Response" , "Temp during Q5 Period" , "T_Q7Q5"      , "T_Q7Q5"             , "stream_temp"
+  ~type      , ~method                 , ~abbreviation , ~variable_name , ~requires     ,
+  "Response" , "Max 7-day Stream Temp" , "T_7DMax"     , "T_7DMax"      , "stream_temp" ,
+  "Response" , "Q5 of 7-day Discharge" , "Q_7Q5"       , "Q_7Q5"        , "hydrometric" ,
+  "Response" , "Temp during Q5 Period" , "T_Q7Q5"      , "T_Q7Q5"       , "stream_temp"
 )
 
 # Create site × metric availability matrix
@@ -321,7 +323,10 @@ comprehensive_summary <- site_info %>%
 # ECO RESPONSE AVAILABILITY (WY 1997-2020)
 # -----------------------------------------------------------------------------
 
-eco_file <- file.path(OUT_MET_ECO_DIR, "stream_thermal_lowflow_metrics_annual.csv")
+eco_file <- file.path(
+  OUT_MET_ECO_DIR,
+  "stream_thermal_lowflow_metrics_annual.csv"
+)
 
 if (file.exists(eco_file)) {
   eco_data <- read_csv(eco_file, show_col_types = FALSE) %>%
@@ -347,7 +352,9 @@ if (file.exists(eco_file)) {
       n_wy_Q_7Q5 = ifelse(is.na(n_wy_Q_7Q5), 0L, n_wy_Q_7Q5),
       n_wy_T_Q7Q5 = ifelse(is.na(n_wy_T_Q7Q5), 0L, n_wy_T_Q7Q5),
       missing_reason = case_when(
-        site == "WS09" & n_wy_T_7DMax == 0 ~ "No GSWS09 stream-temperature records in HT00451_v10.txt",
+        site == "WS09" &
+          n_wy_T_7DMax ==
+            0 ~ "No GSWS09 stream-temperature records in HT00451_v10.txt",
         n_wy_T_7DMax == 0 ~ "No stream-temperature WY records",
         TRUE ~ NA_character_
       )
@@ -364,8 +371,16 @@ if (file.exists(eco_file)) {
     group_by(site, response) %>%
     summarise(
       n_wy_with_data = sum(is.finite(value)),
-      first_wy_with_data = ifelse(any(is.finite(value)), min(year[is.finite(value)]), NA_integer_),
-      last_wy_with_data = ifelse(any(is.finite(value)), max(year[is.finite(value)]), NA_integer_),
+      first_wy_with_data = ifelse(
+        any(is.finite(value)),
+        min(year[is.finite(value)]),
+        NA_integer_
+      ),
+      last_wy_with_data = ifelse(
+        any(is.finite(value)),
+        max(year[is.finite(value)]),
+        NA_integer_
+      ),
       .groups = "drop"
     ) %>%
     arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC), response)

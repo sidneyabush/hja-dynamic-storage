@@ -314,17 +314,24 @@ if (file.exists(chs_file)) {
 
 
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
-metric_labels_panel <- make_panel_label_map(metric_labels[dynamic_metrics])
+dynamic_metric_titles <- c(
+  RBI = "RBI",
+  RCS = "RCS",
+  FDC = "FDC",
+  SD = "SD"
+)
+metric_labels_panel <- make_panel_label_map(dynamic_metric_titles[dynamic_metrics])
 
 dynamic_long <- annual_data %>%
   select(site, year, any_of(dynamic_metrics)) %>%
   pivot_longer(cols = -c(site, year), names_to = "metric", values_to = "value") %>%
   filter(!is.na(value)) %>%
-  mutate(metric = factor(metric, levels = dynamic_metrics))
+  mutate(metric = factor(metric, levels = dynamic_metrics)) %>%
+  mutate(metric_label = factor(as.character(metric), levels = dynamic_metrics, labels = dynamic_metric_titles[dynamic_metrics]))
 
 # Calculate mean ± SD per site
 dynamic_summary <- dynamic_long %>%
-  group_by(site, metric) %>%
+  group_by(site, metric, metric_label) %>%
   summarise(
     mean_val = mean(value, na.rm = TRUE),
     sd_val = sd(value, na.rm = TRUE),
@@ -333,6 +340,7 @@ dynamic_summary <- dynamic_long %>%
   complete(
     site = factor(site_order, levels = site_order),
     metric = factor(dynamic_metrics, levels = dynamic_metrics),
+    metric_label = factor(dynamic_metric_titles[dynamic_metrics], levels = dynamic_metric_titles[dynamic_metrics]),
     fill = list(mean_val = NA_real_, sd_val = NA_real_)
   )
 
@@ -351,10 +359,10 @@ fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
     aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
     width = 0.3, linewidth = 0.5, na.rm = TRUE
   ) +
-  facet_wrap(~metric, scales = "free_y", ncol = 2,
+  facet_wrap(~metric_label, scales = "free_y", ncol = 2,
              axes = "margins", axis.labels = "margins",
-             labeller = labeller(metric = metric_labels_panel)) +
-  scale_color_manual(values = site_colors) +
+             labeller = labeller(metric_label = metric_labels_panel)) +
+  scale_color_manual(values = site_colors, guide = "none") +
   scale_x_discrete(limits = site_order, drop = FALSE) +
   labs(x = NULL, y = "Value")
 
@@ -367,32 +375,49 @@ ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10 * FIG_WIDTH_SCALE
 
 
 if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
-  make_mobile_panel <- function(df, y_col, y_lab, err_col = NULL) {
-    p <- ggplot(df, aes(x = site, y = .data[[y_col]], color = site)) +
-      geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
-      scale_color_manual(values = site_colors) +
-      scale_x_discrete(limits = site_order_iso, drop = FALSE) +
-      labs(x = NULL, y = y_lab)
+  metric_order_iso <- c("MTT1", "MTT2", "Fyw", "DR")
 
-    if (!is.null(err_col) && err_col %in% names(df)) {
-      p <- p + geom_errorbar(
-        aes(ymin = .data[[y_col]] - .data[[err_col]], ymax = .data[[y_col]] + .data[[err_col]]),
-        width = 0.3, linewidth = 0.5, na.rm = TRUE
-      )
-    }
-    p
-  }
+  isotope_values_long <- isotope_data %>%
+    select(site, all_of(metric_order_iso)) %>%
+    pivot_longer(cols = -site, names_to = "metric", values_to = "value")
 
-  p_mtt1 <- make_mobile_panel(isotope_data, "MTT1", "MTT1 (yr)", err_col = "MTT1_err") +
-    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  p_mtt2 <- make_mobile_panel(isotope_data, "MTT2", "MTT2 (yr)", err_col = "MTT2_err") +
-    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  p_fyw <- make_mobile_panel(isotope_data, "Fyw", "Fyw", err_col = "Fyw_err")
-  p_dr <- make_mobile_panel(isotope_data, "DR", "DR", err_col = "DR_err")
+  isotope_err_long <- isotope_data %>%
+    transmute(
+      site,
+      MTT1 = MTT1_err,
+      MTT2 = MTT2_err,
+      Fyw = Fyw_err,
+      DR = DR_err
+    ) %>%
+    pivot_longer(cols = -site, names_to = "metric", values_to = "err")
 
-  fig4 <- (p_mtt1 | p_mtt2) / (p_fyw | p_dr)
-  ggsave(file.path(main_dir, "ms_isotope.png"), fig4, width = 12 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
-  ggsave(file.path(main_dir, "ms_isotope.pdf"), fig4, width = 12 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
+  isotope_plot_long <- isotope_values_long %>%
+    left_join(isotope_err_long, by = c("site", "metric")) %>%
+    mutate(metric = factor(metric, levels = metric_order_iso))
+
+  metric_labels_iso <- make_panel_label_map(metric_order_iso)
+
+  fig4 <- ggplot(isotope_plot_long, aes(x = site, y = value, color = site)) +
+    geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
+    geom_errorbar(
+      aes(ymin = value - err, ymax = value + err),
+      width = 0.3, linewidth = 0.5, na.rm = TRUE
+    ) +
+    facet_wrap(
+      ~metric,
+      ncol = 2,
+      scales = "free_y",
+      axes = "margins",
+      axis.labels = "margins",
+      labeller = labeller(metric = metric_labels_iso)
+    ) +
+    scale_color_manual(values = site_colors, guide = "none") +
+    scale_x_discrete(limits = site_order_iso, drop = FALSE) +
+    labs(x = NULL, y = "Value") +
+    theme(strip.text = element_text(size = FIG_STRIP_TEXT_SIZE + 2, hjust = 0))
+
+  ggsave(file.path(main_dir, "ms_isotope.png"), fig4, width = 9 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(main_dir, "ms_isotope.pdf"), fig4, width = 9 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
   cat("  Saved Figure 4\n")
 } else {
   cat("  Skipping Figure 4: No isotope data\n")
@@ -457,6 +482,7 @@ site_means_dynamic <- dynamic_long %>%
   summarise(
     mean_val = mean(value, na.rm = TRUE),
     x_pos = max(year, na.rm = TRUE),
+    x_label = max(year, na.rm = TRUE) + 0.6,
     .groups = "drop"
   )
 
@@ -479,10 +505,10 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
   ) +
   geom_text(
     data = site_means_dynamic,
-    aes(x = x_pos, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
+    aes(x = x_label, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
     inherit.aes = FALSE,
-    hjust = 1.02,
-    vjust = -0.2,
+    hjust = 0,
+    vjust = 0.35,
     size = FIG_ANNOT_TEXT_SIZE,
     color = "black",
     check_overlap = FIG_LABEL_CHECK_OVERLAP,
@@ -491,11 +517,12 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
   facet_grid(metric ~ site, scales = "free_y",
              labeller = labeller(metric = metric_labels_panel, site = site_labels_panel), drop = FALSE) +
   scale_color_manual(values = site_colors) +
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.16))) +
   labs(x = "Water Year", y = NULL) +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = FIG_AXIS_TEXT_SIZE),
-    strip.text.y = element_text(angle = 0, size = FIG_STRIP_TEXT_SIZE),
-    strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE),
+    strip.text.y = element_text(angle = 0, size = FIG_STRIP_TEXT_SIZE, hjust = 0),
+    strip.text.x = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0),
     plot.margin = margin(
       FIG_LABEL_PLOT_MARGIN_PT,
       FIG_LABEL_PLOT_MARGIN_PT,
@@ -505,8 +532,8 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
-ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
-ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 14 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
+ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 16 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 16 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
 
 # -----------------------------------------------------------------------------
 # SUPPLEMENT: FACETED TIME SERIES - CHS
@@ -520,6 +547,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     summarise(
       mean_val = mean(CHS, na.rm = TRUE),
       x_pos = max(year, na.rm = TRUE),
+      x_label = max(year, na.rm = TRUE) + 0.6,
       .groups = "drop"
     )
   chs_line_data <- chs_data %>%
@@ -540,10 +568,10 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     ) +
     geom_text(
       data = chs_means,
-      aes(x = x_pos, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
+      aes(x = x_label, y = mean_val, label = sprintf(paste0("%.", FIG_MEAN_LABEL_DIGITS, "f"), mean_val)),
       inherit.aes = FALSE,
-      hjust = 1.02,
-      vjust = -0.2,
+      hjust = 0,
+      vjust = 0.35,
       size = FIG_ANNOT_TEXT_SIZE,
       color = "black",
       check_overlap = FIG_LABEL_CHECK_OVERLAP,
@@ -552,6 +580,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     facet_wrap(~site, ncol = 2, drop = FALSE, axes = "margins", axis.labels = "margins",
                labeller = labeller(site = site_labels_panel)) +
     scale_color_manual(values = site_colors) +
+    scale_x_continuous(expand = expansion(mult = c(0.01, 0.16))) +
     scale_linetype_manual(values = FIG_MEAN_LINE_LINETYPES, guide = "none") +
     labs(x = "Water Year", y = "Baseflow Fraction (CHS)") +
     theme(
@@ -564,8 +593,8 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
     ) +
     coord_cartesian(clip = FIG_LABEL_CLIP)
 
-  ggsave(file.path(supp_dir, "ms_chs_annual_ts.png"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
-  ggsave(file.path(supp_dir, "ms_chs_annual_ts.pdf"), supp_chs_ts, width = 10 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
+  ggsave(file.path(supp_dir, "ms_chs_annual_ts.png"), supp_chs_ts, width = 12 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
+  ggsave(file.path(supp_dir, "ms_chs_annual_ts.pdf"), supp_chs_ts, width = 12 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
   cat("  Saved CHS Time Series\n")
 }
 

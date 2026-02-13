@@ -105,20 +105,20 @@ table {
 
 
 ```{r catch-summary}
-mlr1_strict <- read_csv(path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_summary_strict.csv"), show_col_types = FALSE)
-if (!("low_n_flag" %in% names(mlr1_strict))) mlr1_strict$low_n_flag <- NA
-mlr1_selected <- mlr1_strict %>%
+mlr1_summary <- read_csv(path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_summary.csv"), show_col_types = FALSE)
+mlr1_selected <- mlr1_summary %>%
   mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
   transmute(
-    response = Outcome,
+    response = gsub("_", " ", Outcome),
     n = N,
-    predictors_final = Predictors_Final,
+    predictors_final = gsub("_", " ", Predictors_Final),
+    r2 = round(R2, 3),
     r2_adj_best_model = round(R2_adj, 3),
+    r2_weighted_aicc_lte2 = round(R2_weighted_AICc_LTE2, 3),
     r2_adj_weighted_aicc_lte2 = round(R2_adj_weighted_AICc_LTE2, 3),
     rmse = signif(RMSE, 4),
     rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3),
-    low_n = low_n_flag
+    aicc = round(AICc, 3)
   ) %>%
   arrange(desc(r2_adj_best_model))
 
@@ -131,7 +131,7 @@ catch_predictor_pool <- c(
   "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
 )
 
-catch_best <- mlr1_strict %>%
+catch_best <- mlr1_summary %>%
   mutate(response = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
   transmute(response, predictors_final = Predictors_Final)
 
@@ -151,7 +151,7 @@ catch_screen <- catch_best %>%
 ```
 
 ```{r catch-predictor-frequency}
-catch_coef <- read_csv(path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_results_strict.csv"), show_col_types = FALSE)
+catch_coef <- read_csv(path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_results.csv"), show_col_types = FALSE)
 catch_predictor_freq <- catch_coef %>%
   mutate(Outcome = ifelse(Outcome == "DR", "DR_mean", Outcome)) %>%
   group_by(Predictor) %>%
@@ -198,21 +198,20 @@ knitr::include_graphics(fig("main", "watershed_char_storage_mlr_beta.png"))
 - Ecological MLR does not use coefficient model averaging
 
 ```{r eco-summary}
-mlr2_strict <- read_csv(path("models", "storage_ecovar_mlr", "storage_ecovar_mlr_summary_strict.csv"), show_col_types = FALSE)
-if (!("low_n_flag" %in% names(mlr2_strict))) mlr2_strict$low_n_flag <- NA
+mlr2_summary <- read_csv(path("models", "storage_ecovar_mlr", "storage_ecovar_mlr_summary.csv"), show_col_types = FALSE)
 site_levels <- c("WS09", "WS10", "WS01", "Look", "WS02", "WS03", "Mack", "WS06", "WS07", "WS08")
 
-mlr2_selected <- mlr2_strict %>%
+mlr2_selected <- mlr2_summary %>%
   transmute(
     site = factor(Site, levels = site_levels),
-    response = Response,
+    response = gsub("_", " ", Response),
     n = n,
-    predictors_final = Predictors_Final,
+    predictors_final = gsub("_", " ", Predictors_Final),
+    r2 = round(R2, 3),
     r2_adj = round(R2_adj, 3),
     rmse = signif(RMSE, 4),
     rmse_loocv = signif(RMSE_LOOCV, 4),
-    aicc = round(AICc, 3),
-    low_n = low_n_flag
+    aicc = round(AICc, 3)
   ) %>%
   arrange(site, desc(r2_adj), response)
 
@@ -241,6 +240,10 @@ kable(
 knitr::include_graphics(fig("main", "storage_ecovar_mlr_beta.png"))
 ```
 
+```{r eco-r2-heatmap-fig, out.width='60%'}
+knitr::include_graphics(fig("main", "storage_ecovar_mlr_r2_heatmap.png"))
+```
+
 AICc < 2 candidate models (storage to ecological variables)
 
 ```{r eco-candidates-delta2}
@@ -265,6 +268,7 @@ if (file.exists(eco_candidates_file)) {
       candidate_set = Candidate_Set,
       predictors_final = Predictors_Final,
       n = n,
+      r2 = round(R2, 3),
       r2_adj = round(R2_adj, 3),
       rmse = signif(RMSE, 4),
       rmse_loocv = signif(RMSE_LOOCV, 4),
@@ -321,6 +325,8 @@ Eco-model screening now uses constrained predictor sets, stepwise AICc, VIF chec
 ```{r loocv-validation}
 catch_loocv <- read_csv(path("models", "validation", "watershed_char_storage_mlr_loocv_validation.csv"), show_col_types = FALSE)
 eco_loocv <- read_csv(path("models", "validation", "storage_ecovar_mlr_loocv_validation.csv"), show_col_types = FALSE)
+if (!("r2_adj_model" %in% names(catch_loocv))) catch_loocv$r2_adj_model <- NA_real_
+if (!("r2_adj_model" %in% names(eco_loocv))) eco_loocv$r2_adj_model <- NA_real_
 
 catch_loocv_tbl <- catch_loocv %>%
   transmute(
@@ -332,6 +338,7 @@ catch_loocv_tbl <- catch_loocv %>%
     rmse_loocv_mean_runs = signif(rmse_loocv_mean_runs, 4),
     delta_rmse = signif(delta_rmse_loocv_minus_model, 4),
     r2_model = round(r2_model, 3),
+    r2_adj_model = round(r2_adj_model, 3),
     r2_loocv = round(r2_loocv, 3)
   ) %>%
   arrange(outcome)
@@ -347,6 +354,7 @@ eco_loocv_tbl <- eco_loocv %>%
     rmse_loocv_mean_runs = signif(rmse_loocv_mean_runs, 4),
     delta_rmse = signif(delta_rmse_loocv_minus_model, 4),
     r2_model = round(r2_model, 3),
+    r2_adj_model = round(r2_adj_model, 3),
     r2_loocv = round(r2_loocv, 3)
   ) %>%
   arrange(response, site)

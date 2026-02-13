@@ -104,7 +104,7 @@ if (file.exists(eco_results_path) && file.exists(annual_path)) {
     labs(x = "Predictor (scaled 0-1)", y = "Response (scaled 0-1)") +
     theme_pub() +
     theme(
-      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE),
+      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0),
       axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
       axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       legend.position = "right",
@@ -135,7 +135,7 @@ if (file.exists(eco_results_path) && file.exists(annual_path)) {
 # Catchment MLR: site-level points for fitted predictor-outcome pairs
 # -----------------------------------------------------------------------------
 
-catch_results_path <- file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_results_strict.csv")
+catch_results_path <- file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_results.csv")
 site_path <- file.path(OUT_MASTER_DIR, MASTER_SITE_FILE)
 if (!file.exists(site_path)) site_path <- file.path(OUT_MASTER_DIR, LEGACY_SITE_FILE)
 
@@ -175,7 +175,7 @@ if (file.exists(catch_results_path) && file.exists(site_path)) {
     labs(x = "Predictor (scaled 0-1)", y = "Outcome (scaled 0-1)") +
     theme_pub() +
     theme(
-      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE),
+      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0),
       axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
       axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       legend.position = "right",

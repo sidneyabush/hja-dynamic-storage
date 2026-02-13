@@ -100,17 +100,26 @@ watershed_predictors <- watershed_predictors[watershed_predictors %in% names(HJA
 
 if (length(watershed_predictors) >= 2) {
   cor_catchment <- cor(HJA_Ave[watershed_predictors], use = "pairwise.complete.obs")
+  corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
+  corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 3
 
   p_catchment <- ggcorrplot(
     cor_catchment,
     hc.order = FALSE,
-    type = "lower",
+    type = "upper",
     outline.col = "white",
     lab = TRUE,
-    lab_size = FIG_TILE_TEXT_SIZE
+    lab_size = corr_value_text_size,
+    tl.cex = corr_axis_text_size / ggplot2::.pt
   ) +
     labs(x = NULL, y = NULL) +
     theme(
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 2),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 2),
+      legend.key.height = grid::unit(10, "mm"),
+      legend.key.width = grid::unit(4, "mm"),
+      axis.text.x = element_text(size = corr_axis_text_size),
+      axis.text.y = element_text(size = corr_axis_text_size),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       plot.title = element_blank(),
@@ -181,17 +190,26 @@ eco_corr_vars <- eco_corr_vars[eco_corr_vars %in% names(HJA_Yr)]
 
 if (length(eco_corr_vars) >= 2) {
   cor_eco <- cor(HJA_Yr[eco_corr_vars], use = "pairwise.complete.obs")
+  corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
+  corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 3
 
   p_eco <- ggcorrplot(
     cor_eco,
     hc.order = FALSE,
-    type = "lower",
+    type = "upper",
     outline.col = "white",
     lab = TRUE,
-    lab_size = FIG_TILE_TEXT_SIZE
+    lab_size = corr_value_text_size,
+    tl.cex = corr_axis_text_size / ggplot2::.pt
   ) +
     labs(x = NULL, y = NULL) +
     theme(
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 2),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 2),
+      legend.key.height = grid::unit(10, "mm"),
+      legend.key.width = grid::unit(4, "mm"),
+      axis.text.x = element_text(size = corr_axis_text_size),
+      axis.text.y = element_text(size = corr_axis_text_size),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       plot.title = element_blank(),

@@ -609,27 +609,33 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   )
 }
 
-strict <- run_method(
-  method_name = "strict",
+model_run <- run_method(
+  method_name = "default",
   use_scaled_predictors = TRUE,
   use_iterative_vif = TRUE,
   enforce_correlated_exclusions = TRUE
 )
 
-if (nrow(strict$summary) == 0) {
+if (nrow(model_run$summary) == 0) {
   stop("No site-response eco models could be fit. Check predictor availability and MODEL_MIN_N.")
 }
 
-strict$summary <- strict$summary %>%
+model_run$summary <- model_run$summary %>%
   mutate(
     low_n_flag = .data$n < LOW_N_THRESHOLD_ECO,
     confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
   )
 
-model_results_combined <- strict$results
-model_summary_combined <- strict$summary
-selection_combined <- strict$selection
-coverage_combined <- strict$coverage %>%
+model_results_combined <- model_run$results %>%
+  dplyr::select(-any_of("Method")) %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Predictor)
+model_summary_combined <- model_run$summary %>%
+  dplyr::select(-any_of("Method")) %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+selection_combined <- model_run$selection %>%
+  dplyr::select(-any_of("Method")) %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Candidate_Set, AICc)
+coverage_combined <- model_run$coverage %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
 
 cor_data <- merged_data %>%
@@ -650,13 +656,6 @@ write.csv(model_results_combined,
 write.csv(model_summary_combined,
           file.path(output_dir, paste0(file_prefix, "_summary.csv")),
           row.names = FALSE)
-
-write.csv(strict$results,
-          file.path(output_dir, paste0(file_prefix, "_results_strict.csv")),
-          row.names = FALSE)
-write.csv(strict$summary,
-          file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
-          row.names = FALSE)
 write.csv(selection_combined,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
@@ -664,18 +663,17 @@ write.csv(coverage_combined,
           file.path(output_dir, paste0(file_prefix, "_coverage.csv")),
           row.names = FALSE)
 
-flags <- strict$summary %>%
+flags <- model_run$summary %>%
   filter(constraint_flag) %>%
-  arrange(Method, Site, Response)
+  arrange(Site, Response)
 write.csv(flags,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
 
 # Explicit LOOCV validation output (models + tables validation folders)
-loocv_validation <- strict$summary %>%
+loocv_validation <- model_run$summary %>%
   transmute(
     model_family = "storage_ecovar_mlr",
-    method = Method,
     site = Site,
     response = Response,
     n = n,
@@ -683,11 +681,12 @@ loocv_validation <- strict$summary %>%
     rmse_loocv = RMSE_LOOCV,
     rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
     r2_model = R2,
+    r2_adj_model = R2_adj,
     r2_loocv = R2_LOOCV,
     delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
     delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
   ) %>%
-  arrange(match(site, SITE_ORDER_HYDROMETRIC), response)
+  arrange(match(site, SITE_ORDER_HYDROMETRIC), match(response, response_vars))
 
 write.csv(
   loocv_validation,

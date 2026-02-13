@@ -54,6 +54,17 @@ if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
+# Remove legacy duplicate table names from prior workflow versions.
+legacy_tables <- c(
+  "storage_eco_mlr_model_perf.csv",
+  "storage_eco_mlr_coef.csv",
+  "storage_eco_mlr_table.csv",
+  "storage_eco_mlr_r2_heatmap_table.csv"
+)
+legacy_paths <- file.path(table_dir, legacy_tables)
+legacy_paths <- legacy_paths[file.exists(legacy_paths)]
+if (length(legacy_paths) > 0) unlink(legacy_paths)
+
 models_file <- file.path(output_dir, "storage_ecovar_mlr_results.csv")
 summary_file <- file.path(output_dir, "storage_ecovar_mlr_summary.csv")
 
@@ -120,12 +131,12 @@ perf_df <- model_summary %>%
     Response = factor(Response, levels = response_order),
     Site = factor(Site, levels = site_order)
   ) %>%
-  arrange(Response, Site) %>%
+  arrange(Site, Response) %>%
   mutate(
     Predictors_Final = ifelse(is.na(Predictors_Final) | Predictors_Final == "", "-", Predictors_Final)
   ) %>%
   select(any_of(c(
-    "Site", "Response", "Predictors_Final", "R2", "R2_adj", "RMSE", "AIC", "AICc", "n",
+    "Site", "Response", "Predictors_Final", "R2", "R2_adj", "RMSE", "AICc", "n",
     "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
     "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
   )))
@@ -225,7 +236,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Site, y = Predictor, fill = beta_fill)) +
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-    strip.text = element_text(size = FIG_STRIP_TEXT_SIZE),
+    strip.text = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0),
     plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT),
     legend.position = "right"
   ) +
@@ -306,7 +317,7 @@ p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = adj_r2)) +
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-    strip.text = element_text(size = FIG_STRIP_TEXT_SIZE)
+    strip.text = element_text(size = FIG_STRIP_TEXT_SIZE, hjust = 0)
   )
 
 save_plot_safe(
@@ -336,16 +347,49 @@ save_csv_safe <- function(df, path) {
   )
 }
 
+pretty_text <- function(x) gsub("_", " ", x)
+
+perf_export <- perf_df %>%
+  mutate(
+    Response = pretty_text(as.character(Response)),
+    Predictors_Final = pretty_text(as.character(Predictors_Final))
+  ) %>%
+  rename(
+    site = Site,
+    response = Response,
+    predictors_final = Predictors_Final,
+    r2 = R2,
+    r2_adj = R2_adj,
+    rmse = RMSE,
+    aicc = AICc,
+    rmse_loocv = RMSE_LOOCV,
+    rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
+    r2_loocv = R2_LOOCV,
+    delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
+    delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
+  ) %>%
+  mutate(
+    r2 = signif(r2, 3),
+    r2_adj = signif(r2_adj, 3),
+    rmse = signif(rmse, 3),
+    aicc = signif(aicc, 3),
+    rmse_loocv = signif(rmse_loocv, 3),
+    rmse_loocv_mean_runs = signif(rmse_loocv_mean_runs, 3),
+    r2_loocv = signif(r2_loocv, 3),
+    delta_rmse_loocv_minus_model = signif(delta_rmse_loocv_minus_model, 3),
+    delta_rmse_loocv_mean_runs_minus_model = signif(delta_rmse_loocv_mean_runs_minus_model, 3)
+  )
+
 save_csv_safe(
-  perf_df,
+  perf_export,
   file.path(table_dir, "storage_ecovar_mlr_model_perf.csv")
 )
 save_csv_safe(
   r2_heat_df %>%
     transmute(
-      Site = as.character(Site),
-      Response = as.character(Response),
-      Adj_R2 = adj_r2,
+      site = as.character(Site),
+      response = pretty_text(as.character(Response)),
+      adj_r2 = signif(adj_r2, 3),
       model_status,
       reason_not_fit,
       n_response
@@ -360,19 +404,26 @@ save_csv_safe(
 
 manuscript_table <- beta_plot_df %>%
   transmute(
-    Site = as.character(Site),
-    Response,
-    Predictor,
-    Beta_Std,
-    R2_model,
-    Tile_Label = tile_label,
+    site = as.character(Site),
+    response = pretty_text(as.character(Response)),
+    predictor = as.character(Predictor),
+    beta_std = signif(Beta_Std, 3),
+    r2_model = signif(R2_model, 3),
+    tile_label = tile_label,
     model_status,
     reason_not_fit,
     n_response,
     usable_predictors
   ) %>%
-  left_join(perf_df %>% mutate(Site = as.character(Site), Response = as.character(Response)), by = c("Site", "Response")) %>%
-  arrange(Response, Site, Predictor)
+  left_join(
+    perf_export %>%
+      mutate(
+        site = as.character(site),
+        response = as.character(response)
+      ),
+    by = c("site", "response")
+  ) %>%
+  arrange(factor(site, levels = site_order), response, predictor)
 
 save_csv_safe(
   manuscript_table,

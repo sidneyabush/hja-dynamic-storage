@@ -55,6 +55,16 @@ if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
+# Remove legacy duplicate table names from prior workflow versions.
+legacy_tables <- c(
+  "catch_chars_storage_mlr_model_perf.csv",
+  "catch_chars_storage_mlr_coef.csv",
+  "catch_chars_storage_mlr_table.csv"
+)
+legacy_paths <- file.path(table_dir, legacy_tables)
+legacy_paths <- legacy_paths[file.exists(legacy_paths)]
+if (length(legacy_paths) > 0) unlink(legacy_paths)
+
 model_avg_file <- file.path(output_dir, "watershed_char_storage_mlr_model_avg_coef.csv")
 summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
 
@@ -64,7 +74,7 @@ if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_s
 mlr_model_avg <- read_csv(model_avg_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
 
-perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AIC", "AICc", "N")
+perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AICc", "N")
 perf_cols <- perf_cols[perf_cols %in% names(mlr_summary)]
 perf_df <- mlr_summary %>%
   select(all_of(perf_cols)) %>%

@@ -103,12 +103,12 @@ axis_labels <- c(
 )
 
 metric_labels_grid <- c(
-  FDC = "A) Flow Duration Curve Slope",
-  RBI = "B) Richards-Baker Index",
-  RCS = "C) Recession Curve Slope",
-  SD = "D) Storage-Discharge",
-  WB = "E) Water Balance Drawdown",
-  CHS = "F) Chemical Hydrograph Separation"
+  FDC = "Flow Duration Curve Slope",
+  RBI = "Richards-Baker Index",
+  RCS = "Recession Curve Slope",
+  SD = "Storage-Discharge",
+  WB = "Water Balance Drawdown",
+  CHS = "Chemical Hydrograph Separation"
 )
 
 site_cols <- SITE_COLORS

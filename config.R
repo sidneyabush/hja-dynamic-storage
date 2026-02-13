@@ -342,7 +342,9 @@ theme_pub <- function(base_size = FIG_BASE_SIZE) {
       plot.title = ggplot2::element_blank(),
       plot.subtitle = ggplot2::element_blank(),
       panel.grid.major = ggplot2::element_blank(),
-      panel.grid.minor = ggplot2::element_blank()
+      panel.grid.minor = ggplot2::element_blank(),
+      strip.text.x = ggplot2::element_text(hjust = 0),
+      strip.text.y = ggplot2::element_text(hjust = 0)
     )
 }
 
@@ -404,7 +406,7 @@ make_panel_label_map <- function(values) {
   values <- as.character(values)
   if (length(values) == 0) return(character())
   idx <- seq_along(values)
-  labels <- paste0(LETTERS[((idx - 1) %% 26) + 1], ") ", values)
+  labels <- paste0(letters[((idx - 1) %% 26) + 1], ") ", values)
   stats::setNames(labels, values)
 }
 

@@ -82,21 +82,13 @@ loads_plot <- loads %>%
   mutate(
     PC1s = PC1 * arrow_scale,
     PC2s = PC2 * arrow_scale,
-    pretty_label = dplyr::recode(
-      feature,
-      "RCS" = "Recession Slope",
-      "RBI" = "Flashiness (RBI)",
-      "FDC" = "FDC Slope",
-      "SD" = "Storage-Discharge",
-      "WB" = "Water Balance",
-      .default = feature
-    )
+    pretty_label = toupper(feature)
   )
 
 p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
   geom_hline(yintercept = 0, linewidth = 0.3, color = "grey70") +
   geom_vline(xintercept = 0, linewidth = 0.3, color = "grey70") +
-  geom_point(size = FIG_POINT_SIZE_SMALL, alpha = 0.7) +
+  geom_point(size = FIG_POINT_SIZE_LARGE + 1, alpha = 0.85) +
   geom_segment(
     data = loads_plot,
     aes(x = 0, y = 0, xend = PC1s, yend = PC2s),
@@ -119,6 +111,7 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
     check_overlap = FIG_LABEL_CHECK_OVERLAP
   ) +
   scale_color_manual(values = SITE_COLORS) +
+  guides(color = guide_legend(title = NULL, override.aes = list(size = FIG_POINT_SIZE_LARGE + 1, alpha = 1))) +
   labs(
     x = paste0("PC1 (", number(pc1_pct, accuracy = 0.1), "%)"),
     y = paste0("PC2 (", number(pc2_pct, accuracy = 0.1), "%)")
