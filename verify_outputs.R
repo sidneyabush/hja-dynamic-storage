@@ -1,4 +1,7 @@
-#!/usr/bin/env Rscript
+# !/usr/bin/env Rscript.
+# Inputs: OUT_STATS_ANOVA_DIR/tukey_group_letters.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 suppressPackageStartupMessages({
   library(readr)
@@ -32,6 +35,8 @@ source(file.path(repo_root, "config.R"))
 required_outputs <- c(
   file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE),
   file.path(OUT_MASTER_DIR, MASTER_SITE_FILE),
+  file.path(OUT_MASTER_DIR, "master_site_metric_summary_stats.csv"),
+  file.path(OUT_MET_SUPPORT_DIR, "site_metric_availability.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "anova_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_hsd_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv"),
@@ -39,6 +44,7 @@ required_outputs <- c(
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
   file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary_strict.csv"),
   file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary_strict.csv"),
+  file.path(OUT_TABLES_MLR_DIR, "mlr_main_results_table.csv"),
   file.path(FIGURES_DIR, "main", "ds_summary.png"),
   file.path(FIGURES_DIR, "main", "pca_biplot.png")
 )
@@ -81,4 +87,3 @@ for (m in unique(letters_df$metric)) {
     stop(paste0("Site order mismatch in tukey_group_letters for metric: ", m))
   }
 }
-

@@ -1,31 +1,7 @@
-# -----------------------------------------------------------------------------
-# Create Master Hydrometric Dataset
-# -----------------------------------------------------------------------------
-# Purpose: Combine and interpolate meteorological station data to create
-#          watershed-level daily meteorological datasets with P, T, RH, NR, VPD, Q
-#
-# Workflow:
-#   Load meteorological data from multiple stations
-#   Interpolate missing values using OLS (pairs) or MLR (triplets)
-#   Aggregate station data to watershed level
-#   Add discharge data
-#   Create GSLOOK composite from component watersheds
-#
-# Inputs (from all_hydromet/):
-#   - Temperature_original_&_filled_1979_2023_v2.csv
-#   - Precipitation_original_&_filled_1979_2023.csv
-#   - MS00102_v9.csv (relative humidity)
-#   - MS05025_v3.csv (net radiation)
-#   - MS00403_v2.csv (Mack Creek precipitation)
-#   - HF00402_v14.csv (discharge)
-#   - drainage_area.csv
-#
-# Outputs:
-#   - watersheds_met_q.csv: Daily P, T, RH, NR, VPD, Q for all watersheds
-#
-# Methods preserved from original 1440-line script. Helper functions are in
-# helpers/hydromet_utils.R for maintainability.
-# -----------------------------------------------------------------------------
+# Build watershed-scale daily met + discharge inputs for WY 1997-2020.
+# Inputs: met_dir/MS00102_v9.csv; met_dir/MS05025_v3.csv; discharge_dir/HF00402_v14.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(readr)
 library(dplyr)
@@ -35,50 +11,11 @@ library(ggplot2)
 
 rm(list = ls())
 
-# -----------------------------------------------------------------------------
-# SOURCE UTILITIES AND CONFIGURATION
-# -----------------------------------------------------------------------------
+# Setup: load helpers and config
+source("helpers/hydromet_utils.R")
+source("config.R")
 
-# Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
-
-# Source helper functions
-helpers_path <- file.path(script_dir, "helpers", "hydromet_utils.R")
-if (!file.exists(helpers_path)) {
-  helpers_path <- file.path(dirname(script_dir), "helpers", "hydromet_utils.R")
-}
-source(helpers_path)
-
-# Source configuration (paths, sites, water year range)
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
-
-# -----------------------------------------------------------------------------
-# DIRECTORIES
-# -----------------------------------------------------------------------------
+# Paths and water-year date bounds
 
 met_dir <- MET_DIR
 discharge_dir <- DISCHARGE_DIR
@@ -88,16 +25,11 @@ exploratory_plot_dir <- EXPLORATORY_ET_METHODS_DIR
 wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
-# Create output directory
+# Make sure the output folder exists
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# -----------------------------------------------------------------------------
-# SITE MAPPING: Watershed -> Met Stations
-# -----------------------------------------------------------------------------
-# Each watershed is mapped to one or more met stations for each variable.
-# - Single station: Use that station's data
-# - Two stations: OLS interpolation between the pair
-# - Three stations: Multiple regression interpolation
+# Site mapping: which met stations feed each watershed variable.
+# One station = direct use, two stations = pair interpolation, three = multivariate interpolation.
 
 site_mapping <- list(
   # Lower elevation watersheds - use PRIMET
@@ -131,10 +63,7 @@ site_mapping <- list(
                   rh = c("CENMET", "UPLMET"), netrad = c("VANMET"))
 )
 
-# -----------------------------------------------------------------------------
-# LOAD METEOROLOGICAL DATA
-# -----------------------------------------------------------------------------
-
+# Load daily met inputs
 
 # Temperature
 Temp <- make_inter_long(
@@ -158,7 +87,7 @@ Precip <- make_inter_long(
   select(DATE, SITECODE, Precip) %>%
   rename(P_mm_d = Precip)
 
-# Add Mack Creek precipitation
+# Add Mack Creek precipitation from its dedicated file
 MACK_Precip <- read_mack_precip(
   "MS00403_v2.csv",
   met_dir,
@@ -180,10 +109,7 @@ NetRad <- read_csv(file.path(met_dir, "MS05025_v3.csv"), show_col_types = FALSE)
   select(SITECODE, DATE, NR_TOT_MEAN_DAY) %>%
   rename(NR_Wm2_d = NR_TOT_MEAN_DAY)
 
-# -----------------------------------------------------------------------------
-# COMBINE AND FILTER DATA
-# -----------------------------------------------------------------------------
-
+# Join met variables into one daily table and keep target dates
 
 combined_met <- Temp %>%
   full_join(Precip, by = c("DATE", "SITECODE")) %>%
@@ -192,12 +118,9 @@ combined_met <- Temp %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   arrange(SITECODE, DATE)
 
-# -----------------------------------------------------------------------------
-# INTERPOLATE MISSING VALUES
-# -----------------------------------------------------------------------------
+# Fill gaps using the station-group interpolation rules above
 
-
-# Extract station groups that need interpolation
+# Pull pair/triplet groups used by the interpolation helper
 station_groups <- extract_station_groups(site_mapping)
 
 for (pair_name in names(station_groups$pairs)) {
@@ -211,15 +134,15 @@ for (triplet_name in names(station_groups$triplets)) {
               triplet$site1, triplet$site2, triplet$site3))
 }
 
-# Clean duplicates
+# Remove duplicate site-date rows before interpolation
 combined_met_clean <- combined_met %>%
   group_by(DATE, SITECODE) %>%
   summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
-# Variables to process (VPD computed internally)
+# Variables passed to interpolation (VPD is computed inside helper)
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")
 
-# Run interpolation
+# Run interpolation and keep filled output
 results <- process_station_groups(
   combined_met_clean,
   station_groups,
@@ -229,31 +152,24 @@ results <- process_station_groups(
 
 interpolated_data <- results$data
 
+# Build per-watershed daily met datasets
 
-# -----------------------------------------------------------------------------
-# CREATE WATERSHED DATASETS
-# -----------------------------------------------------------------------------
-
-
-# Variables including VPD
+# Include VPD in watershed outputs
 watershed_variables <- c(variables, "VPD_kPa")
 
-# Aggregate to watersheds
+# Aggregate station-level data to watershed-level series
 watershed_datasets <- create_watershed_datasets(interpolated_data, site_mapping, watershed_variables)
 
-# Combine all watersheds
+# Combine all watershed tables into one master table
 all_watersheds_data <- bind_rows(watershed_datasets)
 
-# -----------------------------------------------------------------------------
-# ADD DISCHARGE DATA
-# -----------------------------------------------------------------------------
+# Add discharge (and area-normalized Q) to each watershed
 
-
-# Load drainage areas
+# Drainage area lookup
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK)))
 
-# Load and process discharge
+# Load discharge, standardize site codes, and keep target dates/sites
 discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
   mutate(
     DATE = parse_my_date(DATE),
@@ -264,13 +180,13 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_type
   group_by(DATE, SITECODE) %>%
   summarise(MEAN_Q = sum(MEAN_Q, na.rm = TRUE), .groups = "drop")
 
-# Add discharge to watersheds
+# Join discharge into each watershed dataset
 watershed_datasets <- add_discharge_to_watersheds(watershed_datasets, discharge, da_df)
 
-# Rebuild master table
+# Rebuild the combined table after adding discharge
 all_watersheds_data <- bind_rows(watershed_datasets)
 
-# Clean up column names
+# Clean up join artifact column names
 if ("SITECODE.x" %in% names(all_watersheds_data)) {
   all_watersheds_data <- all_watersheds_data %>%
     select(-any_of(c("SITECODE", "SITECODE.y"))) %>%
@@ -278,15 +194,12 @@ if ("SITECODE.x" %in% names(all_watersheds_data)) {
     select(DATE, SITECODE, everything())
 }
 
-# -----------------------------------------------------------------------------
-# CREATE GSLOOK COMPOSITE
-# -----------------------------------------------------------------------------
+# Build GSLOOK composite from configured component watersheds
 
-
-# Component watersheds for Lookout
+# Component watersheds used for GSLOOK
 gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
 
-# Build composite met variables (average of component watersheds)
+# Average component met variables by date to create GSLOOK met series
 gslook_full_df <- all_watersheds_data %>%
   filter(SITECODE %in% gslook_components) %>%
   group_by(DATE) %>%
@@ -294,7 +207,7 @@ gslook_full_df <- all_watersheds_data %>%
   mutate(SITECODE = "GSLOOK") %>%
   select(DATE, SITECODE, everything())
 
-# Get GSLOOK discharge for the composite
+# Pull GSLOOK discharge and convert to mm/day
 gslook_q_full <- discharge %>%
   filter(SITECODE == "GSLOOK") %>%
   left_join(da_df, by = "SITECODE") %>%
@@ -304,30 +217,28 @@ gslook_q_full <- discharge %>%
   ) %>%
   select(DATE, SITECODE, Q_mm_d)
 
-# Attach discharge to composite
+# Attach discharge to the GSLOOK composite table
 gslook_full_df <- gslook_full_df %>%
   select(-any_of("Q_mm_d")) %>%
   left_join(gslook_q_full, by = c("DATE", "SITECODE"))
 
-# Add to master table
+# Replace any existing GSLOOK rows with the composite rows
 all_watersheds_data <- bind_rows(
   all_watersheds_data %>% filter(SITECODE != "GSLOOK"),
   gslook_full_df
 )
 
-# Clean up any duplicate Q_mm_d columns
+# Resolve any duplicate Q_mm_d columns after join/bind steps
 if ("Q_mm_d.x" %in% names(all_watersheds_data)) {
   all_watersheds_data <- all_watersheds_data %>%
     mutate(Q_mm_d = coalesce(Q_mm_d.x, Q_mm_d)) %>%
     select(-any_of(c("Q_mm_d.x", "Q_mm_d.y")))
 }
 
-# Update watershed datasets list
+# Keep GSLOOK in the per-watershed list for downstream use
 watershed_datasets[["GSLOOK"]] <- gslook_full_df
 
-# -----------------------------------------------------------------------------
-# SAVE OUTPUT
-# -----------------------------------------------------------------------------
+# Save the final daily watershed met+Q table
 
 output_file <- file.path(output_dir, "watersheds_met_q.csv")
 write_csv(all_watersheds_data, output_file)

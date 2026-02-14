@@ -1,5 +1,7 @@
-#PCA analysis for HJA Storage paper
-
+# PCA analysis for HJA Storage paper.
+# Inputs: output_dir/HJA_Ave_StorageMetrics_CatCharacter.csv; output_dir/HJA_Stor_Temp_Yr.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(tidyverse)
 library(ggplot2)

@@ -1,17 +1,7 @@
-# -----------------------------------------------------------------------------
-# Plots: Storage Predictors for Thermal and Low-Flow Responses
-# -----------------------------------------------------------------------------
-# Inputs:
-#   - storage_ecovar_mlr_results.csv
-#   - storage_ecovar_mlr_summary.csv
-#
-# Outputs:
-#   - storage_ecovar_mlr_beta.png
-#   - storage_ecovar_mlr_beta.pdf
-#   - storage_ecovar_mlr_model_perf.csv
-#   - storage_ecovar_mlr_coef.csv
-#   - storage_ecovar_mlr_table.csv
-# -----------------------------------------------------------------------------
+# Plots: Storage Predictors for Thermal and Low-Flow Responses.
+# Inputs: output_dir/storage_ecovar_mlr_coverage.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -20,50 +10,15 @@ library(tidyr)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
 plot_dir <- file.path(FIGURES_DIR, "main")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
-
-# Remove legacy duplicate table names from prior workflow versions.
-legacy_tables <- c(
-  "storage_eco_mlr_model_perf.csv",
-  "storage_eco_mlr_coef.csv",
-  "storage_eco_mlr_table.csv",
-  "storage_eco_mlr_r2_heatmap_table.csv"
-)
-legacy_paths <- file.path(table_dir, legacy_tables)
-legacy_paths <- legacy_paths[file.exists(legacy_paths)]
-if (length(legacy_paths) > 0) unlink(legacy_paths)
 
 models_file <- file.path(output_dir, "storage_ecovar_mlr_results.csv")
 summary_file <- file.path(output_dir, "storage_ecovar_mlr_summary.csv")
@@ -105,7 +60,6 @@ predictor_order <- c("RBI", "RCS", "FDC", "SD", "CHS", "WB")
 
 # Predictor availability by site (distinguish true no-data from not-selected).
 annual_path <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_path)) annual_path <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
 
 annual_master <- if (file.exists(annual_path)) read_csv(annual_path, show_col_types = FALSE) else tibble()
 

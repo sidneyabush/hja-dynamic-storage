@@ -1,4 +1,8 @@
-#2 EMMA baseflow correlation with peak swe
+# 2 EMMA baseflow correlation with peak swe.
+# Inputs: output_dir/HJA_Ave_StorageMetrics_CatCharacter.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
+
 require(ggpmisc)
 require(EflowStats)
 require(dplyr)

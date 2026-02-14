@@ -1,27 +1,16 @@
+# Export a unified main MLR results table for manuscript reporting.
+# Inputs: mlr_dir/storage_ecovar_mlr_model_perf.csv; mlr_dir/watershed_char_storage_mlr_model_perf.csv; val_dir/watershed_char_storage_mlr_loocv_validation.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
+
 library(dplyr)
 library(readr)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) config_path <- file.path(dirname(script_dir), "config.R")
-if (!file.exists(config_path)) config_path <- file.path(getwd(), "config.R")
-source(config_path)
 
 mlr_dir <- file.path(OUT_TABLES_DIR, "mlr")
 val_dir <- file.path(OUT_TABLES_DIR, "validation")

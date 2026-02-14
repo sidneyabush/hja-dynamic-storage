@@ -1,16 +1,7 @@
-# -----------------------------------------------------------------------------
-# Correlation and Scatter-Matrix Plots
-# -----------------------------------------------------------------------------
-# This script makes the core correlation heatmaps used in the workflow.
-#
-# Inputs:
-#   - master_site.csv
-#   - master_annual.csv
-#
-# Outputs:
-#   - watershed_char_storage_mlr_corr.png
-#   - storage_ecovar_mlr_corrplot.png
-# -----------------------------------------------------------------------------
+# Correlation and Scatter-Matrix Plots.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -20,33 +11,9 @@ library(ggcorrplot)
 rm(list = ls())
 
 # get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 theme_set(
   theme_pub() +
@@ -68,9 +35,7 @@ if (length(old_corr_files) > 0) {
   unlink(old_corr_files)
 }
 
-# -----------------------------------------------------------------------------
 # load data
-# -----------------------------------------------------------------------------
 
 site_file <- file.path(output_dir, MASTER_SITE_FILE)
 if (!file.exists(site_file)) {
@@ -88,9 +53,7 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
   HJA_Ave <- HJA_Ave %>% mutate(basin_slope = Slope_mean)
 }
 
-# -----------------------------------------------------------------------------
 # catch_chars MLR family correlation matrix
-# -----------------------------------------------------------------------------
 
 watershed_predictors <- c(
   "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
@@ -135,17 +98,9 @@ if (length(watershed_predictors) >= 2) {
   )
 }
 
-# -----------------------------------------------------------------------------
 # storage and ecological-variable MLR correlation matrix
-# -----------------------------------------------------------------------------
 
 annual_file <- file.path(output_dir, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUTPUT_DIR, MASTER_ANNUAL_FILE)
-}
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
-}
 
 HJA_Yr <- read_csv(
   annual_file,

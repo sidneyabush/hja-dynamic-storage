@@ -1,4 +1,7 @@
-#Goal is to develop correlations and relatinships among storage metrics and with catchement attributes 
+# Goal is to develop correlations and relatinships among storage metrics and with catchement attributes.
+# Inputs: base_dir/Catchment_Charc.csv; base_dir/mean_july.temp.csv; base_dir/mean_july_airtemp.csv; base_dir/HJA_StorageMetrics_Annual_All.csv; base_dir/DampingRatios_2025-07-07.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)

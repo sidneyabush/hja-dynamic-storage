@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: RDA_data_080422.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 require(vegan)
 require(ggplot2)
 require(ggrepel)

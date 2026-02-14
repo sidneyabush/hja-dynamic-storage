@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: base_dir/DS_drawdown_annual.csv; base_dir/storage_discharge_method_annual_vol_per_site_wateryear.csv; base_dir/HJA_StorageMetrics_Annual.csv; base_dir/drainage_area.csv; base_dir/HF00402_v14.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 library(dplyr)
 library(readr)
 library(ggplot2)

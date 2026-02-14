@@ -1,4 +1,7 @@
-#!/usr/bin/env Rscript
+# !/usr/bin/env Rscript.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)

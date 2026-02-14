@@ -1,32 +1,8 @@
-# -----------------------------------------------------------------------------
-# Multiple Linear Regression: Watershed Characteristics to Storage Metrics
-# -----------------------------------------------------------------------------
-# Purpose: Use stepwise regression to identify which watershed attributes
-#          best predict hydrometric storage metrics
-#
-# Workflow:
-#   Load site-averaged storage metrics and watershed attributes
-#   For each storage metric:
-#      a. Build full model with all watershed predictors
-#      b. Perform backward stepwise AIC selection
-#      c. Check VIF for multicollinearity (retain if VIF ≤ 10)
-#      d. Extract standardized beta coefficients and p-values
-#      e. Report model R² and adjusted R²
-#   Summarize results across all storage metrics
-#
-# Inputs:
-#   - master_site.csv (from 03b_aggregate_metrics.R)
-#
-# Outputs:
-#   - MLR_Storage_Catchment_Results.csv: Beta coefficients, p-values, VIF, R²
-#   - MLR_Storage_Catchment_ModelSummary.csv: Final predictors and model fit stats
-#   - MLR_Storage_Catchment_BetaMatrix.csv: Legacy-style beta matrix for plotting
-#
+# Use stepwise regression to identify which watershed attributes.
+# Inputs: No direct CSV file reads in this script.
 # Author: Based on Pamela Sullivan/Keira Johnson code, adapted by Sidney Bush
 # Date: 2026-01-23
-# -----------------------------------------------------------------------------
 
-# Load libraries
 library(dplyr)
 library(readr)
 library(ggplot2)
@@ -39,33 +15,9 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 theme_set(theme_pub(base_size = 12))
 
@@ -78,7 +30,7 @@ output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 file_prefix <- "watershed_char_storage_mlr"
 
-# Remove deprecated PCA-screening output for catchment-characteristics MLR.
+# Remove older PCA screening output for catchment-characteristics MLR.
 unlink(file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")))
 
 VIF_THRESHOLD <- 10
@@ -94,14 +46,9 @@ if (USE_MUMIN_LOOCV && !requireNamespace("MuMIn", quietly = TRUE)) {
   stop("MuMIn is required for catchment-model LOOCV. Install with: install.packages('MuMIn')")
 }
 
-# -----------------------------------------------------------------------------
 # LOAD SITE-AVERAGED DATA
-# -----------------------------------------------------------------------------
 
 site_file <- file.path(OUT_MASTER_DIR, MASTER_SITE_FILE)
-if (!file.exists(site_file)) {
-  site_file <- file.path(OUTPUT_DIR, MASTER_SITE_FILE)
-}
 
 HJA_Ave <- read_csv(
   site_file,
@@ -113,10 +60,8 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
   HJA_Ave <- HJA_Ave %>% mutate(basin_slope = Slope_mean)
 }
 
-# -----------------------------------------------------------------------------
 # DEFINE OUTCOME VARIABLES (STORAGE METRICS)
-# -----------------------------------------------------------------------------
-# NOTE: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
+# Note: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
 # Storage metrics by type (using method abbreviations):
 #   Dynamic: RBI, RCS, FDC, SD
 #   Mobile: CHS, MTT, Fyw, DR
@@ -134,9 +79,7 @@ outcome_vars <- c(
   "WB_mean"     # WB  - Water Balance - Extended Dynamic
 )
 
-# -----------------------------------------------------------------------------
 # DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
-# -----------------------------------------------------------------------------
 # Note: Reduced predictor set to avoid overfitting (N=10 sites)
 # Selected key predictors based on theoretical importance
 
@@ -151,9 +94,7 @@ predictor_vars <- c(
   "Pyro_per"
 )
 
-# -----------------------------------------------------------------------------
 # RUN STEPWISE REGRESSION FOR EACH STORAGE METRIC
-# -----------------------------------------------------------------------------
 
 fit_mlr_with_vif <- function(data_in, outcome, predictors,
                              use_scaled_predictors = FALSE,
@@ -248,7 +189,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
   }
 
   if (use_iterative_vif) {
-    # iterative VIF pruning until all retained predictors are <= threshold
+    # Refit while removing the most collinear predictor until VIF is acceptable.
     repeat {
       retained_vars <- setdiff(names(coef(lm_aic)), "(Intercept)")
       if (length(retained_vars) <= 1) {
@@ -280,7 +221,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
     }
   }
 
-  # Optional enforcement of known high-correlation predictor exclusions (Perry et al., 2025).
+  # Optional rule set: avoid known predictor pairs that are strongly correlated.
   if (enforce_correlated_exclusions) {
     fit_candidate_from_retained <- function(retained_set) {
       if (length(retained_set) == 0) return(NULL)
@@ -314,7 +255,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
       }
 
       if (has_ash && has_lava) {
-        # Resolve Ash/Lava collinearity by selecting the lowest-AICc candidate.
+        # If ash and lava are both present, keep the lower-AICc alternative.
         drop_options <- c("Ash_Per")
         if ("Lava1_per" %in% retained_vars) drop_options <- c(drop_options, "Lava1_per")
         if ("Lava2_per" %in% retained_vars) drop_options <- c(drop_options, "Lava2_per")
@@ -328,7 +269,7 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
         best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
         lm_aic <- cand_models[[best_idx]]$model
       } else if (has_ls_both) {
-        # Resolve landslide-pair collinearity by selecting the lowest-AICc candidate.
+        # If both landslide metrics are present, keep the lower-AICc alternative.
         drop_options <- c("Landslide_Total", "Landslide_Young")
         cand_models <- lapply(drop_options, function(v) {
           retained_next <- setdiff(retained_vars, v)

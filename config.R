@@ -1,98 +1,17 @@
-# -----------------------------------------------------------------------------
-# HJA Dynamic Storage - Configuration File
-# -----------------------------------------------------------------------------
-# This file contains all paths, constants, and shared settings used across
-# the analysis workflow. Source this file at the beginning of each script.
-#
-# Usage: source("config.R") at the top of each analysis script
-#
-# For users running this code:
-#   Set USE_LOCAL_DATA = TRUE if data files are in the repo's data/ folder
-#   Set USE_LOCAL_DATA = FALSE and update BOX_BASE_DIR if using Box storage
-# -----------------------------------------------------------------------------
+# HJA Dynamic Storage - Configuration File.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
-# -----------------------------------------------------------------------------
-# PATH CONFIGURATION
-# -----------------------------------------------------------------------------
+# Default project paths (single supported layout)
+REPO_DIR <- normalizePath(getwd(), mustWork = FALSE)
+BOX_BASE_DIR <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
+FINAL_WORKFLOW_ROOT <- file.path(BOX_BASE_DIR, "final_workflow")
+BASE_DATA_DIR <- file.path(FINAL_WORKFLOW_ROOT, "inputs")
+OUTPUT_DIR <- file.path(FINAL_WORKFLOW_ROOT, "outputs")
+EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
 
-# Set to TRUE if data files are in the local repo data/ folder
-# Set to FALSE if data files are in Box cloud storage
-USE_LOCAL_DATA <- FALSE
-
-# Get the repo root directory (where this config.R file lives)
-repo_ofile <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
-if (is.null(repo_ofile) || !is.character(repo_ofile) || length(repo_ofile) == 0 || is.na(repo_ofile[1]) || repo_ofile[1] == "") {
-  REPO_DIR <- getwd()
-} else {
-  REPO_DIR <- normalizePath(dirname(repo_ofile[1]), mustWork = FALSE)
-}
-
-if (USE_LOCAL_DATA) {
-  # Local data paths (relative to repo root)
-  BASE_DATA_DIR <- file.path(REPO_DIR, "data")
-  OUTPUT_DIR <- file.path(REPO_DIR, "outputs")
-  EXPLORATORY_PLOTS_DIR <- file.path(REPO_DIR, "data", "exploratory_plots")
-} else {
-  # Box cloud storage paths.
-  BOX_BASE_DIR <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
-
-  # Default to the cleaned final workflow root.
-  FINAL_WORKFLOW_ROOT <- file.path(BOX_BASE_DIR, "final_workflow")
-
-  # Prefer modern folder layout: final_workflow/inputs.
-  # Backward-compatible fallback: final_workflow/01_Raw_Data.
-  candidate_input_dirs <- c(
-    file.path(FINAL_WORKFLOW_ROOT, "inputs"),
-    file.path(FINAL_WORKFLOW_ROOT, "01_Raw_Data")
-  )
-  first_existing_input <- candidate_input_dirs[dir.exists(candidate_input_dirs)]
-  if (length(first_existing_input) == 0) {
-    BASE_DATA_DIR <- candidate_input_dirs[1]
-  } else {
-    BASE_DATA_DIR <- first_existing_input[1]
-  }
-
-  # Prefer modern output layout: final_workflow/outputs.
-  # Backward-compatible fallback remains 05_Outputs/final_workflow.
-  candidate_output_dirs <- c(
-    file.path(FINAL_WORKFLOW_ROOT, "outputs"),
-    file.path(BOX_BASE_DIR, "05_Outputs")
-  )
-  first_existing_output <- candidate_output_dirs[dir.exists(candidate_output_dirs)]
-  if (length(first_existing_output) == 0) {
-    OUTPUT_DIR <- candidate_output_dirs[1]
-  } else {
-    OUTPUT_DIR <- first_existing_output[1]
-  }
-  EXPLORATORY_PLOTS_DIR <- file.path(BOX_BASE_DIR, "03_Data", "exploratory_plots")
-}
-
-# Keep current workflow outputs grouped under one subfolder in 05_Outputs.
-USE_CONSOLIDATED_OUTPUT_SUBDIR <- TRUE
-CONSOLIDATED_OUTPUT_SUBDIR <- "final_workflow"
-
-if (USE_CONSOLIDATED_OUTPUT_SUBDIR &&
-    basename(normalizePath(OUTPUT_DIR, winslash = "/", mustWork = FALSE)) != "outputs") {
-  OUTPUT_DIR <- file.path(OUTPUT_DIR, CONSOLIDATED_OUTPUT_SUBDIR)
-}
-
-# Keep all figures under outputs for one unified tree.
+# Keep all figures under outputs.
 FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
-
-# Optional path overrides for sandboxed/local runs
-BASE_DATA_DIR_OVERRIDE <- Sys.getenv("HJA_BASE_DATA_DIR", unset = "")
-OUTPUT_DIR_OVERRIDE <- Sys.getenv("HJA_OUTPUT_DIR", unset = "")
-FIGURES_DIR_OVERRIDE <- Sys.getenv("HJA_FIGURES_DIR", unset = "")
-EXPLORATORY_PLOTS_DIR_OVERRIDE <- Sys.getenv("HJA_EXPLORATORY_PLOTS_DIR", unset = "")
-
-if (nzchar(BASE_DATA_DIR_OVERRIDE)) BASE_DATA_DIR <- BASE_DATA_DIR_OVERRIDE
-if (nzchar(OUTPUT_DIR_OVERRIDE)) OUTPUT_DIR <- OUTPUT_DIR_OVERRIDE
-if (nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- FIGURES_DIR_OVERRIDE
-if (nzchar(EXPLORATORY_PLOTS_DIR_OVERRIDE)) EXPLORATORY_PLOTS_DIR <- EXPLORATORY_PLOTS_DIR_OVERRIDE
-if (!nzchar(FIGURES_DIR_OVERRIDE)) FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
-if (!nzchar(EXPLORATORY_PLOTS_DIR_OVERRIDE) && !exists("EXPLORATORY_PLOTS_DIR")) {
-  EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
-}
 
 # Input subdirectories
 DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "q")
@@ -100,29 +19,11 @@ EC_DIR <- file.path(BASE_DATA_DIR, "ec")
 ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "isotopes")
 STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "stream_t")
 MET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
-CATCHMENT_CHARACTERISTICS_DIR <- file.path(BASE_DATA_DIR, "catchment_characteristics")
+CATCHMENT_CHARACTERISTICS_DIR <- file.path(
+  BASE_DATA_DIR,
+  "catchment_characteristics"
+)
 
-# Legacy input subdirectories (fallbacks for mixed-case historical trees)
-LEGACY_DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "Q")
-LEGACY_EC_DIR <- file.path(BASE_DATA_DIR, "EC")
-LEGACY_ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "Isotopes")
-LEGACY_STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "Stream_T")
-LEGACY_MET_DIR <- file.path(BASE_DATA_DIR, "MET")
-LEGACY_ALL_HYDROMET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
-LEGACY_CATCHMENT_DIR <- file.path(BASE_DATA_DIR, "DynamicStorage")
-
-first_existing_dir <- function(...) {
-  candidates <- unlist(list(...), use.names = FALSE)
-  hits <- candidates[dir.exists(candidates)]
-  if (length(hits) == 0) candidates[1] else hits[1]
-}
-
-DISCHARGE_DIR <- first_existing_dir(DISCHARGE_DIR, LEGACY_DISCHARGE_DIR)
-EC_DIR <- first_existing_dir(EC_DIR, LEGACY_EC_DIR)
-ISOTOPE_DIR <- first_existing_dir(ISOTOPE_DIR, LEGACY_ISOTOPE_DIR)
-STREAM_TEMP_DIR <- first_existing_dir(STREAM_TEMP_DIR, LEGACY_STREAM_TEMP_DIR)
-MET_DIR <- first_existing_dir(MET_DIR, LEGACY_ALL_HYDROMET_DIR, LEGACY_MET_DIR)
-CATCHMENT_CHARACTERISTICS_DIR <- first_existing_dir(CATCHMENT_CHARACTERISTICS_DIR, LEGACY_CATCHMENT_DIR)
 EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
 
 # Create output directory if it doesn't exist
@@ -143,8 +44,14 @@ OUT_MASTER_DIR <- file.path(OUTPUT_DIR, "master")
 OUT_STATS_DIR <- file.path(OUTPUT_DIR, "models")
 OUT_STATS_ANOVA_DIR <- file.path(OUT_STATS_DIR, "anova_tukey")
 OUT_STATS_PCA_DIR <- file.path(OUT_STATS_DIR, "pca")
-OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR <- file.path(OUT_STATS_DIR, "watershed_char_storage_mlr")
-OUT_MODELS_STORAGE_ECOVAR_MLR_DIR <- file.path(OUT_STATS_DIR, "storage_ecovar_mlr")
+OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR <- file.path(
+  OUT_STATS_DIR,
+  "watershed_char_storage_mlr"
+)
+OUT_MODELS_STORAGE_ECOVAR_MLR_DIR <- file.path(
+  OUT_STATS_DIR,
+  "storage_ecovar_mlr"
+)
 OUT_STATS_VALIDATION_DIR <- file.path(OUT_STATS_DIR, "validation")
 
 OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")
@@ -174,9 +81,7 @@ for (d in c(
   }
 }
 
-# -----------------------------------------------------------------------------
 # SITE DEFINITIONS
-# -----------------------------------------------------------------------------
 
 # Hydrometric sites with continuous streamflow data (for Dynamic metrics)
 # Order: WS06 grouped with 07 and 08 for plotting
@@ -228,18 +133,14 @@ SITE_NAMES <- c(
   "LO1" = "Upper Lookout 1"
 )
 
-# -----------------------------------------------------------------------------
 # WATER YEAR RANGE
-# -----------------------------------------------------------------------------
 
 WY_START <- 1997
 WY_END <- 2020
 
-# -----------------------------------------------------------------------------
 # STORAGE METRICS DEFINITIONS
-# -----------------------------------------------------------------------------
 
-# Dynamic storage metrics (from hydrometric data - annual time series)
+# Dynamic storage metrics (from streamflow data - year-by-year records)
 # RBI = Richards-Baker Index, RCS = Recession Curve Slope
 # FDC = Flow Duration Curve, SD = Storage-Discharge
 DYNAMIC_METRICS <- c("RBI", "RCS", "FDC", "SD")
@@ -262,14 +163,10 @@ ALL_STORAGE_METRICS <- c(
   EXTENDED_DYNAMIC_METRICS
 )
 
-# -----------------------------------------------------------------------------
 # SHARED FILE NAMES AND CODE MAPPINGS
-# -----------------------------------------------------------------------------
 
 MASTER_ANNUAL_FILE <- "master_annual.csv"
 MASTER_SITE_FILE <- "master_site.csv"
-LEGACY_ANNUAL_FILE <- "HJA_Stor_Temp_Yr.csv"
-LEGACY_SITE_FILE <- "HJA_Ave_StorageMetrics_CatCharacter.csv"
 
 # Raw site codes that should be excluded from analysis tables.
 SITE_EXCLUDE_RAW <- c("GSWSMA", "GSWSMF")
@@ -280,18 +177,8 @@ SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 # Component watersheds used to make GSLOOK met composites.
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
-# Legacy names that still appear in old exports.
-LEGACY_STORAGE_RENAME_MAP <- c(
-  recession_curve_slope = "RCS",
-  fdc_slope = "FDC",
-  S_annual_mm = "SD",
-  mean_bf = "CHS",
-  DS_sum = "WB"
-)
 
-# -----------------------------------------------------------------------------
 # COLOR PALETTE
-# -----------------------------------------------------------------------------
 
 # Global plot text size (used across plotting scripts).
 FIG_BASE_SIZE <- 18
@@ -309,15 +196,22 @@ FIG_HEIGHT_SCALE <- 1.35
 # Global label/annotation behavior.
 # Use these in plotting scripts so labels are consistently readable.
 FIG_LABEL_CHECK_OVERLAP <- TRUE
-FIG_LABEL_CLIP <- "off"         # "off" prevents annotation clipping at panel bounds
-FIG_LABEL_PLOT_MARGIN_PT <- 18  # extra margin so outer labels are not cut
+FIG_LABEL_CLIP <- "off" # "off" prevents annotation clipping at panel bounds
+FIG_LABEL_PLOT_MARGIN_PT <- 18 # extra margin so outer labels are not cut
 FIG_MEAN_LINE_LINETYPES <- c(
-  "solid", "dashed", "dotdash", "longdash",
-  "twodash", "dotted", "22", "42", "F2"
+  "solid",
+  "dashed",
+  "dotdash",
+  "longdash",
+  "twodash",
+  "dotted",
+  "22",
+  "42",
+  "F2"
 )
 FIG_MEAN_LABEL_DIGITS <- 2
 
-# 10-color palette for hydrometric sites (colorblind-friendly)
+# 10-color palette for streamflow sites (colorblind-friendly)
 SITE_COLORS <- c(
   "WS09" = "#882255",
   "WS10" = "#AA4499",
@@ -331,9 +225,7 @@ SITE_COLORS <- c(
   "Mack" = "#332288"
 )
 
-# -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
 
 # Publication plot theme: no title/subtitle and no grid lines.
 theme_pub <- function(base_size = FIG_BASE_SIZE) {
@@ -391,75 +283,46 @@ standardize_site_code <- function(site_code) {
   )
 }
 
-# Reverse mapping for legacy hydrometric exports (GSWS##/GSLOOK/GSWSMC style).
-to_legacy_hydro_site_code <- function(site_code) {
-  site_code <- trimws(site_code)
-  dplyr::case_when(
-    site_code == "Mack" ~ "GSWSMC",
-    site_code == "Look" ~ "GSLOOK",
-    grepl("^WS[0-9]+$", site_code) ~ gsub("^WS", "GSWS", site_code),
-    TRUE ~ site_code
-  )
-}
-
 make_panel_label_map <- function(values) {
   values <- as.character(values)
-  if (length(values) == 0) return(character())
+  if (length(values) == 0) {
+    return(character())
+  }
   idx <- seq_along(values)
   labels <- paste0(letters[((idx - 1) %% 26) + 1], ") ", values)
   stats::setNames(labels, values)
 }
 
-rename_legacy_storage_metrics <- function(df) {
-  hits <- names(LEGACY_STORAGE_RENAME_MAP)[names(LEGACY_STORAGE_RENAME_MAP) %in% names(df)]
-  if (length(hits) == 0) {
-    return(df)
-  }
-  dplyr::rename(df, !!!setNames(as.list(hits), unname(LEGACY_STORAGE_RENAME_MAP[hits])))
-}
-
 SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))
 
-# Derived water-balance daily file should come from workflow outputs, not raw inputs.
+# Water-balance daily input (current workflow path only).
 resolve_water_balance_daily_file <- function() {
-  candidates <- c(
-    file.path(OUT_MET_SUPPORT_DIR, "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
-    file.path(OUT_MET_SUPPORT_DIR, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
-    file.path(dirname(BASE_DATA_DIR), "outputs", "metrics", "support", "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
-    file.path(dirname(BASE_DATA_DIR), "outputs", "metrics", "support", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
-    file.path(BASE_DATA_DIR, "derived", "daily_water_balance_et_hamon_zhang_coeff_interp.csv"),
-    file.path(BASE_DATA_DIR, "derived", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"),
-    file.path(BASE_DATA_DIR, "DynamicStorage", "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
+  path <- file.path(
+    OUT_MET_SUPPORT_DIR,
+    "daily_water_balance_et_hamon_zhang_coeff_interp.csv"
   )
-  hits <- candidates[file.exists(candidates)]
-  if (length(hits) == 0) {
+  if (!file.exists(path)) {
     stop(
       paste0(
-        "Missing derived water-balance daily file. Checked:\n- ",
-        paste(candidates, collapse = "\n- ")
+        "Missing required water-balance daily file: ",
+        path
       )
     )
   }
-  hits[1]
+  path
 }
 
 resolve_drainage_area_file <- function() {
-  candidates <- c(
-    file.path(CATCHMENT_CHARACTERISTICS_DIR, "drainage_area.csv"),
-    file.path(DISCHARGE_DIR, "drainage_area.csv"),
-    file.path(BASE_DATA_DIR, "catchment_characteristics", "drainage_area.csv"),
-    file.path(BASE_DATA_DIR, "Q", "drainage_area.csv")
-  )
-  hits <- candidates[file.exists(candidates)]
-  if (length(hits) == 0) {
+  path <- file.path(CATCHMENT_CHARACTERISTICS_DIR, "drainage_area.csv")
+  if (!file.exists(path)) {
     stop(
       paste0(
-        "Missing drainage area file. Checked:\n- ",
-        paste(candidates, collapse = "\n- ")
+        "Missing required drainage area file: ",
+        path
       )
     )
   }
-  hits[1]
+  path
 }
 
 resolve_catchment_characteristics_file <- function() {

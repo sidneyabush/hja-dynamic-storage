@@ -1,4 +1,7 @@
-#!/usr/bin/env Rscript
+# !/usr/bin/env Rscript.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
@@ -93,14 +96,11 @@ run_script("check_inputs.R")
 # Metrics.
 metric_scripts <- c(
   "01_metrics/00_create_master_hydrometric_dataset.R",
-  "01_metrics/01_ds_rbi_rcs.R",
-  "01_metrics/02_ds_sd_fdc.R",
-  "01_metrics/03_ms_load_isotope.R",
-  "01_metrics/04_ms_chs.R",
-  "01_metrics/05_eds_wb_drawdown.R",
-  "01_metrics/06_eco_vars.R",
-  "01_metrics/07_aggregate_metrics.R",
-  "01_metrics/08_data_availability.R"
+  "01_metrics/dynamicS_all.R",
+  "01_metrics/mobileS_all.R",
+  "01_metrics/extdS_WB.R",
+  "01_metrics/calc_eco_vars.R",
+  "01_metrics/agg_all_metrics.R"
 )
 for (s in metric_scripts) {
   run_script(s)
@@ -108,10 +108,10 @@ for (s in metric_scripts) {
 
 # Stats.
 stats_scripts <- c(
-  "02_stats/anova_tukey.R",
+  "02_stats/data_avail_summary.R",
+  "02_stats/storage_metrics_anova_TSD.R",
   "02_stats/pca.R",
-  "02_stats/watershed_char_storage_mlr.R",
-  "02_stats/storage_ecovar_mlr.R"
+  "02_stats/mlr_all.R"
 )
 for (s in stats_scripts) {
   run_script(s)
@@ -129,23 +129,6 @@ plot_scripts_core <- c(
 )
 for (s in plot_scripts_core) {
   run_script(s)
-}
-
-# Optional plot diagnostics/exploratory set (off by default).
-include_optional_plots <- tolower(Sys.getenv(
-  "HJA_INCLUDE_OPTIONAL_PLOTS",
-  unset = "false"
-)) ==
-  "true"
-if (include_optional_plots) {
-  plot_scripts_optional <- c(
-    "03_plots/recession_q_dqdt.R",
-    "03_plots/hydrometric_metric_summaries.R",
-    "03_plots/mlr_predictor_response_pairs.R"
-  )
-  for (s in plot_scripts_optional) {
-    run_script(s)
-  }
 }
 
 # Post-run checks.

@@ -1,27 +1,8 @@
-# -----------------------------------------------------------------------------
-# Stream Temperature & Low-Flow Metrics for Storage Manuscript
-# -----------------------------------------------------------------------------
-# Purpose: Calculate ecologically-relevant thermal and low-flow metrics:
-#   Maximum 7-day moving average stream temperature (per water year)
-#   Q5 of 7-day moving average discharge (per water year)
-#   Stream temperature during Q5 low-flow period
-#   Q5_CV: Coefficient of variation of stream temp during low-flow period
-#
-# Timeline: Water Years 1997-2020
-#
-# Inputs:
-#   - HT00451_v10.txt stream temperature data
-#   - HF00402_v14.csv discharge data (daily)
-#   - drainage_area.csv for normalization
-#
-# Outputs:
-#   - stream_thermal_lowflow_metrics_annual.csv
-#
+# Calculate ecologically-relevant thermal and low-flow metrics:.
+# Inputs: discharge_dir/HF00402_v14.csv.
 # Author: Sidney Bush
 # Date: 2026-01-23
-# -----------------------------------------------------------------------------
 
-# Load libraries
 library(dplyr)
 library(lubridate)
 library(readr)
@@ -35,39 +16,13 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 theme_set(theme_pub(base_size = 12))
 
-# -----------------------------------------------------------------------------
 # SETUP: Directories and site list (from config.R)
-# -----------------------------------------------------------------------------
 
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
@@ -96,9 +51,7 @@ assert_unique_keys <- function(df, keys, df_name) {
   }
 }
 
-# -----------------------------------------------------------------------------
 # LOAD & PROCESS STREAM TEMPERATURE DATA
-# -----------------------------------------------------------------------------
 
 # Load daily stream temperature file
 temp_file <- file.path(temp_dir, "HT00451_v10.txt")
@@ -142,9 +95,7 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
 # WS09 has no stream-temperature records in HT00451 source.
 # Keep WS09 in downstream annual masters; temp responses remain NA for WS09.
 
-# -----------------------------------------------------------------------------
 # LOAD & PROCESS DISCHARGE DATA
-# -----------------------------------------------------------------------------
 
 # Load drainage areas
 da_df <- read_csv(resolve_drainage_area_file(),
@@ -164,9 +115,7 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"),
   select(site, date, Q_cms, Q_mm_d, WATERYEAR) %>%
   arrange(site, date)
 
-# -----------------------------------------------------------------------------
 # CALCULATE 7-DAY MOVING AVERAGES
-# -----------------------------------------------------------------------------
 
 # Function to calculate 7-day rolling mean
 calc_7day_rolling <- function(df, value_col) {
@@ -194,9 +143,7 @@ discharge_rolling <- discharge %>%
   mutate(year = get_water_year(date)) %>%
   rename(Q_7d_avg_mm_d = rolling_7d)
 
-# -----------------------------------------------------------------------------
 # EXTRACT ANNUAL METRICS (PER WATER YEAR)
-# -----------------------------------------------------------------------------
 
 # Maximum 7-day average temperature per water year
 t_7dmax <- temp_rolling %>%
@@ -289,9 +236,7 @@ temp_cv_lowflow <- temp_daily %>%
   select(site, year, Q5_CV)
 assert_unique_keys(temp_cv_lowflow, c("site", "year"), "temp_cv_lowflow")
 
-# -----------------------------------------------------------------------------
 # COMBINE METRICS INTO MASTER TABLE
-# -----------------------------------------------------------------------------
 
 # Merge all metrics by standardized site-year keys
 master_metrics <- t_7dmax %>%
@@ -321,9 +266,7 @@ assert_unique_keys(master_metrics, c("site", "year"), "master_metrics")
 output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv")
 write_csv(master_metrics, output_file)
 
-# -----------------------------------------------------------------------------
 # SUMMARY STATISTICS
-# -----------------------------------------------------------------------------
 
 summary_stats <- master_metrics %>%
   group_by(site) %>%

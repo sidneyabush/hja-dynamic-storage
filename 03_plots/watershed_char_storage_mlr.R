@@ -1,19 +1,7 @@
-# -----------------------------------------------------------------------------
-# Watershed Controls MLR Plots
-# -----------------------------------------------------------------------------
-# This script makes standalone plots for watershed-controls MLR results.
-#
-# Inputs:
-#   - watershed_char_storage_mlr_model_avg_coef.csv
-#   - watershed_char_storage_mlr_summary.csv
-#
-# Outputs:
-#   - watershed_char_storage_mlr_beta.png
-#   - watershed_char_storage_mlr_beta.pdf
-#   - watershed_char_storage_mlr_model_perf.csv
-#   - watershed_char_storage_mlr_coef.csv
-#   - watershed_char_storage_mlr_table.csv
-# -----------------------------------------------------------------------------
+# Watershed Controls MLR Plots.
+# Inputs: output_dir/watershed_char_storage_mlr_model_avg_coef.csv; output_dir/watershed_char_storage_mlr_summary.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -21,49 +9,15 @@ library(ggplot2)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
 plot_dir <- file.path(FIGURES_DIR, "main")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
-
-# Remove legacy duplicate table names from prior workflow versions.
-legacy_tables <- c(
-  "catch_chars_storage_mlr_model_perf.csv",
-  "catch_chars_storage_mlr_coef.csv",
-  "catch_chars_storage_mlr_table.csv"
-)
-legacy_paths <- file.path(table_dir, legacy_tables)
-legacy_paths <- legacy_paths[file.exists(legacy_paths)]
-if (length(legacy_paths) > 0) unlink(legacy_paths)
 
 model_avg_file <- file.path(output_dir, "watershed_char_storage_mlr_model_avg_coef.csv")
 summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")

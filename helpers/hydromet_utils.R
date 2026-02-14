@@ -1,20 +1,7 @@
-# -----------------------------------------------------------------------------
-# Hydrometric Data Processing Utilities
-# -----------------------------------------------------------------------------
-# Purpose: Helper functions for processing meteorological and hydrometric data
-#
-# Functions:
-#   - parse_my_date(): Robust date parsing (handles Excel serials and strings)
-#   - make_inter_long(): Convert wide interpolated data to long format
-#   - read_mack_precip(): Read Mack Creek precipitation data
-#   - calculate_vpd(): Vapor pressure deficit calculation
-#   - interpolate_pair(): Interpolate missing values between two stations
-#   - interpolate_triplet(): Interpolate using multiple regression (3 stations)
-#   - constrain_interpolated_values(): Cap RH at 100%, precip at 0
-#   - process_station_groups(): Main processing workflow for station pairs/triplets
-#   - create_watershed_datasets(): Aggregate station data to watershed level
-#
-# -----------------------------------------------------------------------------
+# Helper functions for processing meteorological and streamflow data.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(readr)
 library(dplyr)
@@ -22,9 +9,7 @@ library(lubridate)
 library(tidyr)
 library(ggplot2)
 
-# -----------------------------------------------------------------------------
 # DATE PARSING
-# -----------------------------------------------------------------------------
 
 #' Parse dates robustly (handles Excel serials and various string formats)
 #' @param d Vector of dates (character, numeric, or Date)
@@ -55,9 +40,7 @@ parse_my_date <- function(d) {
   return(out)
 }
 
-# -----------------------------------------------------------------------------
 # DATA LOADING HELPERS
-# -----------------------------------------------------------------------------
 
 #' Read interpolated meteorological data and convert to long format
 #' @param fname Filename of CSV with *_inter columns
@@ -109,9 +92,7 @@ read_mack_precip <- function(fname, met_dir, recode_map = c("GSWSMC" = "GSMACK")
     rename(P_mm_d = PRECIP_TOT_DAY)
 }
 
-# -----------------------------------------------------------------------------
 # METEOROLOGICAL CALCULATIONS
-# -----------------------------------------------------------------------------
 
 #' Calculate vapor pressure deficit (VPD) from temperature and relative humidity
 #' @param temp_celsius Temperature in Celsius
@@ -207,9 +188,7 @@ create_multiple_regression_plot <- function(target_site, predictor_sites, variab
     labs(title = title, subtitle = subtitle)
 }
 
-# -----------------------------------------------------------------------------
 # STATION INTERPOLATION
-# -----------------------------------------------------------------------------
 
 #' Extract station pairs and triplets that need interpolation from site mapping
 #' @param site_mapping Named list of watershed -> station mappings
@@ -478,9 +457,7 @@ constrain_interpolated_values <- function(data) {
   return(data)
 }
 
-# -----------------------------------------------------------------------------
 # MAIN PROCESSING FUNCTIONS
-# -----------------------------------------------------------------------------
 
 #' Process all station pairs and triplets, apply interpolation
 #' @param data Combined meteorological data

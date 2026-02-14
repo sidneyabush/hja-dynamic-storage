@@ -2,7 +2,7 @@
 
 Dynamic, mobile, and extended dynamic storage workflow for H.J. Andrews watersheds.
 
-Eco-response notes:
+Eco-response variable notes:
 - `WS09` has no stream-temperature records in `HT00451_v10.txt`, so `T_7DMax` and `T_Q7Q5` are unavailable (`NA`) for `WS09`.
 
 ## scripts

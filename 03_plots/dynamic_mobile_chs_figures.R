@@ -1,19 +1,7 @@
-# -----------------------------------------------------------------------------
-# Main Text and Supplement Figures - HJA Dynamic Storage
-# -----------------------------------------------------------------------------
-#
-# Main Text Figures:
-#   Figure 3: Dynamic Storage (RBI, RCS, FDC, SD) - faceted
-#   Figure 4: Mobile Isotope (MTT, Fyw, DR) - faceted
-#   Figure 5: CHS (baseflow fraction) - single panel
-#
-# Supplement Figures:
-#   - Faceted time series for Dynamic Storage metrics
-#   - Faceted time series for Mobile Storage metrics
-#
+# Main Text and Supplement Figures - HJA Dynamic Storage.
+# Inputs: OUT_MET_MOBILE_DIR/isotope_metrics_site.csv; ISOTOPE_DIR/MTT_FYW.csv; OUT_MET_MOBILE_DIR/Annual_GW_Prop.csv.
 # Author: Sidney Bush
 # Date: 2026-02-02
-# -----------------------------------------------------------------------------
 
 library(dplyr)
 library(readr)
@@ -24,37 +12,13 @@ library(colorspace)
 
 rm(list = ls())
 
-# -----------------------------------------------------------------------------
 # SOURCE CONFIGURATION
-# -----------------------------------------------------------------------------
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
- args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-source(config_path)
 
-# -----------------------------------------------------------------------------
 # SETUP
-# -----------------------------------------------------------------------------
 
 base_dir <- BASE_DATA_DIR
 main_dir <- file.path(FIGURES_DIR, "main")
@@ -91,9 +55,7 @@ theme_pub_base <- theme_pub() +
 
 theme_set(theme_pub_base)
 
-# -----------------------------------------------------------------------------
 # HELPER: Standardize site names to WS## format
-# -----------------------------------------------------------------------------
 
 standardize_sites <- function(df, allowed_sites = site_order) {
   df %>%
@@ -104,30 +66,16 @@ standardize_sites <- function(df, allowed_sites = site_order) {
     mutate(site = factor(site, levels = allowed_sites))
 }
 
-# -----------------------------------------------------------------------------
 # LOAD DATA
-# -----------------------------------------------------------------------------
-
 
 # Annual storage metrics
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
-}
 
 annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
-  rename_legacy_storage_metrics() %>%
   standardize_sites(allowed_sites = site_order)
-
 
 # Isotope data for mobile storage (site-level metrics)
 isotope_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
-if (!file.exists(isotope_file)) {
-  isotope_file <- file.path(OUT_MET_MOBILE_DIR, "Isotope_Metrics_Site.csv")
-}
-if (!file.exists(isotope_file)) {
-  isotope_file <- file.path(ISOTOPE_DIR, "Isotope_Metrics_Site.csv")
-}
 
 if (file.exists(isotope_file)) {
   isotope_data <- read_csv(isotope_file, show_col_types = FALSE) %>%
@@ -277,13 +225,7 @@ if (file.exists(isotope_file)) {
 }
 
 # CHS data
-chs_file <- file.path(EC_DIR, "CHS_annual_baseflow.csv")
-if (!file.exists(chs_file)) {
-  chs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop.csv")
-}
-if (!file.exists(chs_file)) {
-  chs_file <- file.path(OUT_MET_MOBILE_DIR, "Annual_GW_Prop.csv")
-}
+chs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop.csv")
 
 if (file.exists(chs_file)) {
   chs_data <- read_csv(chs_file, show_col_types = FALSE) %>%
@@ -308,10 +250,7 @@ if (file.exists(chs_file)) {
   }
 }
 
-# -----------------------------------------------------------------------------
 # FIGURE 3: DYNAMIC STORAGE (RBI, RCS, FDC, SD)
-# -----------------------------------------------------------------------------
-
 
 dynamic_metrics <- c("RBI", "RCS", "FDC", "SD")
 dynamic_metric_titles <- c(
@@ -369,10 +308,7 @@ fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
 ggsave(file.path(main_dir, "ds_summary.png"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(main_dir, "ds_summary.pdf"), fig3, width = 10 * FIG_WIDTH_SCALE, height = 8 * FIG_HEIGHT_SCALE)
 
-# -----------------------------------------------------------------------------
 # FIGURE 4: MOBILE ISOTOPE (MTT, Fyw, DR)
-# -----------------------------------------------------------------------------
-
 
 if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
   metric_order_iso <- c("MTT1", "MTT2", "Fyw", "DR")
@@ -423,10 +359,7 @@ if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
   cat("  Skipping Figure 4: No isotope data\n")
 }
 
-# -----------------------------------------------------------------------------
 # FIGURE 5: CHS (BASEFLOW FRACTION)
-# -----------------------------------------------------------------------------
-
 
 if (!is.null(chs_data) && nrow(chs_data) > 0) {
   # Summary stats
@@ -471,10 +404,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
   cat("  Skipping Figure 5: No CHS data\n")
 }
 
-# -----------------------------------------------------------------------------
 # SUPPLEMENT: FACETED TIME SERIES - DYNAMIC STORAGE
-# -----------------------------------------------------------------------------
-
 
 # Calculate site means for dashed reference lines
 site_means_dynamic <- dynamic_long %>%
@@ -535,9 +465,7 @@ supp_dynamic_ts <- ggplot(dynamic_long, aes(x = year, y = value, color = site)) 
 ggsave(file.path(supp_dir, "ds_annual_ts.png"), supp_dynamic_ts, width = 16 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(supp_dir, "ds_annual_ts.pdf"), supp_dynamic_ts, width = 16 * FIG_WIDTH_SCALE, height = 10 * FIG_HEIGHT_SCALE)
 
-# -----------------------------------------------------------------------------
 # SUPPLEMENT: FACETED TIME SERIES - CHS
-# -----------------------------------------------------------------------------
 
 if (!is.null(chs_data) && nrow(chs_data) > 0) {
   cat("Creating Supplement: CHS Time Series...\n")
@@ -598,9 +526,7 @@ if (!is.null(chs_data) && nrow(chs_data) > 0) {
   cat("  Saved CHS Time Series\n")
 }
 
-# -----------------------------------------------------------------------------
 # SUMMARY
-# -----------------------------------------------------------------------------
 
 for (f in list.files(main_dir, pattern = "\\.(png|pdf)$")) {
   cat("  -", f, "\n")

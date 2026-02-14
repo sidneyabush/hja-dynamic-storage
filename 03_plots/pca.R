@@ -1,6 +1,7 @@
-# -----------------------------------------------------------------------------
-# PCA Plots
-# -----------------------------------------------------------------------------
+# PCA Plots.
+# Inputs: OUT_STATS_PCA_DIR/pca_scores_pc1_pc2.csv; OUT_STATS_PCA_DIR/pca_loadings.csv; OUT_STATS_PCA_DIR/pca_variance_explained.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -9,25 +10,9 @@ library(scales)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) config_path <- file.path(dirname(script_dir), "config.R")
-if (!file.exists(config_path)) config_path <- file.path(getwd(), "config.R")
-source(config_path)
 
 main_dir <- file.path(FIGURES_DIR, "main")
 supp_dir <- file.path(FIGURES_DIR, "supp", "analysis", "pca")
@@ -36,7 +21,7 @@ for (d in c(main_dir, supp_dir, table_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-# Remove stale catchment-characteristics PCA outputs (deprecated).
+# Remove older catchment-characteristics PCA outputs.
 unlink(file.path(supp_dir, c(
   "watershed_char_storage_mlr_pca_biplot.png",
   "watershed_char_storage_mlr_pca_biplot.pdf",

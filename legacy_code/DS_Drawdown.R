@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: HF00402_v14.csv; daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 require(pracma)
 require(dplyr)
 require(EflowStats)

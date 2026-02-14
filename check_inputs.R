@@ -1,29 +1,49 @@
-#!/usr/bin/env Rscript
+# !/usr/bin/env Rscript.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 suppressPackageStartupMessages({
   library(readr)
 })
-
+22
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
     has_config <- file.exists(file.path(cur, "config.R"))
     has_metrics <- dir.exists(file.path(cur, "01_metrics"))
-    if (has_config && has_metrics) return(cur)
+    if (has_config && has_metrics) {
+      return(cur)
+    }
     parent <- dirname(cur)
-    if (identical(parent, cur)) break
+    if (identical(parent, cur)) {
+      break
+    }
     cur <- parent
   }
   normalizePath(start_dir, winslash = "/", mustWork = FALSE)
 }
 
-script_path <- tryCatch(normalizePath(sys.frame(1)$ofile, winslash = "/", mustWork = FALSE), error = function(e) NA_character_)
+script_path <- tryCatch(
+  normalizePath(sys.frame(1)$ofile, winslash = "/", mustWork = FALSE),
+  error = function(e) NA_character_
+)
 if (is.na(script_path) || script_path == "") {
   args <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) script_path <- normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = FALSE)
+  if (length(file_arg) > 0) {
+    script_path <- normalizePath(
+      sub("^--file=", "", file_arg[1]),
+      winslash = "/",
+      mustWork = FALSE
+    )
+  }
 }
-start_dir <- if (!is.na(script_path) && nzchar(script_path)) dirname(script_path) else getwd()
+start_dir <- if (!is.na(script_path) && nzchar(script_path)) {
+  dirname(script_path)
+} else {
+  getwd()
+}
 repo_root <- find_repo_root(start_dir)
 
 source(file.path(repo_root, "config.R"))
@@ -53,45 +73,52 @@ if (length(missing_files) > 0) {
   )
 }
 
-# Accept any known EC filename used across legacy/current variants.
-ec_candidates <- c(
-  file.path(EC_DIR, "CF01201_v3.txt"),
-  file.path(EC_DIR, "CF01203_v8.csv"),
-  file.path(EC_DIR, "CF01203_v9.csv")
-)
-if (!any(file.exists(ec_candidates))) {
-  stop(
-    paste0(
-      "Missing EC input file. Expected one of:\\n- ",
-      paste(ec_candidates, collapse = "\\n- ")
-    )
-  )
+# EC file used by the current workflow.
+ec_file <- file.path(EC_DIR, "CF01201_v3.txt")
+if (!file.exists(ec_file)) {
+  stop("Missing required EC input file: ", ec_file)
 }
 
 # Minimal schema checks on key files.
 check_columns <- function(path, required_cols) {
-  cols <- names(suppressMessages(read_csv(path, n_max = 0, show_col_types = FALSE)))
+  cols <- names(suppressMessages(read_csv(
+    path,
+    n_max = 0,
+    show_col_types = FALSE
+  )))
   missing <- setdiff(required_cols, cols)
   if (length(missing) > 0) {
     stop(
       paste0(
-        "Missing required columns in ", path, ": ",
+        "Missing required columns in ",
+        path,
+        ": ",
         paste(missing, collapse = ", ")
       )
     )
   }
 }
 
-check_columns(file.path(DISCHARGE_DIR, "HF00402_v14.csv"), c("DATE", "SITECODE", "MEAN_Q"))
-temp_cols <- names(suppressMessages(read_csv(file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"), n_max = 0, show_col_types = FALSE)))
+check_columns(
+  file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
+  c("DATE", "SITECODE", "MEAN_Q")
+)
+temp_cols <- names(suppressMessages(read_csv(
+  file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"),
+  n_max = 0,
+  show_col_types = FALSE
+)))
 if (!all(c("DATE_TIME", "SITECODE") %in% temp_cols)) {
-  stop("Missing required columns in Stream_T/HT00451_v10.txt: DATE_TIME and/or SITECODE")
+  stop(
+    "Missing required columns in Stream_T/HT00451_v10.txt: DATE_TIME and/or SITECODE"
+  )
 }
 if (!("WATERTEMP_MEAN" %in% temp_cols)) {
-  stop("Missing stream temperature column in Stream_T/HT00451_v10.txt (expected WATERTEMP_MEAN)")
+  stop(
+    "Missing stream temperature column in Stream_T/HT00451_v10.txt (expected WATERTEMP_MEAN)"
+  )
 }
 check_columns(resolve_catchment_characteristics_file(), c("Site"))
 
 # Derived file check (must come from workflow outputs)
 invisible(resolve_water_balance_daily_file())
-

@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: drainage_area.csv; HF00402_v14.csv; Annual_GW_Prop.csv; HJA_aspect.csv; HJA_slope.csv; HJA_elevation.csv; +4 more CSV files.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 avg_merequire(dplyr)
 require(lubridate)
 require(GGally)

@@ -1,28 +1,8 @@
-# -----------------------------------------------------------------------------
-# ANOVA & Tukey HSD Site Comparisons
-# -----------------------------------------------------------------------------
-# Purpose: Test for significant differences among sites in storage metrics
-#          using one-way ANOVA followed by Tukey HSD post-hoc tests
-#
-# Workflow:
-#   Load annual storage metrics (site-year observations)
-#   For each storage metric, run one-way ANOVA (site as factor)
-#   If ANOVA is significant (p < 0.05), run Tukey HSD post-hoc test
-#   Visualize site comparisons with boxplots and Tukey groupings
-#   Save results to CSV
-#
-# Inputs:
-#   - master_annual.csv (from aggregate_metrics.R)
-#
-# Outputs:
-#   - anova_results.csv: ANOVA F-statistics and p-values
-#   - tukey_hsd_results.csv: Pairwise site comparisons with adjusted p-values
-#
+# Test for significant differences among sites in storage metrics.
+# Inputs: No direct CSV file reads in this script.
 # Author: Sidney Bush
 # Date: 2026-01-23
-# -----------------------------------------------------------------------------
 
-# Load libraries
 library(dplyr)
 library(readr)
 library(tidyr)
@@ -35,33 +15,9 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 theme_set(theme_pub(base_size = 12))
 
@@ -74,14 +30,9 @@ output_dir <- OUT_STATS_ANOVA_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# -----------------------------------------------------------------------------
 # LOAD ANNUAL STORAGE METRICS
-# -----------------------------------------------------------------------------
 
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
-}
 
 HJA_annual <- read_csv(
   annual_file,
@@ -91,10 +42,8 @@ HJA_annual <- read_csv(
   filter(!site %in% SITE_EXCLUDE_STANDARD) %>%
   mutate(site = factor(site, levels = site_order))
 
-# -----------------------------------------------------------------------------
 # SELECT STORAGE METRICS FOR ANOVA
-# -----------------------------------------------------------------------------
-# NOTE: Q5norm, CV_Q5norm are NOT storage metrics - they are response variables
+# Q5norm and CV_Q5norm are response variables, so they are excluded here.
 # Storage metrics by type (using method abbreviations):
 #   Dynamic: RBI, RCS, FDC, SD
 #   Mobile: CHS - note: MTT, Fyw, DR are site-level only
@@ -109,9 +58,7 @@ storage_metrics <- c(
   "WB"     # WB  - Water Balance - Extended Dynamic
 )
 
-# -----------------------------------------------------------------------------
 # RUN ANOVA FOR EACH METRIC
-# -----------------------------------------------------------------------------
 
 anova_results <- data.frame()
 
@@ -154,9 +101,7 @@ write.csv(anova_results,
           file.path(output_dir, "anova_results.csv"),
           row.names = FALSE)
 
-# -----------------------------------------------------------------------------
 # RUN TUKEY HSD POST-HOC TESTS
-# -----------------------------------------------------------------------------
 
 tukey_results <- data.frame()
 tukey_group_letters <- data.frame()
@@ -216,9 +161,7 @@ if (nrow(tukey_group_letters) > 0) {
             row.names = FALSE)
 }
 
-# -----------------------------------------------------------------------------
 # SUMMARY TABLE: SITE MEANS
-# -----------------------------------------------------------------------------
 
 site_means <- HJA_annual %>%
   group_by(site) %>%

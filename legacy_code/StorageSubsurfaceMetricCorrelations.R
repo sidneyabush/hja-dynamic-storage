@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: HJA_Ave_StorageMetrics_CatCharacter.csv; HJA_Stor_Temp_Yr.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 require(GGally)
 
 site_order <- c("GSWS10", "GSWS09", "GSWS01", "GSLOOK", "GSWS02","GSWS03", "GSWSMC", "GSWS06", "GSWS07", "GSWS08")

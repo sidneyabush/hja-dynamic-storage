@@ -1,6 +1,7 @@
-# -----------------------------------------------------------------------------
-# ANOVA/Tukey Plots
-# -----------------------------------------------------------------------------
+# ANOVA/Tukey Plots.
+# Inputs: ISOTOPE_DIR/MTT_FYW.csv; ISOTOPE_DIR/DampingRatios_2025-07-07.csv; OUT_STATS_ANOVA_DIR/anova_results.csv.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -10,25 +11,9 @@ library(patchwork)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) config_path <- file.path(dirname(script_dir), "config.R")
-if (!file.exists(config_path)) config_path <- file.path(getwd(), "config.R")
-source(config_path)
 
 main_dir <- file.path(FIGURES_DIR, "main")
 supp_dir <- file.path(FIGURES_DIR, "supp", "analysis", "anova_tukey")
@@ -55,9 +40,6 @@ safe_ggsave <- function(filename, plot, width, height, dpi = NULL) {
 }
 
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUT_MASTER_DIR, LEGACY_ANNUAL_FILE)
-}
 annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%

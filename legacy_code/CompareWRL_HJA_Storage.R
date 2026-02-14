@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: /Users/keirajohnson/Box Sync/Hydrology_Lab/Projects/Low Flow/AllDataHarmonized_Simple_05252025.csv; /Users/keirajohnson/Box Sync/Hydrology_Lab/Projects/Low Flow/RBFI.csv; /Users/keirajohnson/Box Sync/05_Storage_Manuscript/03_Data/StorageMetrics/HJA_StorageMetrics_Annual.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 require(ggplot2)
 require(dplyr)
 require(ggpubr)

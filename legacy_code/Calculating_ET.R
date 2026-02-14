@@ -1,3 +1,8 @@
+# Legacy analysis script retained for archival/reference use.
+# Inputs: input_dir/watersheds_met_data_q.csv.
+# Author: Legacy HJA storage team
+# Date: 2026-02-13
+
 library(readr)
 library(dplyr)
 library(lubridate)

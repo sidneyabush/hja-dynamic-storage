@@ -1,19 +1,7 @@
-# -----------------------------------------------------------------------------
-# Legacy Parity Check
-# -----------------------------------------------------------------------------
-# Compares mapped legacy outputs to current workflow outputs.
-#
-# Usage:
-#   LEGACY_OUTPUT_DIR=/path/to/legacy_outputs Rscript legacy_parity_check.R
-#
-# If LEGACY_OUTPUT_DIR is not set, default is:
-#   file.path(OUTPUT_DIR, "legacy_reference")
-#
-# Outputs:
-#   - legacy_parity_summary.csv
-#   - legacy_parity_details.csv
-#   - legacy_parity_file_map.csv
-# -----------------------------------------------------------------------------
+# Legacy Parity Check.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -21,30 +9,9 @@ library(tidyr)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found.")
-}
 
 legacy_output_dir <- Sys.getenv("LEGACY_OUTPUT_DIR", unset = "")
 if (legacy_output_dir == "") {

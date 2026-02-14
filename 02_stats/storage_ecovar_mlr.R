@@ -1,22 +1,7 @@
-# -----------------------------------------------------------------------------
-# Predict Thermal and Low-Flow Metrics from Storage and Catchment Predictors
-# -----------------------------------------------------------------------------
-# Purpose: Fit stepwise-AIC linear models for annual eco response metrics,
-#          separately for each site and response.
-#
-# Response metrics:
-#   T_7DMax
-#   Q_7Q5
-#   T_Q7Q5
-#
-# Inputs:
-#   - master_annual.csv
-#
-# Outputs:
-#   - storage_ecovar_mlr_results.csv
-#   - storage_ecovar_mlr_summary.csv
-#   - storage_ecovar_mlr_model_selection.csv
-# -----------------------------------------------------------------------------
+# Fit stepwise-AIC linear models for annual eco response metrics,.
+# Inputs: No direct CSV file reads in this script.
+# Author: Sidney Bush
+# Date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -26,33 +11,9 @@ library(tidyr)
 
 rm(list = ls())
 
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -75,9 +36,6 @@ if (USE_MUMIN_LOOCV && !requireNamespace("MuMIn", quietly = TRUE)) {
 }
 
 annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
-if (!file.exists(annual_file)) {
-  annual_file <- file.path(OUTPUT_DIR, MASTER_ANNUAL_FILE)
-}
 
 merged_data <- read_csv(
   annual_file,
@@ -227,7 +185,7 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     return(NULL)
   }
 
-  # Drop predictors that have too little support or are constant within site.
+  # Keep only predictors with enough overlap with the response and real variation.
   pred_stats <- lapply(predictors_use, function(p) {
     x <- site_df[[p]]
     y <- site_df[[response]]
@@ -244,8 +202,8 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     return(NULL)
   }
 
-  # Build a complete-case model frame and iteratively prune sparse predictors
-  # until the requested minimum annual sample size is met.
+  # Build the site-level modeling table using only rows with complete data.
+  # If we do not have enough years, drop the sparsest predictor and try again.
   build_model_df <- function(preds) {
     keep_cols <- unique(c("site", "year", response, preds))
     keep_cols <- keep_cols[keep_cols %in% names(site_df)]
@@ -286,8 +244,8 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   }
   fallback_full_model <- FALSE
   if (length(setdiff(names(coef(lm_aic)), "(Intercept)")) == 0) {
-    # If AIC selection collapses to intercept-only, retain the screened full model
-    # so each site-response with usable data still yields coefficients.
+    # If stepwise AIC drops everything, keep the screened full model instead.
+    # This avoids returning a blank model when data are otherwise usable.
     lm_aic <- lm_full
     fallback_full_model <- TRUE
   }

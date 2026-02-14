@@ -1,27 +1,8 @@
-# -----------------------------------------------------------------------------
-# Dynamic Storage Drawdown (Water Balance Method)
-# -----------------------------------------------------------------------------
-# Purpose: Calculate dynamic storage drawdown during summer recession using
-#          the water balance approach (P - Q - ET)
-#
-# Method:
-#   Identify last hydrograph peak (>8% of annual max, before WY day 300)
-#   From that date forward, compute daily dS = P - Q - ET
-#   Calculate cumulative drawdown (ΔS_sum)
-#   Extract minimum (maximum drawdown) for each site-year
-#
-# Inputs:
-#   - HF00402_v14.csv: Daily discharge
-#   - daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv: P, Q, ET
-#
-# Outputs:
-#   - DS_Drawdown_Date.csv: Timing of last peak for each site-year
-#   - DS_drawdown_annual.csv: Annual maximum drawdown (mm) per site
-#
+# Calculate dynamic storage drawdown during summer recession using.
+# Inputs: discharge_dir/HF00402_v14.csv.
 # Author: Keira Johnson (original), Sidney Bush (adapted)
-# -----------------------------------------------------------------------------
+# Date: 2026-02-13
 
-# Load libraries
 library(pracma)
 library(dplyr)
 library(ggplot2)
@@ -34,39 +15,13 @@ rm(list = ls())
 
 # Source configuration (paths, site definitions, water year range)
 # Get script directory (works with source() and Rscript)
-script_dir <- tryCatch({
-  dirname(sys.frame(1)$ofile)
-}, error = function(e) {
-  args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", args, value = TRUE)
-  if (length(file_arg) > 0) {
-    dirname(normalizePath(sub("^--file=", "", file_arg)))
-  } else {
-    getwd()
-  }
-})
-if (is.null(script_dir) || script_dir == "" || script_dir == ".") {
-  script_dir <- getwd()
-}
+# Load project config
+source("config.R")
 
-config_path <- file.path(script_dir, "config.R")
-if (!file.exists(config_path)) {
-  config_path <- file.path(dirname(script_dir), "config.R")
-}
-if (!file.exists(config_path)) {
-  config_path <- file.path(getwd(), "config.R")
-}
-if (file.exists(config_path)) {
-  source(config_path)
-} else {
-  stop("config.R not found. Please ensure config.R exists in the repo root.")
-}
 
 theme_set(theme_pub(base_size = 12))
 
-# -----------------------------------------------------------------------------
 # SETUP: Directories (from config.R)
-# -----------------------------------------------------------------------------
 
 base_dir    <- BASE_DATA_DIR
 output_dir  <- OUT_MET_EXTENDED_DIR
@@ -76,9 +31,7 @@ discharge_dir <- DISCHARGE_DIR
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-# -----------------------------------------------------------------------------
 # LOAD & PROCESS DISCHARGE DATA
-# -----------------------------------------------------------------------------
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
@@ -90,7 +43,7 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   filter(SITECODE %in% SITE_ORDER_HYDROMETRIC,
          waterYear >= WY_START, waterYear <= WY_END)
 
-# Filter to complete water years only (>= 365 days)
+# Keep only water years with near-complete daily records.
 goodyears <- discharge %>%
   group_by(SITECODE, waterYear) %>%
   summarise(num_days = n_distinct(date), .groups = "drop") %>%
@@ -101,19 +54,17 @@ discharge <- discharge %>%
   # Set factor levels for consistent ordering
   mutate(SITECODE = factor(SITECODE, levels = SITE_ORDER_HYDROMETRIC))
 
-# Add 7-day smoothed discharge
+# Smooth discharge a bit so peak detection is less noisy.
 discharge <- discharge %>%
   group_by(SITECODE) %>%
   arrange(date) %>%
   mutate(Q_smoothed = rollmean(MEAN_Q, k = 7, fill = NA, align = "right")) %>%
   ungroup()
 
-# Remove rows with missing smoothed Q
+# Drop rows where smoothing could not be computed.
 discharge <- discharge[complete.cases(discharge$Q_smoothed), ]
 
-# -----------------------------------------------------------------------------
 # DEFINE FUNCTION TO FIND LAST SIGNIFICANT PEAK
-# -----------------------------------------------------------------------------
 
 find_last_peak <- function(data, threshold_pct = 0.08) {
   time_series <- data$MEAN_Q
@@ -151,9 +102,7 @@ find_last_peak <- function(data, threshold_pct = 0.08) {
   return(tibble(last_peak_date = NA, last_peak_value = NA))
 }
 
-# -----------------------------------------------------------------------------
 # IDENTIFY LAST PEAK FOR EACH SITE-YEAR
-# -----------------------------------------------------------------------------
 
 last_peak <- discharge %>%
   group_by(SITECODE, waterYear) %>%
@@ -166,9 +115,7 @@ write.csv(last_peak,
           file.path(output_dir, "ds_drawdown_date.csv"),
           row.names = FALSE)
 
-# -----------------------------------------------------------------------------
 # LOAD WATER BALANCE DATA
-# -----------------------------------------------------------------------------
 
 DS_dat <- read.csv(resolve_water_balance_daily_file()) %>%
   mutate(
@@ -176,26 +123,22 @@ DS_dat <- read.csv(resolve_water_balance_daily_file()) %>%
     DATE = as.Date(DATE, "%m/%d/%y"),
     waterYear = get_water_year(DATE)
   ) %>%
-  filter(waterYear > 1997 & waterYear < 2020)
+  filter(waterYear >= WY_START, waterYear <= WY_END)
 
-# -----------------------------------------------------------------------------
 # MERGE WITH LAST PEAK DATES
-# -----------------------------------------------------------------------------
 
 DS_dat <- left_join(DS_dat, last_peak, by = c("SITECODE", "waterYear"))
 DS_dat <- DS_dat[complete.cases(DS_dat$last_peak_date), ]
 
-# -----------------------------------------------------------------------------
 # CALCULATE DYNAMIC STORAGE DRAWDOWN
-# -----------------------------------------------------------------------------
 
-# Crop to recession period (from last peak onward)
+# Keep only dates after the seasonal peak for each site-year.
 DS_dat_cropped <- DS_dat %>%
   group_by(SITECODE, waterYear) %>%
   filter(DATE >= last_peak_date) %>%
   mutate(max_q = Q_mm_d[last_peak_date == DATE])
 
-# Compute daily storage change and cumulative drawdown
+# Calculate daily storage change and then sum through the recession.
 DS_compute <- DS_dat_cropped %>%
   group_by(SITECODE, waterYear) %>%
   mutate(
@@ -204,9 +147,7 @@ DS_compute <- DS_dat_cropped %>%
   ) %>%
   ungroup()
 
-# -----------------------------------------------------------------------------
 # EXTRACT MAXIMUM DRAWDOWN (MINIMUM DS_SUM)
-# -----------------------------------------------------------------------------
 
 DS_max <- DS_compute %>%
   group_by(SITECODE, waterYear) %>%
