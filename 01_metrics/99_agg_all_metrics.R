@@ -27,7 +27,7 @@ dynamic_dir <- OUT_MET_DYNAMIC_DIR
 mobile_dir  <- OUT_MET_MOBILE_DIR
 extended_dir <- OUT_MET_EXTENDED_DIR
 eco_dir <- OUT_MET_ECO_DIR
-master_dir <- OUT_MASTER_DIR
+master_dir <- file.path(OUTPUT_DIR, "master")
 isotope_dir <- ISOTOPE_DIR
 catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
@@ -310,5 +310,266 @@ site_metric_summary_stats <- bind_rows(annual_long, site_level_long) %>%
 write.csv(
   site_metric_summary_stats,
   file.path(master_dir, "master_site_metric_summary_stats.csv"),
+  row.names = FALSE
+)
+
+# ---- Data availability summary tables (moved from stats into metrics) ----
+
+support_dir <- OUT_MET_SUPPORT_DIR
+if (!dir.exists(support_dir)) {
+  dir.create(support_dir, recursive = TRUE)
+}
+
+isotope_sites <- c(
+  "WS09", "WS10", "WS01", "Look", "WS02", "WS03", "WS07", "WS08", "Mack"
+)
+site_info <- tibble(
+  site = SITE_ORDER_HYDROMETRIC,
+  site_name = unname(SITE_NAMES[SITE_ORDER_HYDROMETRIC]),
+  hydrometric = TRUE,
+  chemistry = SITE_ORDER_HYDROMETRIC %in% SITE_ORDER_CHEMISTRY,
+  isotopes = SITE_ORDER_HYDROMETRIC %in% isotope_sites
+)
+
+metrics_info <- tribble(
+  ~storage_type      , ~method                    , ~abbreviation , ~variable_name          , ~requires     ,
+  "Dynamic"          , "Richards-Baker Index"     , "RBI"         , "RBI"                   , "hydrometric" ,
+  "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "recession_curve_slope" , "hydrometric" ,
+  "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "fdc_slope"             , "hydrometric" ,
+  "Dynamic"          , "Storage-Discharge"        , "SD"          , "S_annual_mm"           , "hydrometric" ,
+  "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"    ,
+  "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
+  "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "mean_bf"               , "chemistry"   ,
+  "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
+  "Extended Dynamic" , "Water Balance"            , "WB"          , "DS_sum"                , "hydrometric"
+)
+
+site_metric_matrix <- site_info %>%
+  select(site, site_name, hydrometric, chemistry, isotopes) %>%
+  crossing(metrics_info %>% select(abbreviation, requires)) %>%
+  mutate(
+    available = case_when(
+      requires == "hydrometric" & hydrometric ~ TRUE,
+      requires == "chemistry" & chemistry ~ TRUE,
+      requires == "isotopes" & isotopes ~ TRUE,
+      TRUE ~ FALSE
+    )
+  ) %>%
+  select(site, site_name, abbreviation, available) %>%
+  pivot_wider(names_from = abbreviation, values_from = available) %>%
+  select(site, site_name, RBI, RCS, FDC, SD, MTT, Fyw, CHS, DR, WB)
+
+discharge_avail <- read_csv(
+  file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
+  show_col_types = FALSE
+) %>%
+  mutate(
+    Date = as.Date(DATE, "%m/%d/%Y"),
+    site = standardize_site_code(SITECODE)
+  )
+
+hydro_ranges <- discharge_avail %>%
+  group_by(site) %>%
+  summarise(
+    hydro_start = min(Date, na.rm = TRUE),
+    hydro_end = max(Date, na.rm = TRUE),
+    hydro_n_days = sum(!is.na(MEAN_Q)),
+    .groups = "drop"
+  )
+
+ec_file <- file.path(EC_DIR, "CF01201_v3.txt")
+if (file.exists(ec_file)) {
+  ec_data <- read_delim(ec_file, delim = "\t", show_col_types = FALSE)
+  if ("DATE" %in% names(ec_data) && "SITECODE" %in% names(ec_data)) {
+    chem_ranges <- ec_data %>%
+      mutate(Date = as.Date(DATE), site = standardize_site_code(SITECODE)) %>%
+      group_by(site) %>%
+      summarise(
+        chem_start = min(Date, na.rm = TRUE),
+        chem_end = max(Date, na.rm = TRUE),
+        chem_n_days = n(),
+        .groups = "drop"
+      )
+  } else {
+    chem_ranges <- tibble(site = character())
+  }
+} else {
+  chem_ranges <- tibble(site = character())
+}
+
+wb_daily_file <- resolve_water_balance_daily_file()
+wb_data <- read_csv(wb_daily_file, show_col_types = FALSE) %>%
+  mutate(
+    Date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y")),
+    site = standardize_site_code(SITECODE)
+  )
+wb_ranges <- wb_data %>%
+  group_by(site) %>%
+  summarise(
+    wb_start = min(Date, na.rm = TRUE),
+    wb_end = max(Date, na.rm = TRUE),
+    wb_n_days = sum(!is.na(P_mm_d) & !is.na(Q_mm_d) & !is.na(ET_mm_d)),
+    .groups = "drop"
+  )
+
+date_ranges <- site_info %>%
+  select(site, site_name) %>%
+  left_join(hydro_ranges, by = "site") %>%
+  left_join(chem_ranges, by = "site") %>%
+  left_join(wb_ranges, by = "site")
+
+met_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
+if (file.exists(met_file)) {
+  met_data <- read_csv(met_file, show_col_types = FALSE)
+  exclude_cols <- c("DATE", "Date", "date", "SITECODE", "site", "WATERYEAR", "wateryear")
+  met_vars <- setdiff(names(met_data), exclude_cols)
+  if ("DATE" %in% names(met_data)) {
+    met_data$Date <- as.Date(met_data$DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y"))
+  }
+  met_summary <- data.frame(
+    variable = met_vars,
+    n_obs = sapply(met_vars, function(v) sum(!is.na(met_data[[v]]))),
+    pct_complete = sapply(met_vars, function(v) round(100 * sum(!is.na(met_data[[v]])) / nrow(met_data), 1)),
+    min_date = sapply(met_vars, function(v) {
+      valid <- !is.na(met_data[[v]])
+      if (any(valid)) as.character(min(met_data$Date[valid], na.rm = TRUE)) else NA_character_
+    }),
+    max_date = sapply(met_vars, function(v) {
+      valid <- !is.na(met_data[[v]])
+      if (any(valid)) as.character(max(met_data$Date[valid], na.rm = TRUE)) else NA_character_
+    }),
+    stringsAsFactors = FALSE
+  ) %>%
+    arrange(desc(n_obs))
+  write.csv(
+    met_summary,
+    file.path(support_dir, "met_variables_summary.csv"),
+    row.names = FALSE
+  )
+}
+
+comprehensive_summary <- site_info %>%
+  left_join(site_metric_matrix %>% select(-site_name), by = "site") %>%
+  left_join(date_ranges %>% select(site, hydro_start, hydro_end, hydro_n_days), by = "site")
+
+eco_response_availability <- HJA_annual %>%
+  mutate(site = as.character(site)) %>%
+  group_by(site) %>%
+  summarise(
+    n_wy_total = n_distinct(year),
+    n_wy_T_7DMax = sum(is.finite(T_7DMax)),
+    n_wy_Q_7Q5 = sum(is.finite(Q_7Q5)),
+    n_wy_T_Q7Q5 = sum(is.finite(T_Q7Q5)),
+    .groups = "drop"
+  ) %>%
+  right_join(tibble(site = SITE_ORDER_HYDROMETRIC), by = "site") %>%
+  mutate(
+    n_wy_total = ifelse(is.na(n_wy_total), 0L, n_wy_total),
+    n_wy_T_7DMax = ifelse(is.na(n_wy_T_7DMax), 0L, n_wy_T_7DMax),
+    n_wy_Q_7Q5 = ifelse(is.na(n_wy_Q_7Q5), 0L, n_wy_Q_7Q5),
+    n_wy_T_Q7Q5 = ifelse(is.na(n_wy_T_Q7Q5), 0L, n_wy_T_Q7Q5),
+    missing_reason = case_when(
+      site == "WS09" & n_wy_T_7DMax == 0 ~ "No WS09 stream-temperature records in HT00451_v10.txt",
+      n_wy_T_7DMax == 0 ~ "No stream-temperature WY records",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+
+eco_response_wy_coverage <- HJA_annual %>%
+  mutate(site = as.character(site)) %>%
+  select(site, year, T_7DMax, Q_7Q5, T_Q7Q5) %>%
+  pivot_longer(
+    cols = c(T_7DMax, Q_7Q5, T_Q7Q5),
+    names_to = "response",
+    values_to = "value"
+  ) %>%
+  group_by(site, response) %>%
+  summarise(
+    n_wy_with_data = sum(is.finite(value)),
+    first_wy_with_data = ifelse(any(is.finite(value)), min(year[is.finite(value)]), NA_integer_),
+    last_wy_with_data = ifelse(any(is.finite(value)), max(year[is.finite(value)]), NA_integer_),
+    .groups = "drop"
+  ) %>%
+  arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC), response)
+
+ht004_temp_file <- file.path(STREAM_TEMP_DIR, "HT00451_v10.txt")
+if (file.exists(ht004_temp_file)) {
+  ht004_temp_raw <- read_csv(ht004_temp_file, show_col_types = FALSE) %>%
+    mutate(
+      site_raw = as.character(SITECODE),
+      site = standardize_site_code(site_raw),
+      datetime = as.POSIXct(DATE_TIME, tz = "UTC"),
+      temp_val = WATERTEMP_MEAN
+    )
+  stream_temp_source_coverage <- ht004_temp_raw %>%
+    filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+    group_by(site_raw, site) %>%
+    summarise(
+      n_records = n(),
+      n_non_na_temp = sum(is.finite(temp_val), na.rm = TRUE),
+      first_datetime = min(datetime, na.rm = TRUE),
+      last_datetime = max(datetime, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+  if (!("WS09" %in% stream_temp_source_coverage$site)) {
+    stream_temp_source_coverage <- bind_rows(
+      stream_temp_source_coverage,
+      tibble(
+        site_raw = "GSWS09",
+        site = "WS09",
+        n_records = 0L,
+        n_non_na_temp = 0L,
+        first_datetime = as.POSIXct(NA),
+        last_datetime = as.POSIXct(NA)
+      )
+    ) %>%
+      arrange(factor(site, levels = SITE_ORDER_HYDROMETRIC))
+  }
+} else {
+  stream_temp_source_coverage <- tibble(
+    site_raw = character(),
+    site = character(),
+    n_records = integer(),
+    n_non_na_temp = integer(),
+    first_datetime = as.POSIXct(character()),
+    last_datetime = as.POSIXct(character())
+  )
+}
+
+write.csv(
+  site_metric_matrix,
+  file.path(support_dir, "site_metric_availability.csv"),
+  row.names = FALSE
+)
+write.csv(
+  date_ranges,
+  file.path(support_dir, "metric_date_ranges.csv"),
+  row.names = FALSE
+)
+write.csv(
+  comprehensive_summary,
+  file.path(support_dir, "comprehensive_data_summary.csv"),
+  row.names = FALSE
+)
+write.csv(
+  metrics_info,
+  file.path(support_dir, "storage_metrics_definitions.csv"),
+  row.names = FALSE
+)
+write.csv(
+  eco_response_availability,
+  file.path(support_dir, "eco_response_availability_by_site.csv"),
+  row.names = FALSE
+)
+write.csv(
+  eco_response_wy_coverage,
+  file.path(support_dir, "eco_response_wy_coverage.csv"),
+  row.names = FALSE
+)
+write.csv(
+  stream_temp_source_coverage,
+  file.path(support_dir, "stream_temp_source_coverage_ht00451.csv"),
   row.names = FALSE
 )

@@ -68,7 +68,7 @@ if (nzchar(env_repo_root)) {
   repo_root <- find_repo_root(start_dir)
 }
 
-if (!file.exists(file.path(repo_root, "check_inputs.R"))) {
+if (!file.exists(file.path(repo_root, "helpers", "check_inputs.R"))) {
   stop(
     paste0(
       "Could not locate repo root from current session.\n",
@@ -91,16 +91,16 @@ run_script <- function(path) {
 }
 
 # Preflight.
-run_script("check_inputs.R")
+run_script("helpers/check_inputs.R")
 
 # Metrics.
 metric_scripts <- c(
   "01_metrics/00_create_master_hydrometric_dataset.R",
-  "01_metrics/dynamicS_all.R",
-  "01_metrics/mobileS_all.R",
-  "01_metrics/extdS_WB.R",
+  "01_metrics/calc_dS_all.R",
+  "01_metrics/calc_mS_all.R",
+  "01_metrics/calc_edS_WB.R",
   "01_metrics/calc_eco_vars.R",
-  "01_metrics/agg_all_metrics.R"
+  "01_metrics/99_agg_all_metrics.R"
 )
 for (s in metric_scripts) {
   run_script(s)
@@ -108,10 +108,10 @@ for (s in metric_scripts) {
 
 # Stats.
 stats_scripts <- c(
-  "02_stats/data_avail_summary.R",
-  "02_stats/storage_metrics_anova_TSD.R",
+  "02_stats/storage_sum_stats.R",
   "02_stats/pca.R",
-  "02_stats/mlr_all.R"
+  "02_stats/mlr_catch_char.R",
+  "02_stats/mlr_eco_vars.R"
 )
 for (s in stats_scripts) {
   run_script(s)
@@ -119,17 +119,16 @@ for (s in stats_scripts) {
 
 # Plots: core manuscript set.
 plot_scripts_core <- c(
-  "03_plots/anova_tukey.R",
   "03_plots/pca.R",
-  "03_plots/correlations.R",
-  "03_plots/watershed_char_storage_mlr.R",
-  "03_plots/storage_ecovar_mlr.R",
+  "03_plots/corr_matrices.R",
+  "03_plots/mlr_catch_char.R",
+  "03_plots/mlr_eco_vars.R",
   "03_plots/met_context.R",
-  "03_plots/dynamic_mobile_chs_figures.R"
+  "03_plots/storage_figs.R"
 )
 for (s in plot_scripts_core) {
   run_script(s)
 }
 
 # Post-run checks.
-run_script("verify_outputs.R")
+run_script("helpers/verify_outputs.R")

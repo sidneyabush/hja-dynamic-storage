@@ -1,5 +1,9 @@
 # Build watershed-scale daily met + discharge inputs for WY 1997-2020.
-# Inputs: met_dir/MS00102_v9.csv; met_dir/MS05025_v3.csv; discharge_dir/HF00402_v14.csv.
+# Inputs:
+# met_dir/MS00102_v9.csv
+# met_dir/MS05025_v3.csv
+# discharge_dir/HF00402_v14.csv
+
 # Author: Sidney Bush
 # Date: 2026-02-13
 
@@ -33,34 +37,78 @@ dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 site_mapping <- list(
   # Lower elevation watersheds - use PRIMET
-  "GSWS09" = list(temp = c("PRIMET"), precip = c("PRIMET"),
-                  rh = c("PRIMET", "CS2MET"), netrad = c("PRIMET")),
-  "GSWS10" = list(temp = c("PRIMET"), precip = c("PRIMET"),
-                  rh = c("PRIMET", "CS2MET"), netrad = c("PRIMET")),
-  "GSWS01" = list(temp = c("PRIMET"), precip = c("PRIMET"),
-                  rh = c("PRIMET", "CS2MET"), netrad = c("PRIMET")),
-  "GSWS02" = list(temp = c("PRIMET"), precip = c("PRIMET"),
-                  rh = c("PRIMET", "CS2MET"), netrad = c("PRIMET")),
-  "GSWS03" = list(temp = c("PRIMET"), precip = c("PRIMET"),
-                  rh = c("PRIMET", "CS2MET"), netrad = c("PRIMET")),
+  "GSWS09" = list(
+    temp = c("PRIMET"),
+    precip = c("PRIMET"),
+    rh = c("PRIMET", "CS2MET"),
+    netrad = c("PRIMET")
+  ),
+  "GSWS10" = list(
+    temp = c("PRIMET"),
+    precip = c("PRIMET"),
+    rh = c("PRIMET", "CS2MET"),
+    netrad = c("PRIMET")
+  ),
+  "GSWS01" = list(
+    temp = c("PRIMET"),
+    precip = c("PRIMET"),
+    rh = c("PRIMET", "CS2MET"),
+    netrad = c("PRIMET")
+  ),
+  "GSWS02" = list(
+    temp = c("PRIMET"),
+    precip = c("PRIMET"),
+    rh = c("PRIMET", "CS2MET"),
+    netrad = c("PRIMET")
+  ),
+  "GSWS03" = list(
+    temp = c("PRIMET"),
+    precip = c("PRIMET"),
+    rh = c("PRIMET", "CS2MET"),
+    netrad = c("PRIMET")
+  ),
 
   # Mack Creek - use CENMET/UPLMET blend
-  "GSMACK" = list(temp = c("CENMET", "UPLMET"), precip = c("GSMACK", "UPLMET"),
-                  rh = c("CENMET", "UPLMET"), netrad = c("VANMET")),
+  "GSMACK" = list(
+    temp = c("CENMET", "UPLMET"),
+    precip = c("GSMACK", "UPLMET"),
+    rh = c("CENMET", "UPLMET"),
+    netrad = c("VANMET")
+  ),
 
   # Upper elevation watersheds - use H15MET/VANMET blend
-  "GSWS06" = list(temp = c("H15MET", "VANMET"), precip = c("H15MET"),
-                  rh = c("H15MET", "VANMET", "WS7MET"), netrad = c("VANMET")),
-  "GSWS07" = list(temp = c("H15MET", "VANMET"), precip = c("H15MET"),
-                  rh = c("H15MET", "VANMET", "WS7MET"), netrad = c("VANMET")),
-  "GSWS08" = list(temp = c("H15MET", "VANMET"), precip = c("H15MET"),
-                  rh = c("H15MET", "VANMET", "WS7MET"), netrad = c("VANMET")),
+  "GSWS06" = list(
+    temp = c("H15MET", "VANMET"),
+    precip = c("H15MET"),
+    rh = c("H15MET", "VANMET", "WS7MET"),
+    netrad = c("VANMET")
+  ),
+  "GSWS07" = list(
+    temp = c("H15MET", "VANMET"),
+    precip = c("H15MET"),
+    rh = c("H15MET", "VANMET", "WS7MET"),
+    netrad = c("VANMET")
+  ),
+  "GSWS08" = list(
+    temp = c("H15MET", "VANMET"),
+    precip = c("H15MET"),
+    rh = c("H15MET", "VANMET", "WS7MET"),
+    netrad = c("VANMET")
+  ),
 
   # Lookout Creek tributaries
-  "LONGER" = list(temp = c("CENMET"), precip = c("CENMET"),
-                  rh = c("CENMET"), netrad = c("VANMET")),
-  "COLD"   = list(temp = c("CENMET", "UPLMET"), precip = c("CENMET", "UPLMET"),
-                  rh = c("CENMET", "UPLMET"), netrad = c("VANMET"))
+  "LONGER" = list(
+    temp = c("CENMET"),
+    precip = c("CENMET"),
+    rh = c("CENMET"),
+    netrad = c("VANMET")
+  ),
+  "COLD" = list(
+    temp = c("CENMET", "UPLMET"),
+    precip = c("CENMET", "UPLMET"),
+    rh = c("CENMET", "UPLMET"),
+    netrad = c("VANMET")
+  )
 )
 
 # Load daily met inputs
@@ -103,7 +151,10 @@ RH <- read_csv(file.path(met_dir, "MS00102_v9.csv"), show_col_types = FALSE) %>%
   rename(RH_d_pct = RELHUM_MEAN_DAY)
 
 # Net radiation
-NetRad <- read_csv(file.path(met_dir, "MS05025_v3.csv"), show_col_types = FALSE) %>%
+NetRad <- read_csv(
+  file.path(met_dir, "MS05025_v3.csv"),
+  show_col_types = FALSE
+) %>%
   mutate(DATE = parse_my_date(DATE)) %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   select(SITECODE, DATE, NR_TOT_MEAN_DAY) %>%
@@ -130,8 +181,13 @@ for (pair_name in names(station_groups$pairs)) {
 
 for (triplet_name in names(station_groups$triplets)) {
   triplet <- station_groups$triplets[[triplet_name]]
-  cat(sprintf("  - %s: %s, %s, and %s\n", triplet_name,
-              triplet$site1, triplet$site2, triplet$site3))
+  cat(sprintf(
+    "  - %s: %s, %s, and %s\n",
+    triplet_name,
+    triplet$site1,
+    triplet$site2,
+    triplet$site3
+  ))
 }
 
 # Remove duplicate site-date rows before interpolation
@@ -158,7 +214,11 @@ interpolated_data <- results$data
 watershed_variables <- c(variables, "VPD_kPa")
 
 # Aggregate station-level data to watershed-level series
-watershed_datasets <- create_watershed_datasets(interpolated_data, site_mapping, watershed_variables)
+watershed_datasets <- create_watershed_datasets(
+  interpolated_data,
+  site_mapping,
+  watershed_variables
+)
 
 # Combine all watershed tables into one master table
 all_watersheds_data <- bind_rows(watershed_datasets)
@@ -170,7 +230,10 @@ da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK)))
 
 # Load discharge, standardize site codes, and keep target dates/sites
-discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_types = FALSE) %>%
+discharge <- read_csv(
+  file.path(discharge_dir, "HF00402_v14.csv"),
+  show_col_types = FALSE
+) %>%
   mutate(
     DATE = parse_my_date(DATE),
     SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK))
@@ -181,7 +244,11 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"), show_col_type
   summarise(MEAN_Q = sum(MEAN_Q, na.rm = TRUE), .groups = "drop")
 
 # Join discharge into each watershed dataset
-watershed_datasets <- add_discharge_to_watersheds(watershed_datasets, discharge, da_df)
+watershed_datasets <- add_discharge_to_watersheds(
+  watershed_datasets,
+  discharge,
+  da_df
+)
 
 # Rebuild the combined table after adding discharge
 all_watersheds_data <- bind_rows(watershed_datasets)
@@ -203,7 +270,10 @@ gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
 gslook_full_df <- all_watersheds_data %>%
   filter(SITECODE %in% gslook_components) %>%
   group_by(DATE) %>%
-  summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)), .groups = "drop") %>%
+  summarise(
+    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
   mutate(SITECODE = "GSLOOK") %>%
   select(DATE, SITECODE, everything())
 

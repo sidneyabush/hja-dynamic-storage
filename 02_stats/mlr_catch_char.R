@@ -18,7 +18,6 @@ rm(list = ls())
 # Load project config
 source("config.R")
 
-
 theme_set(theme_pub(base_size = 12))
 
 # Use configuration values
@@ -48,7 +47,8 @@ if (USE_MUMIN_LOOCV && !requireNamespace("MuMIn", quietly = TRUE)) {
 
 # LOAD SITE-AVERAGED DATA
 
-site_file <- file.path(OUT_MASTER_DIR, MASTER_SITE_FILE)
+master_dir <- file.path(OUTPUT_DIR, "master")
+site_file <- file.path(master_dir, MASTER_SITE_FILE)
 
 HJA_Ave <- read_csv(
   site_file,

@@ -25,7 +25,7 @@ theme_set(
     )
 )
 
-output_dir <- OUT_MASTER_DIR
+output_dir <- file.path(OUTPUT_DIR, "master")
 plot_dir <- file.path(FIGURES_DIR, "supp", "analysis", "correlations")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 
@@ -38,9 +38,6 @@ if (length(old_corr_files) > 0) {
 # load data
 
 site_file <- file.path(output_dir, MASTER_SITE_FILE)
-if (!file.exists(site_file)) {
-  site_file <- file.path(OUTPUT_DIR, MASTER_SITE_FILE)
-}
 
 HJA_Ave <- read_csv(
   site_file,

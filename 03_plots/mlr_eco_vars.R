@@ -59,7 +59,8 @@ site_order <- SITE_ORDER_HYDROMETRIC
 predictor_order <- c("RBI", "RCS", "FDC", "SD", "CHS", "WB")
 
 # Predictor availability by site (distinguish true no-data from not-selected).
-annual_path <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
+master_dir <- file.path(OUTPUT_DIR, "master")
+annual_path <- file.path(master_dir, MASTER_ANNUAL_FILE)
 
 annual_master <- if (file.exists(annual_path)) read_csv(annual_path, show_col_types = FALSE) else tibble()
 

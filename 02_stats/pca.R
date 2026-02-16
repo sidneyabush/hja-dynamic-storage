@@ -40,7 +40,8 @@ unlink(file.path(output_dir, c(
 # This file was created by 06_Aggregate_All_Metrics.R and contains all annual
 # storage metrics, temperature metrics, and catchment characteristics
 
-annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
+master_dir <- file.path(OUTPUT_DIR, "master")
+annual_file <- file.path(master_dir, MASTER_ANNUAL_FILE)
 
 HJA_Yr <- read_csv(
   annual_file,

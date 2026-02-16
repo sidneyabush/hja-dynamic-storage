@@ -39,8 +39,6 @@ OUT_MET_EXTENDED_DIR <- file.path(OUT_METRICS_DIR, "extended_dynamic")
 OUT_MET_ECO_DIR <- file.path(OUT_METRICS_DIR, "eco")
 OUT_MET_SUPPORT_DIR <- file.path(OUT_METRICS_DIR, "support")
 
-OUT_MASTER_DIR <- file.path(OUTPUT_DIR, "master")
-
 OUT_STATS_DIR <- file.path(OUTPUT_DIR, "models")
 OUT_STATS_ANOVA_DIR <- file.path(OUT_STATS_DIR, "anova_tukey")
 OUT_STATS_PCA_DIR <- file.path(OUT_STATS_DIR, "pca")
@@ -64,7 +62,7 @@ for (d in c(
   OUT_MET_EXTENDED_DIR,
   OUT_MET_ECO_DIR,
   OUT_MET_SUPPORT_DIR,
-  OUT_MASTER_DIR,
+  file.path(OUTPUT_DIR, "master"),
   OUT_STATS_DIR,
   OUT_STATS_ANOVA_DIR,
   OUT_STATS_PCA_DIR,

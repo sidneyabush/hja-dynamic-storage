@@ -31,15 +31,17 @@ start_dir <- if (!is.na(script_path) && nzchar(script_path)) dirname(script_path
 repo_root <- find_repo_root(start_dir)
 
 source(file.path(repo_root, "config.R"))
+master_dir <- file.path(OUTPUT_DIR, "master")
 
 required_outputs <- c(
-  file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE),
-  file.path(OUT_MASTER_DIR, MASTER_SITE_FILE),
-  file.path(OUT_MASTER_DIR, "master_site_metric_summary_stats.csv"),
+  file.path(master_dir, MASTER_ANNUAL_FILE),
+  file.path(master_dir, MASTER_SITE_FILE),
+  file.path(master_dir, "master_site_metric_summary_stats.csv"),
   file.path(OUT_MET_SUPPORT_DIR, "site_metric_availability.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "anova_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_hsd_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv"),
+  file.path(OUT_STATS_ANOVA_DIR, "storage_metrics_summary_stats_by_site.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
   file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary_strict.csv"),
@@ -59,7 +61,7 @@ if (length(missing_outputs) > 0) {
   )
 }
 
-annual <- read_csv(file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE), show_col_types = FALSE)
+annual <- read_csv(file.path(master_dir, MASTER_ANNUAL_FILE), show_col_types = FALSE)
 if (!all(c("site", "year") %in% names(annual))) {
   stop("master_annual is missing required columns: site/year")
 }

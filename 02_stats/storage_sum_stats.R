@@ -32,7 +32,8 @@ if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # LOAD ANNUAL STORAGE METRICS
 
-annual_file <- file.path(OUT_MASTER_DIR, MASTER_ANNUAL_FILE)
+master_dir <- file.path(OUTPUT_DIR, "master")
+annual_file <- file.path(master_dir, MASTER_ANNUAL_FILE)
 
 HJA_annual <- read_csv(
   annual_file,
@@ -180,3 +181,32 @@ site_means <- HJA_annual %>%
 write.csv(site_means,
           file.path(output_dir, "site_means_storage_metrics.csv"),
           row.names = FALSE)
+
+# SUMMARY STATS TABLE: long format per site and metric
+site_summary_stats <- HJA_annual %>%
+  mutate(site = as.character(site)) %>%
+  select(site, all_of(storage_metrics)) %>%
+  pivot_longer(
+    cols = all_of(storage_metrics),
+    names_to = "metric",
+    values_to = "value"
+  ) %>%
+  group_by(site, metric) %>%
+  summarise(
+    n = sum(is.finite(value)),
+    mean = ifelse(n > 0, mean(value, na.rm = TRUE), NA_real_),
+    sd = ifelse(n > 1, sd(value, na.rm = TRUE), NA_real_),
+    min = ifelse(n > 0, min(value, na.rm = TRUE), NA_real_),
+    median = ifelse(n > 0, median(value, na.rm = TRUE), NA_real_),
+    max = ifelse(n > 0, max(value, na.rm = TRUE), NA_real_),
+    .groups = "drop"
+  ) %>%
+  mutate(site = factor(site, levels = site_order)) %>%
+  arrange(site, metric) %>%
+  mutate(site = as.character(site))
+
+write.csv(
+  site_summary_stats,
+  file.path(output_dir, "storage_metrics_summary_stats_by_site.csv"),
+  row.names = FALSE
+)

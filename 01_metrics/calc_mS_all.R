@@ -36,7 +36,7 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
 # EC source is comma-delimited in current workflow input
-EC <- read.delim(file.path(ec_dir, "CF01201_v3.txt"), sep = ",")
+EC <- read.delim(file.path(ec_dir, "CF01201_v4.txt"), sep = ",")
 
 EC_daily <- EC %>%
   mutate(date = as.Date(DATE_TIME, "%Y-%m-%d")) %>%
