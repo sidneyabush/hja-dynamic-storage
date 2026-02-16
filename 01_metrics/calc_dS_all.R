@@ -7,6 +7,9 @@ library(dplyr)
 library(lubridate)
 library(readr)
 library(tidyr)
+library(pracma)
+library(zoo)
+library(tibble)
 
 rm(list = ls())
 
@@ -14,11 +17,15 @@ rm(list = ls())
 source("config.R")
 
 output_dir <- OUT_MET_DYNAMIC_DIR
+output_dir_ed <- OUT_MET_EXTENDED_DIR
 discharge_dir <- DISCHARGE_DIR
 sites_keep <- SITE_ORDER_HYDROMETRIC
 
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
+}
+if (!dir.exists(output_dir_ed)) {
+  dir.create(output_dir_ed, recursive = TRUE)
 }
 
 # ---- PART 1: RBI and recession slope (RCS) from discharge ----
@@ -339,5 +346,110 @@ write.csv(
     rename(SD = S_annual_mm, FDC = fdc_slope) %>%
     select(site, year = wateryear, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm),
   file.path(output_dir, "storage_discharge_fdc_annual.csv"),
+  row.names = FALSE
+)
+
+# ---- PART 3: Extended dynamic storage (WB drawdown) ----
+
+discharge_wb <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
+  mutate(
+    SITECODE = standardize_site_code(SITECODE),
+    date = as.Date(DATE, "%m/%d/%Y"),
+    waterYear = get_water_year(date)
+  ) %>%
+  filter(
+    SITECODE %in% SITE_ORDER_HYDROMETRIC,
+    waterYear >= WY_START,
+    waterYear <= WY_END
+  )
+
+goodyears_wb <- discharge_wb %>%
+  group_by(SITECODE, waterYear) %>%
+  summarise(num_days = n_distinct(date), .groups = "drop") %>%
+  filter(num_days >= 365)
+
+discharge_wb <- discharge_wb %>%
+  semi_join(goodyears_wb, by = c("SITECODE", "waterYear")) %>%
+  mutate(SITECODE = factor(SITECODE, levels = SITE_ORDER_HYDROMETRIC)) %>%
+  group_by(SITECODE) %>%
+  arrange(date) %>%
+  mutate(Q_smoothed = rollmean(MEAN_Q, k = 7, fill = NA, align = "right")) %>%
+  ungroup() %>%
+  filter(!is.na(Q_smoothed))
+
+find_last_peak <- function(data, threshold_pct = 0.08) {
+  time_series <- data$MEAN_Q
+  max_peak_discharge <- max(time_series, na.rm = TRUE)
+  threshold_value <- max_peak_discharge * threshold_pct
+  peaks <- tryCatch(findpeaks(time_series), error = function(e) NULL)
+  if (is.null(peaks)) {
+    return(tibble(last_peak_date = as.Date(NA), last_peak_value = NA_real_))
+  }
+
+  peaks_df <- as_tibble(peaks) %>%
+    rename(peak_height = V1, peak_index = V2) %>%
+    filter(peak_height >= threshold_value) %>%
+    mutate(
+      date = data$date[peak_index],
+      wyd = get_water_year_day(date)
+    ) %>%
+    filter(wyd < 300) %>%
+    arrange(peak_index)
+
+  last_valid_peak <- peaks_df %>% slice_tail(n = 1)
+  if (nrow(last_valid_peak) == 0) {
+    return(tibble(last_peak_date = as.Date(NA), last_peak_value = NA_real_))
+  }
+
+  tibble(
+    last_peak_date = last_valid_peak$date,
+    last_peak_value = time_series[last_valid_peak$peak_index]
+  )
+}
+
+last_peak <- discharge_wb %>%
+  group_by(SITECODE, waterYear) %>%
+  do(find_last_peak(.)) %>%
+  ungroup() %>%
+  mutate(wyd = get_water_year_day(last_peak_date))
+
+write.csv(
+  last_peak,
+  file.path(output_dir_ed, "ds_drawdown_date.csv"),
+  row.names = FALSE
+)
+
+wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
+  mutate(
+    SITECODE = standardize_site_code(SITECODE),
+    DATE = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y")),
+    waterYear = get_water_year(DATE)
+  ) %>%
+  filter(waterYear >= WY_START, waterYear <= WY_END)
+
+wb_daily <- left_join(wb_daily, last_peak, by = c("SITECODE", "waterYear")) %>%
+  filter(!is.na(last_peak_date))
+
+wb_cropped <- wb_daily %>%
+  group_by(SITECODE, waterYear) %>%
+  filter(DATE >= last_peak_date)
+
+wb_drawdown <- wb_cropped %>%
+  group_by(SITECODE, waterYear) %>%
+  mutate(
+    DS_daily = P_mm_d - Q_mm_d - ET_mm_d,
+    WB = cumsum(DS_daily)
+  ) %>%
+  ungroup()
+
+ds_max <- wb_drawdown %>%
+  group_by(SITECODE, waterYear) %>%
+  slice_min(WB, n = 1) %>%
+  select(SITECODE, waterYear, WB) %>%
+  ungroup()
+
+write.csv(
+  ds_max,
+  file.path(output_dir_ed, "ds_drawdown_annual.csv"),
   row.names = FALSE
 )
