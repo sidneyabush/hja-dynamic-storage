@@ -5,6 +5,10 @@ Dynamic, mobile, and extended dynamic storage workflow for H.J. Andrews watershe
 Eco-response variable notes:
 - `WS09` has no stream-temperature records in `HT00451_v10.txt`, so `T_7DMax` and `T_Q7Q5` are unavailable (`NA`) for `WS09`.
 
+CHS (EC baseflow) notes:
+- CHS keeps a water year only when there are at least `300` days with overlapping EC + discharge data (`CHS_MIN_DAYS_PER_WY` in `config.R`).
+- EC input file is `inputs/ec/CF01201_v4.txt`.
+
 ## scripts
 
 - `01_metrics`: build master datasets and metric calculations

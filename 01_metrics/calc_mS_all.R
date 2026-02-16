@@ -1,5 +1,5 @@
 # Calculate mobile-storage metrics (CHS + isotope metrics) by site and water year.
-# Inputs: DISCHARGE_DIR/HF00402_v14.csv; EC_DIR/CF01201_v3.txt; ISOTOPE_DIR/MTT_FYW.csv; ISOTOPE_DIR/DampingRatios_2025-07-07.csv.
+# Inputs: DISCHARGE_DIR/HF00402_v14.csv; EC_DIR/CF01201_v4.txt; ISOTOPE_DIR/MTT_FYW.csv; ISOTOPE_DIR/DampingRatios_2025-07-07.csv.
 # Author: Keira Johnson (original CHS), Sidney Bush
 # Date: 2026-02-14
 
@@ -35,11 +35,14 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   ) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
-# EC source is comma-delimited in current workflow input
-EC <- read.delim(file.path(ec_dir, "CF01201_v4.txt"), sep = ",")
+ec_file <- file.path(ec_dir, "CF01201_v4.txt")
+if (!file.exists(ec_file)) {
+  stop("Missing required EC file: ", ec_file)
+}
+EC <- read_csv(ec_file, show_col_types = FALSE)
 
 EC_daily <- EC %>%
-  mutate(date = as.Date(DATE_TIME, "%Y-%m-%d")) %>%
+  mutate(date = as.Date(DATE_TIME)) %>%
   mutate(SITECODE = standardize_site_code(SITECODE)) %>%
   filter(SITECODE %in% SITE_ORDER_CHEMISTRY) %>%
   group_by(SITECODE, date) %>%
@@ -57,7 +60,7 @@ EC_Q <- left_join(
 goodyears <- EC_Q %>%
   group_by(SITECODE, waterYear) %>%
   summarise(num_days = n_distinct(date), .groups = "drop") %>%
-  filter(num_days >= 365)
+  filter(num_days >= CHS_MIN_DAYS_PER_WY)
 
 EC_Q <- EC_Q %>%
   semi_join(goodyears, by = c("SITECODE", "waterYear")) %>%
@@ -86,6 +89,12 @@ annual_bf_prop <- EC_Q %>%
 write.csv(
   annual_bf_prop,
   file.path(output_dir, "annual_gw_prop.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  goodyears %>% arrange(SITECODE, waterYear),
+  file.path(OUT_MET_SUPPORT_DIR, "chs_wy_day_counts_kept.csv"),
   row.names = FALSE
 )
 

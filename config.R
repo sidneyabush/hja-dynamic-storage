@@ -96,13 +96,14 @@ SITE_ORDER_HYDROMETRIC <- c(
   "WS08" # Watershed 08
 )
 
-# Sites with chemistry data (for CHS) - excludes WS06, WS09, Look
+# Sites with chemistry data (for CHS)
 SITE_ORDER_CHEMISTRY <- c(
   "WS10", # Watershed 10
   "WS01", # Watershed 01
+  "Look", # Lookout Creek
   "WS02", # Watershed 02
   "WS03", # Watershed 03
-  "WS06", # Watershed 06 (limited: 2017-2019)
+  "WS06", # Watershed 06
   "WS07", # Watershed 07
   "WS08", # Watershed 08
   "Mack" # Mack Creek
@@ -135,6 +136,9 @@ SITE_NAMES <- c(
 
 WY_START <- 1997
 WY_END <- 2020
+
+# Minimum number of daily EC+Q observations needed to keep a CHS water year.
+CHS_MIN_DAYS_PER_WY <- 300
 
 # STORAGE METRICS DEFINITIONS
 
@@ -295,19 +299,26 @@ SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))
 
 # Water-balance daily input (current workflow path only).
 resolve_water_balance_daily_file <- function() {
-  path <- file.path(
-    OUT_MET_SUPPORT_DIR,
-    "daily_water_balance_et_hamon_zhang_coeff_interp.csv"
+  candidates <- c(
+    file.path(
+      OUT_MET_SUPPORT_DIR,
+      "daily_water_balance_et_hamon_zhang_coeff_interp.csv"
+    ),
+    file.path(
+      OUT_MET_SUPPORT_DIR,
+      "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv"
+    )
   )
-  if (!file.exists(path)) {
+  hits <- candidates[file.exists(candidates)]
+  if (length(hits) == 0) {
     stop(
       paste0(
-        "Missing required water-balance daily file: ",
-        path
+        "Missing required water-balance daily file. Checked:\n- ",
+        paste(candidates, collapse = "\n- ")
       )
     )
   }
-  path
+  hits[1]
 }
 
 resolve_drainage_area_file <- function() {

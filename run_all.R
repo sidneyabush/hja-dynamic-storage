@@ -96,9 +96,9 @@ run_script("helpers/check_inputs.R")
 # Metrics.
 metric_scripts <- c(
   "01_metrics/00_create_master_hydrometric_dataset.R",
+  "01_metrics/calc_edS_WB.R",
   "01_metrics/calc_dS_all.R",
   "01_metrics/calc_mS_all.R",
-  "01_metrics/calc_edS_WB.R",
   "01_metrics/calc_eco_vars.R",
   "01_metrics/99_agg_all_metrics.R"
 )

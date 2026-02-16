@@ -6,7 +6,7 @@
 suppressPackageStartupMessages({
   library(readr)
 })
-22
+
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
@@ -74,7 +74,7 @@ if (length(missing_files) > 0) {
 }
 
 # EC file used by the current workflow.
-ec_file <- file.path(EC_DIR, "CF01201_v3.txt")
+ec_file <- file.path(EC_DIR, "CF01201_v4.txt")
 if (!file.exists(ec_file)) {
   stop("Missing required EC input file: ", ec_file)
 }
@@ -119,6 +119,3 @@ if (!("WATERTEMP_MEAN" %in% temp_cols)) {
   )
 }
 check_columns(resolve_catchment_characteristics_file(), c("Site"))
-
-# Derived file check (must come from workflow outputs)
-invisible(resolve_water_balance_daily_file())
