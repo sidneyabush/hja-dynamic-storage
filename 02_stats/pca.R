@@ -74,7 +74,14 @@ HJA_selected <- HJA_Yr %>%
 # Remove outliers only from non-missing values
 
 HJA_clean <- HJA_selected %>%
-  filter(if_all(all_of(features), ~ is.na(.) | abs((. - mean(., na.rm = TRUE)) / sd(., na.rm = TRUE)) < 3))
+  filter(if_all(all_of(features), ~ {
+    s <- sd(., na.rm = TRUE)
+    if (is.na(s) || s == 0) {
+      TRUE
+    } else {
+      is.na(.) | abs((. - mean(., na.rm = TRUE)) / s) < 3
+    }
+  }))
 
 # IMPUTE MISSING VALUES & NORMALIZE FEATURES
 # Impute missing values with column means so all sites can be included
@@ -87,13 +94,23 @@ scaled_features <- HJA_clean %>%
     } else {
       ifelse(is.na(.), mean(., na.rm = TRUE), .)
     }
-  })) %>%
-  mutate(across(all_of(features), scale))
+  }))
+
+# Drop constant/all-NA columns that cannot be scaled by PCA.
+feature_sds <- scaled_features %>%
+  summarise(across(all_of(features), ~ sd(.x, na.rm = TRUE)))
+feature_sds_vec <- as.numeric(feature_sds[1, ])
+names(feature_sds_vec) <- names(feature_sds)
+features_kept <- names(feature_sds_vec)[is.finite(feature_sds_vec) & feature_sds_vec > 0]
+
+if (length(features_kept) == 0) {
+  stop("PCA failed: all candidate features are constant or missing after cleaning.")
+}
 
 # RUN PCA
 
 pca_result <- prcomp(
-  scaled_features %>% select(-site, -year),
+  scaled_features %>% select(all_of(features_kept)),
   center = TRUE,
   scale. = TRUE
 )

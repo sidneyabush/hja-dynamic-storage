@@ -149,9 +149,9 @@ DYNAMIC_METRICS <- c("RBI", "RCS", "FDC", "SD")
 
 # Mobile storage metrics
 # CHS = Chemical Hydrograph Separation (mean baseflow fraction)
-# MTT = Mean Transit Time, Fyw = Young Water Fraction, DR = Damping Ratio
+# MTT1/MTT2 = Mean Transit Time period-specific values, Fyw = Young Water Fraction, DR = Damping Ratio
 MOBILE_METRICS_ANNUAL <- c("CHS")
-MOBILE_METRICS_SITE <- c("MTT", "Fyw", "DR") # Site-level from isotopes
+MOBILE_METRICS_SITE <- c("MTT1", "MTT2", "Fyw", "DR") # Site-level from isotopes
 
 # Extended dynamic storage metrics (from water balance - annual)
 # WB = Water Balance (extended dynamic storage)

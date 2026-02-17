@@ -7,6 +7,7 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 library(ggcorrplot)
+library(RColorBrewer)
 
 rm(list = ls())
 
@@ -27,13 +28,22 @@ theme_set(
 
 output_dir <- file.path(OUTPUT_DIR, "master")
 plot_dir <- file.path(FIGURES_DIR, "supp", "analysis", "correlations")
-if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
+if (!dir.exists(plot_dir)) {
+  dir.create(plot_dir, recursive = TRUE)
+}
 
 # Clear prior correlation files so the folder reflects current workflow outputs.
-old_corr_files <- list.files(plot_dir, pattern = "corrplot\\.png$", full.names = TRUE)
+old_corr_files <- list.files(
+  plot_dir,
+  pattern = "corrplot\\.png$",
+  full.names = TRUE
+)
 if (length(old_corr_files) > 0) {
   unlink(old_corr_files)
 }
+
+# Use a ColorBrewer diverging palette (blue negative -> red positive).
+CORR_COLORS <- rev(RColorBrewer::brewer.pal(11, "RdBu"))[c(2, 6, 10)]
 
 # load data
 
@@ -46,20 +56,33 @@ HJA_Ave <- read_csv(
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) {
+if (
+  !("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))
+) {
   HJA_Ave <- HJA_Ave %>% mutate(basin_slope = Slope_mean)
 }
 
 # catch_chars MLR family correlation matrix
 
 watershed_predictors <- c(
-  "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
-  "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
+  "basin_slope",
+  "Harvest",
+  "Landslide_Total",
+  "Landslide_Young",
+  "Lava1_per",
+  "Lava2_per",
+  "Ash_Per",
+  "Pyro_per"
 )
-watershed_predictors <- watershed_predictors[watershed_predictors %in% names(HJA_Ave)]
+watershed_predictors <- watershed_predictors[
+  watershed_predictors %in% names(HJA_Ave)
+]
 
 if (length(watershed_predictors) >= 2) {
-  cor_catchment <- cor(HJA_Ave[watershed_predictors], use = "pairwise.complete.obs")
+  cor_catchment <- cor(
+    HJA_Ave[watershed_predictors],
+    use = "pairwise.complete.obs"
+  )
   corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
   corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 3
 
@@ -68,6 +91,7 @@ if (length(watershed_predictors) >= 2) {
     hc.order = FALSE,
     type = "upper",
     outline.col = "white",
+    colors = CORR_COLORS,
     lab = TRUE,
     lab_size = corr_value_text_size,
     tl.cex = corr_axis_text_size / ggplot2::.pt
@@ -106,7 +130,9 @@ HJA_Yr <- read_csv(
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-if (!("q5_7d_mm_d" %in% names(HJA_Yr)) && ("min_Q_7d_mm_d" %in% names(HJA_Yr))) {
+if (
+  !("q5_7d_mm_d" %in% names(HJA_Yr)) && ("min_Q_7d_mm_d" %in% names(HJA_Yr))
+) {
   HJA_Yr <- HJA_Yr %>%
     mutate(q5_7d_mm_d = min_Q_7d_mm_d)
 }
@@ -118,15 +144,23 @@ if (!("Q_7Q5" %in% names(HJA_Yr)) && ("q5_7d_mm_d" %in% names(HJA_Yr))) {
   HJA_Yr <- HJA_Yr %>%
     mutate(Q_7Q5 = q5_7d_mm_d)
 }
-if (!("temp_during_q5_7d_C" %in% names(HJA_Yr)) && ("temp_during_min_Q_7d_C" %in% names(HJA_Yr))) {
+if (
+  !("temp_during_q5_7d_C" %in% names(HJA_Yr)) &&
+    ("temp_during_min_Q_7d_C" %in% names(HJA_Yr))
+) {
   HJA_Yr <- HJA_Yr %>%
     mutate(temp_during_q5_7d_C = temp_during_min_Q_7d_C)
 }
-if (!("temp_during_q5_7d_C" %in% names(HJA_Yr)) && ("temp_at_min_Q_7d_C" %in% names(HJA_Yr))) {
+if (
+  !("temp_during_q5_7d_C" %in% names(HJA_Yr)) &&
+    ("temp_at_min_Q_7d_C" %in% names(HJA_Yr))
+) {
   HJA_Yr <- HJA_Yr %>%
     mutate(temp_during_q5_7d_C = temp_at_min_Q_7d_C)
 }
-if (!("T_Q7Q5" %in% names(HJA_Yr)) && ("temp_during_q5_7d_C" %in% names(HJA_Yr))) {
+if (
+  !("T_Q7Q5" %in% names(HJA_Yr)) && ("temp_during_q5_7d_C" %in% names(HJA_Yr))
+) {
   HJA_Yr <- HJA_Yr %>%
     mutate(T_Q7Q5 = temp_during_q5_7d_C)
 }
@@ -135,7 +169,9 @@ eco_response_vars <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
 storage_predictor_vars <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "DR")
-storage_predictor_vars <- storage_predictor_vars[storage_predictor_vars %in% names(HJA_Yr)]
+storage_predictor_vars <- storage_predictor_vars[
+  storage_predictor_vars %in% names(HJA_Yr)
+]
 
 eco_corr_vars <- unique(c(eco_response_vars, storage_predictor_vars))
 eco_corr_vars <- eco_corr_vars[eco_corr_vars %in% names(HJA_Yr)]
@@ -150,6 +186,7 @@ if (length(eco_corr_vars) >= 2) {
     hc.order = FALSE,
     type = "upper",
     outline.col = "white",
+    colors = CORR_COLORS,
     lab = TRUE,
     lab_size = corr_value_text_size,
     tl.cex = corr_axis_text_size / ggplot2::.pt
@@ -173,6 +210,149 @@ if (length(eco_corr_vars) >= 2) {
     p_eco,
     width = 11 * FIG_WIDTH_SCALE,
     height = 11 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  )
+}
+
+# dynamic-vs-mobile storage correlation matrix (site-level)
+
+dynamic_metrics_site <- c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean")
+mobile_metrics_site <- c("CHS_mean", "MTT1", "Fyw", "DR")
+dynamic_metrics_site <- dynamic_metrics_site[
+  dynamic_metrics_site %in% names(HJA_Ave)
+]
+mobile_metrics_site <- mobile_metrics_site[
+  mobile_metrics_site %in% names(HJA_Ave)
+]
+
+if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
+  cross_cor <- cor(
+    HJA_Ave[, dynamic_metrics_site, drop = FALSE],
+    HJA_Ave[, mobile_metrics_site, drop = FALSE],
+    use = "pairwise.complete.obs"
+  )
+
+  cross_long <- as.data.frame(as.table(cross_cor)) %>%
+    rename(dynamic_metric = Var1, mobile_metric = Var2, corr = Freq) %>%
+    mutate(
+      dynamic_metric = gsub("_mean$", "", dynamic_metric),
+      mobile_metric = gsub("_mean$", "", mobile_metric),
+      dynamic_metric = factor(
+        dynamic_metric,
+        levels = gsub("_mean$", "", dynamic_metrics_site)
+      ),
+      mobile_metric = factor(
+        mobile_metric,
+        levels = gsub("_mean$", "", mobile_metrics_site)
+      )
+    )
+
+  # Right-half triangular mask on a rectangular dynamic x mobile matrix.
+  cross_half <- cross_long %>%
+    mutate(
+      dynamic_id = as.integer(dynamic_metric),
+      mobile_id = as.integer(mobile_metric),
+      dynamic_pos = ifelse(
+        length(dynamic_metrics_site) > 1,
+        (dynamic_id - 1) / (length(dynamic_metrics_site) - 1),
+        0
+      ),
+      mobile_pos = ifelse(
+        length(mobile_metrics_site) > 1,
+        (mobile_id - 1) / (length(mobile_metrics_site) - 1),
+        0
+      )
+    ) %>%
+    filter(mobile_pos >= dynamic_pos)
+
+  p_cross <- ggplot(
+    cross_half,
+    aes(x = mobile_metric, y = dynamic_metric, fill = corr)
+  ) +
+    geom_tile(color = "white", linewidth = 0.6) +
+    geom_text(
+      aes(label = sprintf("%.2f", corr)),
+      size = FIG_TILE_TEXT_SIZE + 1
+    ) +
+    scale_fill_gradient2(
+      low = CORR_COLORS[1],
+      mid = "white",
+      high = CORR_COLORS[3],
+      midpoint = 0,
+      limits = c(-1, 1),
+      name = "r"
+    ) +
+    labs(x = "Mobile", y = "Dynamic") +
+    theme_pub() +
+    theme(
+      axis.text.x = element_text(
+        angle = 45,
+        hjust = 1,
+        size = FIG_AXIS_TEXT_SIZE + 1
+      ),
+      axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+      axis.title.x = element_text(size = FIG_AXIS_TITLE_SIZE + 2),
+      axis.title.y = element_text(size = FIG_AXIS_TITLE_SIZE + 2),
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
+
+  ggsave(
+    file.path(plot_dir, "dynamic_mobile_storage_cross_corr.png"),
+    p_cross,
+    width = 9 * FIG_WIDTH_SCALE,
+    height = 7 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  )
+}
+
+# CHS vs other mobile storage metrics correlation matrix (site-level)
+
+mobile_corr_vars <- c("CHS_mean", "MTT1", "Fyw", "DR")
+mobile_corr_vars <- mobile_corr_vars[mobile_corr_vars %in% names(HJA_Ave)]
+
+if (length(mobile_corr_vars) >= 2) {
+  cor_mobile <- cor(
+    HJA_Ave[, mobile_corr_vars, drop = FALSE],
+    use = "pairwise.complete.obs"
+  )
+  colnames(cor_mobile) <- gsub("_mean$", "", colnames(cor_mobile))
+  rownames(cor_mobile) <- gsub("_mean$", "", rownames(cor_mobile))
+
+  corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
+  corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 1
+
+  p_mobile <- ggcorrplot(
+    cor_mobile,
+    hc.order = FALSE,
+    type = "upper",
+    outline.col = "white",
+    colors = CORR_COLORS,
+    lab = TRUE,
+    lab_size = corr_value_text_size,
+    tl.cex = corr_axis_text_size / ggplot2::.pt
+  ) +
+    labs(x = NULL, y = NULL) +
+    theme(
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = corr_axis_text_size),
+      axis.text.y = element_text(size = corr_axis_text_size),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
+
+  ggsave(
+    file.path(plot_dir, "chs_mobile_storage_corr.png"),
+    p_mobile,
+    width = 8 * FIG_WIDTH_SCALE,
+    height = 8 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }

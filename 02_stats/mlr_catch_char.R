@@ -64,7 +64,7 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
 # Note: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
 # Storage metrics by type (using method abbreviations):
 #   Dynamic: RBI, RCS, FDC, SD
-#   Mobile: CHS, MTT, Fyw, DR
+#   Mobile: CHS, MTT1, MTT2, Fyw, DR
 #   Extended Dynamic: WB
 
 outcome_vars <- c(
@@ -73,7 +73,8 @@ outcome_vars <- c(
   "FDC_mean",   # FDC - Flow Duration Curve - Dynamic
   "SD_mean",    # SD  - Storage-Discharge - Dynamic
   "CHS_mean",   # CHS - Chemical Hydrograph Separation - Mobile
-  "MTT",        # MTT - Mean Transit Time - Mobile
+  "MTT1",       # MTT1 - Mean Transit Time period 1 - Mobile
+  "MTT2",       # MTT2 - Mean Transit Time period 2 - Mobile
   "Fyw",        # Fyw - Young Water Fraction - Mobile
   "DR",         # DR  - Damping Ratio - Mobile
   "WB_mean"     # WB  - Water Balance - Extended Dynamic

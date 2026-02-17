@@ -108,7 +108,24 @@ mtt_fyw <- read_csv(
     site = trimws(site),
     site = standardize_site_code(site)
   ) %>%
-  select(site, MTT = MTTM, Fyw = FYWM) %>%
+  mutate(
+    MTT2L_val = if ("MTT2L" %in% names(.)) suppressWarnings(as.numeric(MTT2L)) else NA_real_,
+    MTT2H_val = if ("MTT2H" %in% names(.)) suppressWarnings(as.numeric(MTT2H)) else NA_real_,
+    MTT2M_val = if ("MTT2M" %in% names(.)) suppressWarnings(as.numeric(MTT2M)) else NA_real_
+  ) %>%
+  mutate(
+    MTT1 = suppressWarnings(as.numeric(MTT1)),
+    MTT2 = suppressWarnings(as.numeric(dplyr::coalesce(
+      MTT2M_val,
+      rowMeans(cbind(
+        MTT2L_val,
+        MTT2H_val
+      ), na.rm = TRUE)
+    ))),
+    MTT2 = ifelse(is.nan(MTT2), NA_real_, MTT2),
+    Fyw = suppressWarnings(as.numeric(FYWM))
+  ) %>%
+  select(site, MTT1, MTT2, Fyw) %>%
   filter(!is.na(site), site != "")
 
 damping <- read_csv(

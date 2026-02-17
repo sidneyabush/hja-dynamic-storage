@@ -422,7 +422,10 @@ write.csv(
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
     SITECODE = standardize_site_code(SITECODE),
-    DATE = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y")),
+    DATE = parse_date_time(
+      DATE,
+      orders = c("Ymd", "Y-m-d", "mdy", "m/d/y", "dmy")
+    ) %>% as.Date(),
     waterYear = get_water_year(DATE)
   ) %>%
   filter(waterYear >= WY_START, waterYear <= WY_END)

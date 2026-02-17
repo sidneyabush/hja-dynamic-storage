@@ -371,14 +371,14 @@ local({
     file.path(main_dir, "ds_anova_tukey.png"),
     fig_main,
     width = 11 * FIG_WIDTH_SCALE,
-    height = 8 * FIG_HEIGHT_SCALE,
+    height = 12 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
   safe_ggsave(
     file.path(main_dir, "ds_anova_tukey.pdf"),
     fig_main,
     width = 11 * FIG_WIDTH_SCALE,
-    height = 8 * FIG_HEIGHT_SCALE
+    height = 12 * FIG_HEIGHT_SCALE
   )
 
   all_long <- bind_rows(annual_long, iso_long)
@@ -444,8 +444,18 @@ local({
 
   site_order <- SITE_ORDER_HYDROMETRIC
   site_order_iso <- SITE_ORDER_ALL
+  # EC/CHS plots: show all hydrometric sites; sites without CHS appear as blanks.
+  CHS_SHOW_ALL_HYDRO_SITES <- TRUE
+  # Keep these sites on axes, but do not plot CHS points/lines for them.
+  CHS_EXCLUDE_DATA_SITES <- c("Look")
+  site_order_chs <- if (CHS_SHOW_ALL_HYDRO_SITES) {
+    SITE_ORDER_HYDROMETRIC
+  } else {
+    SITE_ORDER_CHEMISTRY
+  }
   site_colors <- SITE_COLORS
   site_labels_panel <- make_panel_label_map(site_order)
+  site_labels_panel_chs <- make_panel_label_map(site_order_chs)
 
   # Metric labels
   metric_labels <- c(
@@ -455,7 +465,8 @@ local({
     "SD" = "SD (mm)",
     "WB" = "WB (mm)",
     "CHS" = "CHS",
-    "MTT" = "MTT (yr)",
+    "MTT1" = "MTT1 (yr)",
+    "MTT2" = "MTT2 (yr)",
     "Fyw" = "Fyw",
     "DR" = "DR"
   )
@@ -497,6 +508,14 @@ local({
 
   annual_data <- read_csv(annual_file, show_col_types = FALSE) %>%
     standardize_sites(allowed_sites = site_order)
+
+  letters_file <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
+  letters_df <- if (file.exists(letters_file)) {
+    read_csv(letters_file, show_col_types = FALSE) %>%
+      mutate(site = standardize_site_code(site))
+  } else {
+    tibble(metric = character(), site = character(), group_letter = character())
+  }
 
   # Isotope data for mobile storage (site-level metrics)
   isotope_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
@@ -647,11 +666,7 @@ local({
       isotope_data$MTT1_err <- NA_real_
     }
     if (!("MTT2" %in% names(isotope_data))) {
-      isotope_data$MTT2 <- if ("MTT" %in% names(isotope_data)) {
-        isotope_data$MTT
-      } else {
-        NA_real_
-      }
+      isotope_data$MTT2 <- NA_real_
     }
     if (!("MTT2_err" %in% names(isotope_data))) {
       isotope_data$MTT2_err <- NA_real_
@@ -731,14 +746,17 @@ local({
         }
       ) %>%
       select(site, year, CHS) %>%
-      standardize_sites()
+      standardize_sites(allowed_sites = site_order_chs) %>%
+      filter(!(as.character(site) %in% CHS_EXCLUDE_DATA_SITES))
     cat("  Loaded CHS data:", nrow(chs_data), "rows\n")
   } else {
     # Try to get CHS from annual data
     if ("CHS" %in% names(annual_data)) {
       chs_data <- annual_data %>%
         select(site, year, CHS) %>%
-        filter(!is.na(CHS))
+        filter(!is.na(CHS), as.character(site) %in% site_order_chs) %>%
+        mutate(site = factor(as.character(site), levels = site_order_chs)) %>%
+        filter(!(as.character(site) %in% CHS_EXCLUDE_DATA_SITES))
       cat("  Using CHS from annual data:", nrow(chs_data), "rows\n")
     } else {
       chs_data <- NULL
@@ -815,7 +833,7 @@ local({
     facet_wrap(
       ~metric_label,
       scales = "free_y",
-      ncol = 3,
+      ncol = 2,
       axes = "margins",
       axis.labels = "margins",
       labeller = labeller(metric_label = metric_labels_panel)
@@ -841,7 +859,7 @@ local({
   # FIGURE 4: MOBILE ISOTOPE (MTT, Fyw, DR)
 
   if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
-    metric_order_iso <- c("MTT1", "MTT2", "Fyw", "DR")
+    metric_order_iso <- c("DR", "Fyw", "MTT1", "MTT2")
 
     isotope_values_long <- isotope_data %>%
       select(site, all_of(metric_order_iso)) %>%
@@ -861,9 +879,20 @@ local({
       left_join(isotope_err_long, by = c("site", "metric")) %>%
       mutate(metric = factor(metric, levels = metric_order_iso))
 
-    metric_labels_iso <- make_panel_label_map(metric_order_iso)
-
-    fig4 <- ggplot(isotope_plot_long, aes(x = site, y = value, color = site)) +
+    metric_titles_iso <- c(
+      "DR" = "DR",
+      "Fyw" = "Fyw",
+      "MTT1" = "MTT1",
+      "MTT2" = "MTT2"
+    )
+    metric_labels_iso <- setNames(
+      paste0(letters[seq_along(metric_order_iso)], ") ", metric_titles_iso[metric_order_iso]),
+      metric_order_iso
+    )
+    base_iso_plot <- ggplot(
+      isotope_plot_long,
+      aes(x = site, y = value, color = site)
+    ) +
       geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
       geom_errorbar(
         aes(ymin = value - err, ymax = value + err),
@@ -871,20 +900,65 @@ local({
         linewidth = 0.5,
         na.rm = TRUE
       ) +
-      facet_wrap(
-        ~metric,
-        ncol = 2,
-        scales = "free_y",
-        axes = "margins",
-        axis.labels = "margins",
-        labeller = labeller(metric = metric_labels_iso)
-      ) +
       scale_color_manual(values = site_colors, guide = "none") +
       scale_x_discrete(limits = site_order_iso, drop = FALSE) +
-      labs(x = NULL, y = "Value") +
-      theme(
-        strip.text = element_text(size = FIG_STRIP_TEXT_SIZE + 2, hjust = 0)
+      labs(x = NULL, y = NULL)
+
+    # Keep MTT1 and MTT2 on the same y-axis scale for direct comparison.
+    mtt_long <- isotope_plot_long %>% filter(metric %in% c("MTT1", "MTT2"))
+    mtt_ylim <- mtt_long %>%
+      mutate(
+        ymin = value - ifelse(is.na(err), 0, err),
+        ymax = value + ifelse(is.na(err), 0, err)
+      ) %>%
+      summarise(
+        lo = min(ymin, na.rm = TRUE),
+        hi = max(ymax, na.rm = TRUE)
       )
+    if (!is.finite(mtt_ylim$lo) || !is.finite(mtt_ylim$hi)) {
+      mtt_ylim$lo <- NA_real_
+      mtt_ylim$hi <- NA_real_
+    }
+
+    make_iso_panel <- function(metric_name, y_label, y_limits = NULL) {
+      panel_data <- isotope_plot_long %>% filter(metric == metric_name)
+      p <- (base_iso_plot %+% panel_data) +
+        labs(
+          y = y_label,
+          title = metric_labels_iso[[metric_name]]
+        ) +
+        theme(
+          plot.title = element_text(
+            size = FIG_STRIP_TEXT_SIZE + 2,
+            hjust = 0,
+            margin = margin(b = 10)
+          ),
+          plot.title.position = "plot"
+        )
+      if (!is.null(y_limits) && all(is.finite(y_limits))) {
+        p <- p + coord_cartesian(ylim = y_limits)
+      }
+      p
+    }
+
+    fig4_dr <- make_iso_panel("DR", "Ratio") +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+      )
+    fig4_fyw <- make_iso_panel("Fyw", "Fraction") +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+      )
+    mtt_limits <- c(mtt_ylim$lo, mtt_ylim$hi)
+    fig4_mtt1 <- make_iso_panel("MTT1", "Years", mtt_limits)
+    fig4_mtt2 <- make_iso_panel("MTT2", "Years", mtt_limits)
+
+    fig4 <- (fig4_dr + fig4_fyw) / (fig4_mtt1 + fig4_mtt2) +
+      patchwork::plot_layout(heights = c(1, 1))
 
     ggsave(
       file.path(main_dir, "ms_isotope.png"),
@@ -900,6 +974,82 @@ local({
       height = 8 * FIG_HEIGHT_SCALE
     )
     cat("  Saved Figure 4\n")
+
+    # FIGURE 4B: MTT1 vs MTT2 comparison (sites with both values)
+    mtt_compare <- isotope_data %>%
+      transmute(site, MTT1 = as.numeric(MTT1), MTT2 = as.numeric(MTT2)) %>%
+      filter(is.finite(MTT1), is.finite(MTT2))
+
+    if (nrow(mtt_compare) > 0) {
+      lim_lo <- min(c(mtt_compare$MTT1, mtt_compare$MTT2), na.rm = TRUE)
+      lim_hi <- max(c(mtt_compare$MTT1, mtt_compare$MTT2), na.rm = TRUE)
+      lim_pad <- 0.08 * (lim_hi - lim_lo)
+      if (!is.finite(lim_pad) || lim_pad <= 0) {
+        lim_pad <- 0.2
+      }
+      n_overlap <- nrow(mtt_compare)
+      mtt1_sd_overlap <- sd(mtt_compare$MTT1, na.rm = TRUE)
+      mtt2_sd_overlap <- sd(mtt_compare$MTT2, na.rm = TRUE)
+
+      fig4b <- ggplot(mtt_compare, aes(x = MTT1, y = MTT2, color = site)) +
+        geom_abline(
+          intercept = 0,
+          slope = 1,
+          linetype = "dashed",
+          color = "gray40",
+          linewidth = 0.6
+        ) +
+        geom_point(size = FIG_POINT_SIZE_LARGE) +
+        geom_text(
+          aes(label = site),
+          nudge_x = 0.03,
+          nudge_y = 0.03,
+          size = FIG_ANNOT_TEXT_SIZE,
+          check_overlap = TRUE,
+          show.legend = FALSE
+        ) +
+        scale_color_manual(values = site_colors) +
+        coord_equal(
+          xlim = c(lim_lo - lim_pad, lim_hi + lim_pad),
+          ylim = c(lim_lo - lim_pad, lim_hi + lim_pad),
+          clip = "off"
+        ) +
+        labs(
+          x = "MTT1 (yr)",
+          y = "MTT2 (yr)",
+          subtitle = sprintf(
+            "Overlapping sites: n=%d | SD(MTT1)=%.2f | SD(MTT2)=%.2f",
+            n_overlap,
+            mtt1_sd_overlap,
+            mtt2_sd_overlap
+          )
+        ) +
+        theme(
+          plot.margin = margin(
+            FIG_LABEL_PLOT_MARGIN_PT,
+            FIG_LABEL_PLOT_MARGIN_PT,
+            FIG_LABEL_PLOT_MARGIN_PT,
+            FIG_LABEL_PLOT_MARGIN_PT
+          )
+        )
+
+      ggsave(
+        file.path(main_dir, "ms_mtt1_mtt2_compare.png"),
+        fig4b,
+        width = 7 * FIG_WIDTH_SCALE,
+        height = 7 * FIG_HEIGHT_SCALE,
+        dpi = 300
+      )
+      ggsave(
+        file.path(main_dir, "ms_mtt1_mtt2_compare.pdf"),
+        fig4b,
+        width = 7 * FIG_WIDTH_SCALE,
+        height = 7 * FIG_HEIGHT_SCALE
+      )
+      cat("  Saved Figure 4B\n")
+    } else {
+      cat("  Skipping Figure 4B: No overlapping MTT1/MTT2 sites\n")
+    }
   } else {
     cat("  Skipping Figure 4: No isotope data\n")
   }
@@ -917,19 +1067,44 @@ local({
         .groups = "drop"
       ) %>%
       complete(
-        site = factor(site_order, levels = site_order),
+        site = factor(site_order_chs, levels = site_order_chs),
         fill = list(mean_val = NA_real_, sd_val = NA_real_, n = 0)
+      )
+
+    # Tukey letters for CHS
+    chs_letters <- letters_df %>%
+      filter(metric == "CHS", site %in% site_order_chs) %>%
+      mutate(site = factor(site, levels = site_order_chs)) %>%
+      left_join(
+        chs_summary %>%
+          mutate(
+            y_site_max = mean_val + ifelse(is.na(sd_val), 0, sd_val)
+          ) %>%
+          transmute(site, y_site_max),
+        by = "site"
+      ) %>%
+      mutate(
+        y_span = {
+          y_max <- suppressWarnings(max(chs_summary$mean_val + chs_summary$sd_val, na.rm = TRUE))
+          y_min <- suppressWarnings(min(chs_summary$mean_val - chs_summary$sd_val, na.rm = TRUE))
+          ifelse(is.finite(y_max - y_min) && (y_max - y_min) > 0, y_max - y_min, 1)
+        },
+        y_label_mean = ifelse(is.finite(y_site_max), y_site_max + 0.06 * y_span, NA_real_)
       )
 
     chs_n_lookup <- setNames(chs_summary$n, as.character(chs_summary$site))
     chs_site_labels_n <- setNames(
       paste0(
-        site_order,
+        site_order_chs,
         "\n(n=",
-        ifelse(is.na(chs_n_lookup[site_order]), 0, chs_n_lookup[site_order]),
+        ifelse(
+          is.na(chs_n_lookup[site_order_chs]),
+          0,
+          chs_n_lookup[site_order_chs]
+        ),
         ")"
       ),
-      site_order
+      site_order_chs
     )
 
     fig5 <- ggplot(chs_summary, aes(x = site, y = mean_val, color = site)) +
@@ -942,9 +1117,17 @@ local({
       ) +
       scale_color_manual(values = site_colors) +
       scale_x_discrete(
-        limits = site_order,
+        limits = site_order_chs,
         drop = FALSE,
         labels = chs_site_labels_n
+      ) +
+      geom_text(
+        data = chs_letters,
+        aes(x = site, y = y_label_mean, label = group_letter),
+        inherit.aes = FALSE,
+        color = "black",
+        size = FIG_ANNOT_TEXT_SIZE,
+        vjust = 0
       ) +
       labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
@@ -962,8 +1145,11 @@ local({
       height = 5 * FIG_HEIGHT_SCALE
     )
 
+    chs_data_box <- chs_data %>%
+      filter(as.character(site) != "Look")
+
     fig5_box <- ggplot(
-      chs_data,
+      chs_data_box,
       aes(x = site, y = CHS, color = site, fill = site)
     ) +
       geom_boxplot(outlier.shape = NA, alpha = 0.2, na.rm = TRUE) +
@@ -976,9 +1162,32 @@ local({
       scale_color_manual(values = site_colors) +
       scale_fill_manual(values = site_colors) +
       scale_x_discrete(
-        limits = site_order,
+        limits = site_order_chs,
         drop = FALSE,
         labels = chs_site_labels_n
+      ) +
+      geom_text(
+        data = {
+          chs_box_letters <- letters_df %>%
+            filter(metric == "CHS", site %in% site_order_chs) %>%
+            mutate(site = factor(site, levels = site_order_chs)) %>%
+            left_join(
+              chs_data %>%
+                group_by(site) %>%
+                summarise(y_site_max = max(CHS, na.rm = TRUE), .groups = "drop"),
+              by = "site"
+            )
+          y_max <- suppressWarnings(max(chs_data$CHS, na.rm = TRUE))
+          y_min <- suppressWarnings(min(chs_data$CHS, na.rm = TRUE))
+          y_span <- ifelse(is.finite(y_max - y_min) && (y_max - y_min) > 0, y_max - y_min, 1)
+          chs_box_letters %>%
+            mutate(y_label_box = ifelse(is.finite(y_site_max), y_site_max + 0.06 * y_span, NA_real_))
+        },
+        aes(x = site, y = y_label_box, label = group_letter),
+        inherit.aes = FALSE,
+        color = "black",
+        size = FIG_ANNOT_TEXT_SIZE,
+        vjust = 0
       ) +
       labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
@@ -1145,7 +1354,7 @@ local({
         drop = FALSE,
         axes = "margins",
         axis.labels = "margins",
-        labeller = labeller(site = site_labels_panel)
+        labeller = labeller(site = site_labels_panel_chs)
       ) +
       scale_color_manual(values = site_colors) +
       scale_x_continuous(expand = expansion(mult = c(0.01, 0.16))) +

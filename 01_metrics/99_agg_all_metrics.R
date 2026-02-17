@@ -58,6 +58,7 @@ rbi_recession <- read_csv(
   rbi_path,
   show_col_types = FALSE
 ) %>%
+  mutate(year = as.integer(year)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, RCS, RBI)
 assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
@@ -68,6 +69,7 @@ storage_fdc <- read_csv(
   fdc_path,
   show_col_types = FALSE
 ) %>%
+  mutate(year = as.integer(year)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
@@ -81,6 +83,7 @@ baseflow <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
+  mutate(year = as.integer(year)) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, CHS)
@@ -95,7 +98,9 @@ wb_storage <- read_csv(
   show_col_types = FALSE
 ) %>%
   rename(site = SITECODE, year = waterYear) %>%
+  mutate(year = as.integer(year)) %>%
   mutate(site = standardize_site_code(site)) %>%
+  mutate(WB = suppressWarnings(as.numeric(WB))) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, WB)
 assert_unique_keys(wb_storage, c("site", "year"), "wb_storage")
@@ -111,7 +116,10 @@ thermal_lowflow <- read_csv(
     site = if ("site" %in% names(.)) site else SITECODE,
     year = if ("year" %in% names(.)) year else wateryear
   ) %>%
-  mutate(site = standardize_site_code(site)) %>%
+  mutate(
+    site = standardize_site_code(site),
+    year = as.integer(year)
+  ) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(
     site, year, T_7DMax, Q_7Q5, T_at_Q7Q5, T_Q7Q5,
@@ -163,13 +171,25 @@ HJA_avg <- HJA_annual %>%
 
 # Add isotope-based site-level metrics (not annual)
 
-# MTT and Fyw
+# MTT1, MTT2, and Fyw
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),
   show_col_types = FALSE
 ) %>%
   mutate(site = standardize_site_code(site)) %>%
-  select(site, MTT = MTTM, Fyw = FYWM) %>%
+  mutate(
+    MTT1 = suppressWarnings(as.numeric(MTT1)),
+    MTT2L_val = if ("MTT2L" %in% names(.)) suppressWarnings(as.numeric(MTT2L)) else NA_real_,
+    MTT2H_val = if ("MTT2H" %in% names(.)) suppressWarnings(as.numeric(MTT2H)) else NA_real_,
+    MTT2M_val = if ("MTT2M" %in% names(.)) suppressWarnings(as.numeric(MTT2M)) else NA_real_,
+    MTT2 = suppressWarnings(as.numeric(dplyr::coalesce(
+      MTT2M_val,
+      rowMeans(cbind(MTT2L_val, MTT2H_val), na.rm = TRUE)
+    ))),
+    MTT2 = ifelse(is.nan(MTT2), NA_real_, MTT2),
+    Fyw = suppressWarnings(as.numeric(FYWM))
+  ) %>%
+  select(site, MTT1, MTT2, Fyw) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
 # Damping ratio
@@ -236,13 +256,14 @@ annual_sample_sizes <- HJA_annual %>%
 
 # Add isotope availability flags
 site_isotope <- HJA_avg %>%
-  select(site, MTT, Fyw, DR) %>%
+  select(site, MTT1, MTT2, Fyw, DR) %>%
   mutate(
-    has_MTT = !is.na(MTT),
+    has_MTT1 = !is.na(MTT1),
+    has_MTT2 = !is.na(MTT2),
     has_Fyw = !is.na(Fyw),
     has_DR = !is.na(DR)
   ) %>%
-  select(site, has_MTT, has_Fyw, has_DR)
+  select(site, has_MTT1, has_MTT2, has_Fyw, has_DR)
 
 sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
@@ -267,6 +288,7 @@ annual_metric_cols <- intersect(
 
 annual_long <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
+  mutate(across(all_of(annual_metric_cols), ~suppressWarnings(as.numeric(.x)))) %>%
   select(site, all_of(annual_metric_cols)) %>%
   pivot_longer(
     cols = all_of(annual_metric_cols),
@@ -337,7 +359,8 @@ metrics_info <- tribble(
   "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "recession_curve_slope" , "hydrometric" ,
   "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "fdc_slope"             , "hydrometric" ,
   "Dynamic"          , "Storage-Discharge"        , "SD"          , "S_annual_mm"           , "hydrometric" ,
-  "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"    ,
+  "Mobile"           , "Mean Transit Time (MTT1)" , "MTT1"        , "MTT1"                  , "isotopes"    ,
+  "Mobile"           , "Mean Transit Time (MTT2)" , "MTT2"        , "MTT2"                  , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
   "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "mean_bf"               , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
@@ -357,7 +380,7 @@ site_metric_matrix <- site_info %>%
   ) %>%
   select(site, site_name, abbreviation, available) %>%
   pivot_wider(names_from = abbreviation, values_from = available) %>%
-  select(site, site_name, RBI, RCS, FDC, SD, MTT, Fyw, CHS, DR, WB)
+  select(site, site_name, RBI, RCS, FDC, SD, MTT1, MTT2, Fyw, CHS, DR, WB)
 
 discharge_avail <- read_csv(
   file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
