@@ -124,12 +124,32 @@ local({
     "DR",
     "FYW"
   )
+  metric_display_labels <- c(
+    RBI = "RBI",
+    RCS = "RCS",
+    FDC = "FDCs",
+    SD = "SD",
+    WB = "WB",
+    CHS = "CHS",
+    MTT1 = "MTT1",
+    MTT2 = "MTT2",
+    DR = "DR",
+    FYW = "FYW"
+  )
 
   build_faceted_plot <- function(df_long, metric_names, ncol_facets) {
     d <- df_long %>%
       filter(metric %in% metric_names) %>%
       mutate(metric = factor(metric, levels = metric_names))
-    metric_labels_panel <- make_panel_label_map(metric_names)
+    metric_titles <- ifelse(
+      metric_names %in% names(metric_display_labels),
+      unname(metric_display_labels[metric_names]),
+      metric_names
+    )
+    metric_labels_panel <- stats::setNames(
+      paste0(letters[seq_along(metric_names)], ") ", metric_titles),
+      metric_names
+    )
 
     letters_m <- letters_df %>%
       filter(metric %in% metric_names) %>%
@@ -197,7 +217,7 @@ local({
         axes = "margins",
         axis.labels = "margins"
       ) +
-      labs(x = NULL, y = "Value") +
+      labs(x = NULL, y = "Metric value") +
       theme_pub() +
       theme(
         axis.text.x = element_text(angle = 45, hjust = 1),
@@ -226,7 +246,15 @@ local({
     d <- df_long %>%
       filter(metric %in% metric_names) %>%
       mutate(metric = factor(metric, levels = metric_names))
-    metric_labels_panel <- make_panel_label_map(metric_names)
+    metric_titles <- ifelse(
+      metric_names %in% names(metric_display_labels),
+      unname(metric_display_labels[metric_names]),
+      metric_names
+    )
+    metric_labels_panel <- stats::setNames(
+      paste0(letters[seq_along(metric_names)], ") ", metric_titles),
+      metric_names
+    )
 
     letters_m <- letters_df %>%
       mutate(metric = toupper(metric)) %>%
@@ -328,6 +356,83 @@ local({
       coord_cartesian(clip = FIG_LABEL_CLIP)
   }
 
+  build_single_metric_plot <- function(df_long, metric_name, y_label, panel_title) {
+    d <- df_long %>%
+      filter(metric == metric_name) %>%
+      mutate(metric = factor(metric, levels = metric_name))
+    if (metric_name == "WB") {
+      # Plot depletion magnitude as positive for readability.
+      d <- d %>% mutate(value = -value)
+    }
+
+    letters_m <- letters_df %>%
+      filter(metric == metric_name) %>%
+      mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
+      left_join(
+        d %>%
+          group_by(site) %>%
+          summarise(
+            y_site_max = suppressWarnings(max(value, na.rm = TRUE)),
+            .groups = "drop"
+          ),
+        by = "site"
+      )
+
+    y_max <- suppressWarnings(max(d$value, na.rm = TRUE))
+    y_min <- suppressWarnings(min(d$value, na.rm = TRUE))
+    y_span <- ifelse(is.finite(y_max - y_min) && (y_max - y_min) > 0, y_max - y_min, 1)
+    letters_m <- letters_m %>%
+      mutate(y_label = ifelse(is.finite(y_site_max), y_site_max + 0.04 * y_span, NA_real_))
+
+    ggplot(d, aes(x = site, y = value, color = site, fill = site)) +
+      geom_boxplot(outlier.shape = NA, alpha = 0.2, na.rm = TRUE) +
+      geom_point(
+        position = position_jitter(width = 0.12, height = 0),
+        size = FIG_POINT_SIZE_SMALL,
+        alpha = 0.7,
+        na.rm = TRUE
+      ) +
+      geom_text(
+        data = letters_m,
+        aes(x = site, y = y_label, label = group_letter),
+        inherit.aes = FALSE,
+        color = "black",
+        size = FIG_ANNOT_TEXT_SIZE,
+        check_overlap = FIG_LABEL_CHECK_OVERLAP,
+        na.rm = TRUE
+      ) +
+      scale_x_discrete(limits = SITE_ORDER_HYDROMETRIC, drop = FALSE) +
+      scale_color_manual(values = SITE_COLORS) +
+      scale_fill_manual(values = SITE_COLORS) +
+      labs(x = NULL, y = y_label, title = panel_title) +
+      theme_pub() +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+        axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+        plot.title = element_text(
+          size = FIG_AXIS_TITLE_SIZE,
+          hjust = 0,
+          margin = margin(b = 10)
+        ),
+        plot.title.position = "plot",
+        panel.border = element_rect(
+          color = "black",
+          fill = NA,
+          linewidth = 0.4
+        ),
+        axis.line = element_blank(),
+        plot.margin = margin(
+          FIG_LABEL_PLOT_MARGIN_PT,
+          FIG_LABEL_PLOT_MARGIN_PT,
+          FIG_LABEL_PLOT_MARGIN_PT,
+          FIG_LABEL_PLOT_MARGIN_PT
+        )
+      ) +
+      coord_cartesian(clip = FIG_LABEL_CLIP)
+  }
+
   annual_long <- annual %>%
     select(site, all_of(unique(c(metrics_main, "CHS", "WB")))) %>%
     pivot_longer(cols = -site, names_to = "metric", values_to = "value")
@@ -366,7 +471,30 @@ local({
 
   all_summary <- bind_rows(annual_summary, iso_summary)
 
-  fig_main <- build_faceted_plot(annual_long, metrics_main, ncol_facets = 2)
+  metric_units_main <- c(
+    RBI = "Unitless",
+    RCS = "Unitless",
+    FDC = "Unitless",
+    SD = "mm",
+    WB = "mm"
+  )
+  metric_titles_main <- setNames(
+    paste0(
+      letters[seq_along(metrics_main)],
+      ") ",
+      c("RBI", "RCS", "FDCs", "SD", "WB")
+    ),
+    metrics_main
+  )
+  fig_main_list <- lapply(metrics_main, function(m) {
+    build_single_metric_plot(
+      annual_long,
+      metric_name = m,
+      y_label = metric_units_main[[m]],
+      panel_title = metric_titles_main[[m]]
+    )
+  })
+  fig_main <- patchwork::wrap_plots(fig_main_list, ncol = 2)
   safe_ggsave(
     file.path(main_dir, "ds_anova_tukey.png"),
     fig_main,
@@ -461,7 +589,7 @@ local({
   metric_labels <- c(
     "RBI" = "RBI",
     "RCS" = "RCS",
-    "FDC" = "FDC",
+    "FDC" = "FDCs",
     "SD" = "SD (mm)",
     "WB" = "WB (mm)",
     "CHS" = "CHS",
@@ -770,7 +898,7 @@ local({
   dynamic_metric_titles <- c(
     RBI = "RBI",
     RCS = "RCS",
-    FDC = "FDC",
+    FDC = "FDCs",
     SD = "SD",
     WB = "WB"
   )
@@ -785,6 +913,7 @@ local({
       names_to = "metric",
       values_to = "value"
     ) %>%
+    mutate(value = ifelse(metric == "WB", -value, value)) %>%
     filter(!is.na(value)) %>%
     mutate(metric = factor(metric, levels = dynamic_metrics)) %>%
     mutate(
