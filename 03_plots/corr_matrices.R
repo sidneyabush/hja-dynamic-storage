@@ -5,6 +5,7 @@
 
 library(dplyr)
 library(readr)
+library(tidyr)
 library(ggplot2)
 library(ggcorrplot)
 library(RColorBrewer)
@@ -216,7 +217,7 @@ if (length(eco_corr_vars) >= 2) {
 
 # dynamic-vs-mobile storage correlation matrix (site-level)
 
-dynamic_metrics_site <- c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean")
+dynamic_metrics_site <- c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean")
 mobile_metrics_site <- c("CHS_mean", "MTT1", "Fyw", "DR")
 dynamic_metrics_site <- dynamic_metrics_site[
   dynamic_metrics_site %in% names(HJA_Ave)
@@ -247,26 +248,8 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
       )
     )
 
-  # Right-half triangular mask on a rectangular dynamic x mobile matrix.
-  cross_half <- cross_long %>%
-    mutate(
-      dynamic_id = as.integer(dynamic_metric),
-      mobile_id = as.integer(mobile_metric),
-      dynamic_pos = ifelse(
-        length(dynamic_metrics_site) > 1,
-        (dynamic_id - 1) / (length(dynamic_metrics_site) - 1),
-        0
-      ),
-      mobile_pos = ifelse(
-        length(mobile_metrics_site) > 1,
-        (mobile_id - 1) / (length(mobile_metrics_site) - 1),
-        0
-      )
-    ) %>%
-    filter(mobile_pos >= dynamic_pos)
-
   p_cross <- ggplot(
-    cross_half,
+    cross_long,
     aes(x = mobile_metric, y = dynamic_metric, fill = corr)
   ) +
     geom_tile(color = "white", linewidth = 0.6) +
@@ -280,7 +263,7 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
       high = CORR_COLORS[3],
       midpoint = 0,
       limits = c(-1, 1),
-      name = "r"
+      name = "Pearson's r"
     ) +
     labs(x = "Mobile", y = "Dynamic") +
     theme_pub() +
@@ -306,6 +289,78 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
     p_cross,
     width = 9 * FIG_WIDTH_SCALE,
     height = 7 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  )
+
+  dynamic_long <- HJA_Ave %>%
+    select(site, all_of(dynamic_metrics_site)) %>%
+    pivot_longer(
+      cols = -site,
+      names_to = "dynamic_metric",
+      values_to = "dynamic_value"
+    )
+
+  mobile_long <- HJA_Ave %>%
+    select(site, all_of(mobile_metrics_site)) %>%
+    pivot_longer(
+      cols = -site,
+      names_to = "mobile_metric",
+      values_to = "mobile_value"
+    )
+
+  cross_points <- dynamic_long %>%
+    inner_join(mobile_long, by = "site", relationship = "many-to-many") %>%
+    mutate(
+      dynamic_metric = gsub("_mean$", "", dynamic_metric),
+      mobile_metric = gsub("_mean$", "", mobile_metric),
+      dynamic_metric = factor(
+        dynamic_metric,
+        levels = gsub("_mean$", "", dynamic_metrics_site)
+      ),
+      mobile_metric = factor(
+        mobile_metric,
+        levels = gsub("_mean$", "", mobile_metrics_site)
+      )
+    )
+
+  p_cross_points <- ggplot(
+    cross_points,
+    aes(x = mobile_value, y = dynamic_value)
+  ) +
+    geom_point(
+      color = "black",
+      alpha = 0.7,
+      size = 1.6,
+      na.rm = TRUE
+    ) +
+    geom_smooth(
+      method = "lm",
+      se = FALSE,
+      linewidth = 0.5,
+      color = CORR_COLORS[3],
+      na.rm = TRUE
+    ) +
+    facet_grid(dynamic_metric ~ mobile_metric, scales = "free") +
+    labs(x = "Mobile", y = "Dynamic") +
+    theme_pub() +
+    theme(
+      axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title.x = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+      axis.title.y = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+      strip.text.x = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+      strip.text.y = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
+
+  ggsave(
+    file.path(plot_dir, "dynamic_mobile_storage_points_facet.png"),
+    p_cross_points,
+    width = 12 * FIG_WIDTH_SCALE,
+    height = 10 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }

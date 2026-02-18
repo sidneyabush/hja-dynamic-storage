@@ -41,7 +41,7 @@ calculate_water_year_fdc_slopes <- function(
   
   df <- df %>% filter(WaterYear %in% complete_years)
   
-  # Compute FDCs and slopes
+  # Compute FDC and slopes
   fdc_df <- df %>%
     group_by(WaterYear) %>%
     arrange(desc(Flow), .by_group = TRUE) %>%
@@ -62,7 +62,7 @@ calculate_water_year_fdc_slopes <- function(
       .groups = "drop"
     )
   
-  # Plot FDCs
+  # Plot FDC
   p <- ggplot(fdc_df, aes(x = ExceedanceProbability, y = Flow, color = factor(WaterYear))) +
     geom_line() +
     labs(
@@ -112,7 +112,7 @@ calculate_total_fdc_slopes <- function(
   
   df <- df %>% filter(WaterYear %in% complete_years)
   
-  # Compute FDCs and slopes
+  # Compute FDC and slopes
   fdc_df <- df %>%
     arrange(desc(Flow), .by_group = TRUE) %>%
     mutate(
@@ -131,7 +131,7 @@ calculate_total_fdc_slopes <- function(
       .groups = "drop"
     )
   
-  # Plot FDCs
+  # Plot FDC
   p <- ggplot(fdc_df, aes(x = ExceedanceProbability, y = Flow)) +
     geom_line() +
     labs(

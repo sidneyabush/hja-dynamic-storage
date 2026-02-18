@@ -127,7 +127,7 @@ local({
   metric_display_labels <- c(
     RBI = "RBI",
     RCS = "RCS",
-    FDC = "FDCs",
+    FDC = "FDC",
     SD = "SD",
     WB = "WB",
     CHS = "CHS",
@@ -482,7 +482,7 @@ local({
     paste0(
       letters[seq_along(metrics_main)],
       ") ",
-      c("RBI", "RCS", "FDCs", "SD", "WB")
+      c("RBI", "RCS", "FDC", "SD", "WB")
     ),
     metrics_main
   )
@@ -589,7 +589,7 @@ local({
   metric_labels <- c(
     "RBI" = "RBI",
     "RCS" = "RCS",
-    "FDC" = "FDCs",
+    "FDC" = "FDC",
     "SD" = "SD (mm)",
     "WB" = "WB (mm)",
     "CHS" = "CHS",
@@ -898,7 +898,7 @@ local({
   dynamic_metric_titles <- c(
     RBI = "RBI",
     RCS = "RCS",
-    FDC = "FDCs",
+    FDC = "FDC",
     SD = "SD",
     WB = "WB"
   )
