@@ -329,10 +329,70 @@ if ((length(dynamic_metrics_site) >= 1) && (length(mobile_metrics_site) >= 1)) {
         levels = mobile_metric_levels
       )
     )
-  cross_points_n <- cross_points %>%
+  cross_points_stats <- cross_points %>%
     filter(is.finite(dynamic_value), is.finite(mobile_value)) %>%
     group_by(dynamic_metric, mobile_metric) %>%
-    summarise(n = n(), .groups = "drop")
+    summarise(
+      n = n(),
+      r2 = if (n() >= 2) {
+        tryCatch(summary(lm(dynamic_value ~ mobile_value))$r.squared, error = function(e) NA_real_)
+      } else {
+        NA_real_
+      },
+      beta1 = if (n() >= 2) {
+        fit <- tryCatch(lm(dynamic_value ~ mobile_value), error = function(e) NULL)
+        if (is.null(fit)) {
+          NA_real_
+        } else {
+          unname(coef(fit)[["mobile_value"]])
+        }
+      } else {
+        NA_real_
+      },
+      p_value = if (n() >= 3) {
+        fit <- tryCatch(lm(dynamic_value ~ mobile_value), error = function(e) NULL)
+        if (is.null(fit)) {
+          NA_real_
+        } else {
+          coef_tbl <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
+          if (is.null(coef_tbl) || !("mobile_value" %in% rownames(coef_tbl))) {
+            NA_real_
+          } else {
+            suppressWarnings(as.numeric(coef_tbl["mobile_value", "Pr(>|t|)"]))
+          }
+        }
+      } else {
+        NA_real_
+      },
+      .groups = "drop"
+    ) %>%
+    mutate(
+      p_label = case_when(
+        !is.finite(p_value) ~ "NA",
+        p_value < 0.001 ~ "<0.001",
+        TRUE ~ sprintf("%.3f", p_value)
+      ),
+      anno_label = paste0(
+        "R2=", ifelse(is.finite(r2), sprintf("%.2f", r2), "NA"),
+        " | beta1=", ifelse(is.finite(beta1), sprintf("%.2f", beta1), "NA"),
+        " | p=", p_label
+      )
+    )
+
+  top_dynamic_metric <- dynamic_metric_levels[1]
+  top_n_by_mobile <- cross_points_stats %>%
+    filter(dynamic_metric == top_dynamic_metric) %>%
+    select(mobile_metric, n)
+
+  top_n_lookup <- setNames(top_n_by_mobile$n, as.character(top_n_by_mobile$mobile_metric))
+  mobile_labels_with_n <- setNames(
+    ifelse(
+      is.na(top_n_lookup[mobile_metric_levels]),
+      paste0(mobile_metric_levels, " (n=NA)"),
+      paste0(mobile_metric_levels, " (n=", top_n_lookup[mobile_metric_levels], ")")
+    ),
+    mobile_metric_levels
+  )
 
   p_cross_points <- ggplot(
     cross_points,
@@ -352,14 +412,18 @@ if ((length(dynamic_metrics_site) >= 1) && (length(mobile_metrics_site) >= 1)) {
       na.rm = TRUE
     ) +
     geom_text(
-      data = cross_points_n,
-      aes(x = -Inf, y = Inf, label = paste0("n=", n)),
+      data = cross_points_stats,
+      aes(x = -Inf, y = Inf, label = anno_label),
       inherit.aes = FALSE,
       hjust = -0.1,
       vjust = 1.1,
       size = FIG_ANNOT_TEXT_SIZE
     ) +
-    facet_grid(dynamic_metric ~ mobile_metric, scales = "free") +
+    facet_grid(
+      dynamic_metric ~ mobile_metric,
+      scales = "free",
+      labeller = labeller(mobile_metric = as_labeller(mobile_labels_with_n))
+    ) +
     labs(x = "Mobile", y = "Dynamic") +
     theme_pub() +
     theme(

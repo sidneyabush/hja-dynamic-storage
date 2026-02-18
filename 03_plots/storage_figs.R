@@ -129,7 +129,7 @@ local({
     RCS = "RCS",
     FDC = "FDC",
     SD = "SD",
-    WB = "WB",
+    WB = "WB drawdown (mm)",
     CHS = "CHS",
     MTT1 = "MTT1",
     MTT2 = "MTT2",
@@ -140,6 +140,7 @@ local({
   build_faceted_plot <- function(df_long, metric_names, ncol_facets) {
     d <- df_long %>%
       filter(metric %in% metric_names) %>%
+      mutate(value = ifelse(metric == "WB", -value, value)) %>%
       mutate(metric = factor(metric, levels = metric_names))
     metric_titles <- ifelse(
       metric_names %in% names(metric_display_labels),
@@ -217,7 +218,7 @@ local({
         axes = "margins",
         axis.labels = "margins"
       ) +
-      labs(x = NULL, y = "Metric value") +
+      labs(x = NULL, y = "Metric value (WB as drawdown)") +
       theme_pub() +
       theme(
         axis.text.x = element_text(angle = 45, hjust = 1),
@@ -246,6 +247,8 @@ local({
     d <- df_long %>%
       filter(metric %in% metric_names) %>%
       mutate(metric = factor(metric, levels = metric_names))
+    d <- d %>%
+      mutate(mean_value = ifelse(metric == "WB", -mean_value, mean_value))
     metric_titles <- ifelse(
       metric_names %in% names(metric_display_labels),
       unname(metric_display_labels[metric_names]),
@@ -331,7 +334,7 @@ local({
         axes = "margins",
         axis.labels = "margins"
       ) +
-      labs(x = NULL, y = "Value") +
+      labs(x = NULL, y = "Value (WB as drawdown)") +
       theme_pub() +
       theme(
         axis.text.x = element_text(angle = 45, hjust = 1),
@@ -476,13 +479,13 @@ local({
     RCS = "Unitless",
     FDC = "Unitless",
     SD = "mm",
-    WB = "mm"
+    WB = "Drawdown (mm)"
   )
   metric_titles_main <- setNames(
     paste0(
       letters[seq_along(metrics_main)],
       ") ",
-      c("RBI", "RCS", "FDC", "SD", "WB")
+      c("RBI", "RCS", "FDC", "SD", "WB drawdown")
     ),
     metrics_main
   )
@@ -591,7 +594,7 @@ local({
     "RCS" = "RCS",
     "FDC" = "FDC",
     "SD" = "SD (mm)",
-    "WB" = "WB (mm)",
+    "WB" = "WB drawdown (mm)",
     "CHS" = "CHS",
     "MTT1" = "MTT1 (yr)",
     "MTT2" = "MTT2 (yr)",
@@ -900,12 +903,13 @@ local({
     RCS = "RCS",
     FDC = "FDC",
     SD = "SD",
-    WB = "WB"
+    WB = "WB drawdown"
   )
   metric_labels_panel <- make_panel_label_map(dynamic_metric_titles[
     dynamic_metrics
   ])
 
+  # Keep WB on depletion-magnitude convention across all figures.
   dynamic_long <- annual_data %>%
     select(site, year, any_of(dynamic_metrics)) %>%
     pivot_longer(
@@ -969,7 +973,7 @@ local({
     ) +
     scale_color_manual(values = site_colors, guide = "none") +
     scale_x_discrete(limits = site_order, drop = FALSE) +
-    labs(x = NULL, y = "Value")
+    labs(x = NULL, y = "Value (WB as drawdown)")
 
   ggsave(
     file.path(main_dir, "ds_summary.png"),
