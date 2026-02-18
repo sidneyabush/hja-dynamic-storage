@@ -111,7 +111,7 @@ local({
     tibble(metric = character(), p_value = numeric())
   }
 
-  metrics_main <- c("RBI", "RCS", "FDC", "SD", "WB")
+  metrics_main <- PLOT_ORDER_DYNAMIC_STORAGE
   metrics_all <- c(
     "RBI",
     "RCS",
@@ -894,7 +894,7 @@ local({
 
   # FIGURE 3: DYNAMIC STORAGE (RBI, RCS, FDC, SD)
 
-  dynamic_metrics <- c("RBI", "RCS", "FDC", "SD", "WB")
+  dynamic_metrics <- PLOT_ORDER_DYNAMIC_STORAGE
   dynamic_metric_titles <- c(
     RBI = "RBI",
     RCS = "RCS",
@@ -988,7 +988,14 @@ local({
   # FIGURE 4: MOBILE ISOTOPE (MTT, Fyw, DR)
 
   if (!is.null(isotope_data) && nrow(isotope_data) > 0) {
-    metric_order_iso <- c("DR", "Fyw", "MTT1", "MTT2")
+    metric_order_iso <- c(
+      unname(PLOT_MOBILE_STORAGE_SITE_COLS[PLOT_ORDER_MOBILE_STORAGE]),
+      "MTT2"
+    )
+    metric_order_iso <- unique(metric_order_iso)
+    metric_order_iso <- metric_order_iso[
+      metric_order_iso %in% c("DR", "Fyw", "MTT1", "MTT2")
+    ]
 
     isotope_values_long <- isotope_data %>%
       select(site, all_of(metric_order_iso)) %>%

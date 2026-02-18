@@ -93,9 +93,18 @@ run_script <- function(path) {
 # Preflight.
 run_script("helpers/check_inputs.R")
 
+# Metrics preprocessing (daily met+Q and ET support tables).
+metric_preprocess_scripts <- c(
+  "01_metrics/00_create_master_hydrometric_dataset.R",
+  "00_Data_Preprocessing/01_prep_PT_methods.R",
+  "00_Data_Preprocessing/02_prep_Hamon_methods.R"
+)
+for (s in metric_preprocess_scripts) {
+  run_script(s)
+}
+
 # Metrics.
 metric_scripts <- c(
-  "01_metrics/00_create_master_hydrometric_dataset.R",
   "01_metrics/calc_dS_all.R",
   "01_metrics/calc_mS_all.R",
   "01_metrics/calc_eco_vars.R",

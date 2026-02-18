@@ -356,31 +356,56 @@ site_info <- tibble(
 metrics_info <- tribble(
   ~storage_type      , ~method                    , ~abbreviation , ~variable_name          , ~requires     ,
   "Dynamic"          , "Richards-Baker Index"     , "RBI"         , "RBI"                   , "hydrometric" ,
-  "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "recession_curve_slope" , "hydrometric" ,
-  "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "fdc_slope"             , "hydrometric" ,
-  "Dynamic"          , "Storage-Discharge"        , "SD"          , "S_annual_mm"           , "hydrometric" ,
+  "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "RCS"                   , "hydrometric" ,
+  "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "FDC"                   , "hydrometric" ,
+  "Dynamic"          , "Storage-Discharge"        , "SD"          , "SD"                    , "hydrometric" ,
   "Mobile"           , "Mean Transit Time (MTT1)" , "MTT1"        , "MTT1"                  , "isotopes"    ,
   "Mobile"           , "Mean Transit Time (MTT2)" , "MTT2"        , "MTT2"                  , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
-  "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "mean_bf"               , "chemistry"   ,
+  "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "CHS"                   , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
-  "Extended Dynamic" , "Water Balance"            , "WB"          , "DS_sum"                , "hydrometric"
+  "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric"
 )
 
+annual_metric_presence <- HJA_annual %>%
+  mutate(site = as.character(site)) %>%
+  group_by(site) %>%
+  summarise(
+    RBI = any(is.finite(RBI)),
+    RCS = any(is.finite(RCS)),
+    FDC = any(is.finite(FDC)),
+    SD = any(is.finite(SD)),
+    CHS = any(is.finite(CHS)),
+    WB = any(is.finite(WB)),
+    .groups = "drop"
+  )
+
+site_metric_presence <- isotope_metrics %>%
+  mutate(site = as.character(site)) %>%
+  transmute(
+    site,
+    MTT1 = is.finite(MTT1),
+    MTT2 = is.finite(MTT2),
+    Fyw = is.finite(Fyw),
+    DR = is.finite(DR)
+  )
+
+metric_cols <- c("RBI", "RCS", "FDC", "SD", "MTT1", "MTT2", "Fyw", "CHS", "DR", "WB")
+
 site_metric_matrix <- site_info %>%
-  select(site, site_name, hydrometric, chemistry, isotopes) %>%
-  crossing(metrics_info %>% select(abbreviation, requires)) %>%
+  select(site, site_name) %>%
+  left_join(annual_metric_presence, by = "site") %>%
+  left_join(site_metric_presence, by = "site") %>%
+  mutate(across(all_of(metric_cols), ~ ifelse(is.na(.x), FALSE, .x))) %>%
+  select(site, site_name, all_of(metric_cols))
+
+metric_site_counts <- tibble(metric = metric_cols) %>%
+  rowwise() %>%
   mutate(
-    available = case_when(
-      requires == "hydrometric" & hydrometric ~ TRUE,
-      requires == "chemistry" & chemistry ~ TRUE,
-      requires == "isotopes" & isotopes ~ TRUE,
-      TRUE ~ FALSE
-    )
+    n_sites = sum(site_metric_matrix[[metric]], na.rm = TRUE),
+    sites = paste(site_metric_matrix$site[site_metric_matrix[[metric]]], collapse = ", ")
   ) %>%
-  select(site, site_name, abbreviation, available) %>%
-  pivot_wider(names_from = abbreviation, values_from = available) %>%
-  select(site, site_name, RBI, RCS, FDC, SD, MTT1, MTT2, Fyw, CHS, DR, WB)
+  ungroup()
 
 discharge_avail <- read_csv(
   file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
@@ -400,8 +425,12 @@ hydro_ranges <- discharge_avail %>%
     .groups = "drop"
   )
 
-ec_file <- file.path(EC_DIR, "CF01201_v3.txt")
-if (file.exists(ec_file)) {
+ec_candidates <- c(
+  file.path(EC_DIR, "CF01201_v4.txt"),
+  file.path(EC_DIR, "CF01201_v3.txt")
+)
+ec_file <- ec_candidates[file.exists(ec_candidates)][1]
+if (!is.na(ec_file) && file.exists(ec_file)) {
   ec_data <- read_delim(ec_file, delim = "\t", show_col_types = FALSE)
   if ("DATE" %in% names(ec_data) && "SITECODE" %in% names(ec_data)) {
     chem_ranges <- ec_data %>%
@@ -564,6 +593,11 @@ if (file.exists(ht004_temp_file)) {
 write.csv(
   site_metric_matrix,
   file.path(support_dir, "site_metric_availability.csv"),
+  row.names = FALSE
+)
+write.csv(
+  metric_site_counts,
+  file.path(support_dir, "metric_site_counts.csv"),
   row.names = FALSE
 )
 write.csv(

@@ -157,6 +157,17 @@ MOBILE_METRICS_SITE <- c("MTT1", "MTT2", "Fyw", "DR") # Site-level from isotopes
 # WB = Water Balance (extended dynamic storage)
 EXTENDED_DYNAMIC_METRICS <- c("WB")
 
+# Shared metric display order for plotting.
+# Mobile "MTT" display label maps to MTT1 at site level.
+PLOT_ORDER_DYNAMIC_STORAGE <- c("RBI", "RCS", "FDC", "SD", "WB")
+PLOT_ORDER_MOBILE_STORAGE <- c("CHS", "DR", "Fyw", "MTT")
+PLOT_MOBILE_STORAGE_SITE_COLS <- c(
+  "CHS" = "CHS_mean",
+  "DR" = "DR",
+  "Fyw" = "Fyw",
+  "MTT" = "MTT1"
+)
+
 # All storage metrics
 ALL_STORAGE_METRICS <- c(
   DYNAMIC_METRICS,

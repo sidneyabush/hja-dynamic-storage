@@ -169,7 +169,7 @@ if (
 eco_response_vars <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
-storage_predictor_vars <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS", "DR")
+storage_predictor_vars <- c(PLOT_ORDER_DYNAMIC_STORAGE, "CHS", "DR")
 storage_predictor_vars <- storage_predictor_vars[
   storage_predictor_vars %in% names(HJA_Yr)
 ]
@@ -217,16 +217,22 @@ if (length(eco_corr_vars) >= 2) {
 
 # dynamic-vs-mobile storage correlation matrix (site-level)
 
-dynamic_metrics_site <- c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean")
-mobile_metrics_site <- c("CHS_mean", "MTT1", "Fyw", "DR")
+dynamic_metrics_site <- paste0(PLOT_ORDER_DYNAMIC_STORAGE, "_mean")
 dynamic_metrics_site <- dynamic_metrics_site[
   dynamic_metrics_site %in% names(HJA_Ave)
 ]
-mobile_metrics_site <- mobile_metrics_site[
-  mobile_metrics_site %in% names(HJA_Ave)
-]
 
-if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
+mobile_site_map <- PLOT_MOBILE_STORAGE_SITE_COLS[PLOT_ORDER_MOBILE_STORAGE]
+mobile_site_map <- mobile_site_map[
+  !is.na(mobile_site_map) & (unname(mobile_site_map) %in% names(HJA_Ave))
+]
+mobile_metrics_site <- unname(mobile_site_map)
+
+dynamic_metric_levels <- gsub("_mean$", "", dynamic_metrics_site)
+mobile_metric_levels <- names(mobile_site_map)
+mobile_col_to_display <- setNames(mobile_metric_levels, mobile_metrics_site)
+
+if ((length(dynamic_metrics_site) >= 1) && (length(mobile_metrics_site) >= 1)) {
   cross_cor <- cor(
     HJA_Ave[, dynamic_metrics_site, drop = FALSE],
     HJA_Ave[, mobile_metrics_site, drop = FALSE],
@@ -237,14 +243,14 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
     rename(dynamic_metric = Var1, mobile_metric = Var2, corr = Freq) %>%
     mutate(
       dynamic_metric = gsub("_mean$", "", dynamic_metric),
-      mobile_metric = gsub("_mean$", "", mobile_metric),
+      mobile_metric = dplyr::recode(mobile_metric, !!!mobile_col_to_display),
       dynamic_metric = factor(
         dynamic_metric,
-        levels = gsub("_mean$", "", dynamic_metrics_site)
+        levels = dynamic_metric_levels
       ),
       mobile_metric = factor(
         mobile_metric,
-        levels = gsub("_mean$", "", mobile_metrics_site)
+        levels = mobile_metric_levels
       )
     )
 
@@ -265,6 +271,7 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
       limits = c(-1, 1),
       name = "Pearson's r"
     ) +
+    scale_y_discrete(limits = rev(dynamic_metric_levels)) +
     labs(x = "Mobile", y = "Dynamic") +
     theme_pub() +
     theme(
@@ -312,16 +319,20 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
     inner_join(mobile_long, by = "site", relationship = "many-to-many") %>%
     mutate(
       dynamic_metric = gsub("_mean$", "", dynamic_metric),
-      mobile_metric = gsub("_mean$", "", mobile_metric),
+      mobile_metric = dplyr::recode(mobile_metric, !!!mobile_col_to_display),
       dynamic_metric = factor(
         dynamic_metric,
-        levels = gsub("_mean$", "", dynamic_metrics_site)
+        levels = dynamic_metric_levels
       ),
       mobile_metric = factor(
         mobile_metric,
-        levels = gsub("_mean$", "", mobile_metrics_site)
+        levels = mobile_metric_levels
       )
     )
+  cross_points_n <- cross_points %>%
+    filter(is.finite(dynamic_value), is.finite(mobile_value)) %>%
+    group_by(dynamic_metric, mobile_metric) %>%
+    summarise(n = n(), .groups = "drop")
 
   p_cross_points <- ggplot(
     cross_points,
@@ -340,6 +351,14 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
       color = CORR_COLORS[3],
       na.rm = TRUE
     ) +
+    geom_text(
+      data = cross_points_n,
+      aes(x = -Inf, y = Inf, label = paste0("n=", n)),
+      inherit.aes = FALSE,
+      hjust = -0.1,
+      vjust = 1.1,
+      size = FIG_ANNOT_TEXT_SIZE
+    ) +
     facet_grid(dynamic_metric ~ mobile_metric, scales = "free") +
     labs(x = "Mobile", y = "Dynamic") +
     theme_pub() +
@@ -350,6 +369,7 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
       axis.title.y = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
       strip.text.x = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
       strip.text.y = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.4),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       plot.title = element_blank(),
@@ -367,16 +387,15 @@ if ((length(dynamic_metrics_site) + length(mobile_metrics_site)) >= 2) {
 
 # CHS vs other mobile storage metrics correlation matrix (site-level)
 
-mobile_corr_vars <- c("CHS_mean", "MTT1", "Fyw", "DR")
-mobile_corr_vars <- mobile_corr_vars[mobile_corr_vars %in% names(HJA_Ave)]
+mobile_corr_vars <- mobile_metrics_site
 
 if (length(mobile_corr_vars) >= 2) {
   cor_mobile <- cor(
     HJA_Ave[, mobile_corr_vars, drop = FALSE],
     use = "pairwise.complete.obs"
   )
-  colnames(cor_mobile) <- gsub("_mean$", "", colnames(cor_mobile))
-  rownames(cor_mobile) <- gsub("_mean$", "", rownames(cor_mobile))
+  colnames(cor_mobile) <- unname(mobile_col_to_display[colnames(cor_mobile)])
+  rownames(cor_mobile) <- unname(mobile_col_to_display[rownames(cor_mobile)])
 
   corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
   corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 1
