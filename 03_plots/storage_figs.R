@@ -478,7 +478,7 @@ local({
     RBI = "Unitless",
     RCS = "Unitless",
     FDC = "Unitless",
-    SD = "mm",
+    SD = "Depth (mm)",
     WB = "Drawdown (mm)"
   )
   metric_titles_main <- setNames(
