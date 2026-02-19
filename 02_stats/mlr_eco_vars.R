@@ -76,7 +76,7 @@ if (!("P_NovJan" %in% names(merged_data)) && ("precip_nov_jan_mm" %in% names(mer
     mutate(P_NovJan = precip_nov_jan_mm)
 }
 
-response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5", "P_NovJan")
+response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
 missing_response_vars <- setdiff(response_vars_required, names(merged_data))
 if (length(missing_response_vars) > 0) {
   stop(
@@ -88,8 +88,19 @@ if (length(missing_response_vars) > 0) {
 }
 response_vars <- response_vars_required
 
-storage_predictors_all <- c("RCS", "RBI", "FDC", "SD", "WB", "CHS")
-storage_predictors_all <- storage_predictors_all[storage_predictors_all %in% names(merged_data)]
+required_predictors <- c("P_NovJan")
+missing_required_predictors <- setdiff(required_predictors, names(merged_data))
+if (length(missing_required_predictors) > 0) {
+  stop(
+    paste(
+      "Missing required eco predictor variable(s):",
+      paste(missing_required_predictors, collapse = ", ")
+    )
+  )
+}
+
+eco_predictors_all <- c("P_NovJan", "RCS", "RBI", "FDC", "SD", "WB", "CHS")
+eco_predictors_all <- eco_predictors_all[eco_predictors_all %in% names(merged_data)]
 
 geology_predictors <- c("Lava1_per", "Lava2_per", "Ash_Per")
 geology_predictors <- geology_predictors[geology_predictors %in% names(merged_data)]
@@ -97,8 +108,8 @@ geology_predictors <- geology_predictors[geology_predictors %in% names(merged_da
 landslide_predictors <- c("Landslide_Total", "Landslide_Young")
 landslide_predictors <- landslide_predictors[landslide_predictors %in% names(merged_data)]
 
-if (length(storage_predictors_all) == 0) {
-  stop("No storage predictors found in master annual dataset")
+if (length(eco_predictors_all) == 0) {
+  stop("No eco predictors found in master annual dataset")
 }
 
 if (ALLOW_LAVA_AND_ASH_TOGETHER) {
@@ -117,7 +128,7 @@ candidate_predictor_sets <- list()
 set_idx <- 1
 for (geo_set in geology_options) {
   for (ls_set in ls_options) {
-    candidate_predictor_sets[[set_idx]] <- unique(c(storage_predictors_all, geo_set, ls_set))
+    candidate_predictor_sets[[set_idx]] <- unique(c(eco_predictors_all, geo_set, ls_set))
     set_idx <- set_idx + 1
   }
 }
@@ -523,7 +534,7 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
           merged_data,
           site_id,
           response,
-          storage_predictors_all,
+          eco_predictors_all,
           min_n = MODEL_MIN_N
         )
         model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
@@ -602,12 +613,12 @@ coverage_combined <- model_run$coverage %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
 
 cor_data <- merged_data %>%
-  dplyr::select(all_of(unique(c(response_vars, storage_predictors_all))))
+  dplyr::select(all_of(unique(c(response_vars, eco_predictors_all))))
 
 if (ncol(cor_data) >= 2) {
   cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
-  cor_response_storage <- cor_matrix[response_vars, storage_predictors_all, drop = FALSE]
-  write.csv(cor_response_storage,
+  cor_response_predictors <- cor_matrix[response_vars, eco_predictors_all, drop = FALSE]
+  write.csv(cor_response_predictors,
             file.path(output_dir, "storage_ecovar_mlr_corr_matrix.csv"),
             row.names = TRUE)
 }
@@ -738,7 +749,7 @@ ws_main <- ws_perf %>%
   dplyr::select(model_family, site, response, n, predictors_final, r2, r2_adj, rmse, rmse_loocv, aicc)
 
 site_rank <- setNames(seq_along(SITE_ORDER_HYDROMETRIC), SITE_ORDER_HYDROMETRIC)
-response_order_eco <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
+response_order_eco <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 
 main_table <- bind_rows(eco_perf, ws_main) %>%
   mutate(

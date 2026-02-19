@@ -172,15 +172,15 @@ if (
     mutate(P_NovJan = precip_nov_jan_mm)
 }
 
-eco_response_vars <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
+eco_response_vars <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
-storage_predictor_vars <- c(PLOT_ORDER_DYNAMIC_STORAGE, "CHS", "DR")
-storage_predictor_vars <- storage_predictor_vars[
-  storage_predictor_vars %in% names(HJA_Yr)
+eco_predictor_vars <- c("P_NovJan", PLOT_ORDER_DYNAMIC_STORAGE, "CHS")
+eco_predictor_vars <- eco_predictor_vars[
+  eco_predictor_vars %in% names(HJA_Yr)
 ]
 
-eco_corr_vars <- unique(c(eco_response_vars, storage_predictor_vars))
+eco_corr_vars <- unique(c(eco_response_vars, eco_predictor_vars))
 eco_corr_vars <- eco_corr_vars[eco_corr_vars %in% names(HJA_Yr)]
 
 if (length(eco_corr_vars) >= 2) {

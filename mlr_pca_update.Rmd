@@ -86,12 +86,10 @@ table {
 
 ## Using Watershed Characteristics to Predict Storage Metrics
 
-- Coefficients shown for this model set are model-averaged across all candidate models with delta AICc <= 2
-  - This is used to stabilize inference given low site count and multiple correlated predictors
-  - Correlated-pair conflicts are resolved with AICc tie-break before final model averaging
+- Coefficients shown for this model set are from the single best (minimum AICc) model for each response
+  - Correlated-pair conflicts are resolved with AICc tie-break before the final best-model selection
   - r2_adj_best_model below is from the single lowest-AICc model
-  - r2_adj_weighted_aicc_lte2 below is Akaike-weighted across all models with delta AICc <= 2
-  - Weighting uses weight = exp(-0.5 * delta_AICc) normalized to sum to 1
+  - r2_adj_weighted_aicc_lte2 is retained as a supplemental model-uncertainty diagnostic across models with delta AICc <= 2
 
 - Candidate predictor pool for this model set
   - basin_slope
@@ -165,16 +163,16 @@ catch_predictor_freq <- catch_coef %>%
 kable(catch_predictor_freq, caption = "Watershed-characteristics predictors retained across storage responses.")
 ```
 
-```{r catch-model-avg}
-catch_avg_file <- path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_model_avg_coef.csv")
-if (file.exists(catch_avg_file)) {
-  kable(tibble(file = catch_avg_file), caption = "Watershed model-averaged coefficient file path.")
+```{r catch-best-coef}
+catch_best_coef_file <- path("models", "watershed_char_storage_mlr", "watershed_char_storage_mlr_results.csv")
+if (file.exists(catch_best_coef_file)) {
+  kable(tibble(file = catch_best_coef_file), caption = "Watershed best-model coefficient file path.")
 } else {
-  kable(tibble(note = "Run `02_stats/watershed_char_storage_mlr.R` to generate watershed_char_storage_mlr_model_avg_coef.csv"))
+  kable(tibble(note = "Run `02_stats/mlr_catch_char.R` to generate watershed_char_storage_mlr_results.csv"))
 }
 ```
 
-```{r catch-beta-fig, out.width='75%', fig.cap='Watershed-characteristics standardized coefficients are Akaike-weighted model averages across all candidate models with delta AICc <= 2 for each response. Weights are exp(-0.5*delta AICc), normalized to sum to 1 within each response. Therefore, a predictor can show a non-zero cell even when it is not retained in the single minimum-AICc model, because it contributes through other near-competitive models. Use this figure for direction and relative effect size under model uncertainty; use the retained/dropped screening table for the exact predictor set of the single best model.'}
+```{r catch-beta-fig, out.width='75%', fig.cap='Watershed-characteristics standardized coefficients from the single best (minimum AICc) model for each storage response.'}
 knitr::include_graphics(fig("main", "watershed_char_storage_mlr_beta.png"))
 ```
 
@@ -182,11 +180,11 @@ knitr::include_graphics(fig("main", "watershed_char_storage_mlr_beta.png"))
 
 - Ecological variables modeled
   - Q_7Q5: 7-day moving-average low-flow statistic (Q5) for discharge
-  - P_NovJan: Nov-Dec (previous year) + Jan (current year) precipitation sum from paired watershed met inputs
   - T_7DMax: annual maximum 7-day moving-average stream temperature
   - T_Q7Q5: mean stream temperature during the annual Q5 7-day low-flow window
 
 - Candidate predictor pool for this model set
+  - P_NovJan: Nov-Dec (previous year) + Jan (current year) precipitation sum from paired watershed met inputs
   - RCS
   - RBI
   - FDC

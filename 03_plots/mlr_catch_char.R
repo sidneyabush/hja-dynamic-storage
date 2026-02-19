@@ -1,5 +1,5 @@
 # Watershed Controls MLR Plots.
-# Inputs: output_dir/watershed_char_storage_mlr_model_avg_coef.csv; output_dir/watershed_char_storage_mlr_summary.csv.
+# Inputs: output_dir/watershed_char_storage_mlr_results.csv; output_dir/watershed_char_storage_mlr_summary.csv.
 # Author: Sidney Bush
 # Date: 2026-02-13
 
@@ -19,13 +19,13 @@ if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 table_dir <- OUT_TABLES_MLR_DIR
 if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
 
-model_avg_file <- file.path(output_dir, "watershed_char_storage_mlr_model_avg_coef.csv")
+results_file <- file.path(output_dir, "watershed_char_storage_mlr_results.csv")
 summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
 
-if (!file.exists(model_avg_file)) stop("Missing file: watershed_char_storage_mlr_model_avg_coef.csv")
+if (!file.exists(results_file)) stop("Missing file: watershed_char_storage_mlr_results.csv")
 if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_summary.csv")
 
-mlr_model_avg <- read_csv(model_avg_file, show_col_types = FALSE)
+mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
 
 perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AICc", "N")
@@ -34,17 +34,17 @@ perf_df <- mlr_summary %>%
   select(all_of(perf_cols)) %>%
   arrange(Outcome)
 
-coef_cols <- c("Outcome", "Predictor", "Beta_Std_Avg", "Inclusion_Weight", "Models_Present", "Models_DeltaAICc_LTE2")
-coef_cols <- coef_cols[coef_cols %in% names(mlr_model_avg)]
-coef_df <- mlr_model_avg %>%
+coef_cols <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AICc")
+coef_cols <- coef_cols[coef_cols %in% names(mlr_results)]
+coef_df <- mlr_results %>%
   select(all_of(coef_cols)) %>%
-  arrange(Outcome, desc(abs(Beta_Std_Avg)))
+  arrange(Outcome, desc(abs(Beta_Std)))
 
-beta_plot_df <- mlr_model_avg %>%
-  filter(!is.na(Beta_Std_Avg), is.finite(Beta_Std_Avg), Inclusion_Weight > 0) %>%
+beta_plot_df <- mlr_results %>%
+  filter(!is.na(Beta_Std), is.finite(Beta_Std)) %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    beta_label = sprintf("%.2f", Beta_Std_Avg)
+    beta_label = sprintf("%.2f", Beta_Std)
   )
 
 adj_r2_lookup <- mlr_summary %>%
@@ -68,7 +68,7 @@ beta_plot_df <- beta_plot_df %>%
     Outcome_label = factor(Outcome_label, levels = unique(adj_r2_lookup$Outcome_label))
   )
 
-p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std_Avg)) +
+p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
@@ -118,7 +118,7 @@ write_csv(
 
 results_table <- coef_df %>%
   left_join(perf_df, by = "Outcome") %>%
-  arrange(Outcome, desc(abs(Beta_Std_Avg)))
+  arrange(Outcome, desc(abs(Beta_Std)))
 
 write_csv(
   results_table,

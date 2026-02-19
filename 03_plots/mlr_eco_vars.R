@@ -1,4 +1,4 @@
-# Plots: Storage Predictors for Thermal, Low-Flow, and Seasonal-Precip Responses.
+# Plots: Eco-response predictors for thermal and low-flow responses.
 # Inputs: output_dir/storage_ecovar_mlr_coverage.csv.
 # Author: Sidney Bush
 # Date: 2026-02-13
@@ -54,15 +54,19 @@ coverage_df <- if (file.exists(coverage_file)) {
   )
 }
 
-response_order <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
+response_order <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 site_order <- SITE_ORDER_HYDROMETRIC
-predictor_order <- c("RBI", "RCS", "FDC", "SD", "CHS", "WB")
+predictor_order <- c("P_NovJan", "RBI", "RCS", "FDC", "SD", "CHS", "WB")
 
 # Predictor availability by site (distinguish true no-data from not-selected).
 master_dir <- file.path(OUTPUT_DIR, "master")
 annual_path <- file.path(master_dir, MASTER_ANNUAL_FILE)
 
 annual_master <- if (file.exists(annual_path)) read_csv(annual_path, show_col_types = FALSE) else tibble()
+if (!("P_NovJan" %in% names(annual_master)) && ("precip_nov_jan_mm" %in% names(annual_master))) {
+  annual_master <- annual_master %>%
+    mutate(P_NovJan = precip_nov_jan_mm)
+}
 
 annual_predictors <- predictor_order
 annual_avail <- if (nrow(annual_master) > 0) {
@@ -185,7 +189,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Site, y = Predictor, fill = beta_fill)) +
     na.value = "white",
     name = "Beta"
   ) +
-  labs(x = "Site", y = "Storage predictor") +
+  labs(x = "Site", y = "Predictor") +
   theme_pub() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
