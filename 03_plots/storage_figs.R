@@ -485,7 +485,7 @@ local({
     paste0(
       letters[seq_along(metrics_main)],
       ") ",
-      c("RBI", "RCS", "FDC", "SD", "WB drawdown")
+      c("RBI", "RCS", "FDC", "SD", "WB")
     ),
     metrics_main
   )

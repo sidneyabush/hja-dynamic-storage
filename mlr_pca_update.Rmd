@@ -174,15 +174,16 @@ if (file.exists(catch_avg_file)) {
 }
 ```
 
-```{r catch-beta-fig, out.width='75%'}
+```{r catch-beta-fig, out.width='75%', fig.cap='Watershed-characteristics standardized coefficients are Akaike-weighted model averages across all candidate models with delta AICc <= 2 for each response. Weights are exp(-0.5*delta AICc), normalized to sum to 1 within each response. Therefore, a predictor can show a non-zero cell even when it is not retained in the single minimum-AICc model, because it contributes through other near-competitive models. Use this figure for direction and relative effect size under model uncertainty; use the retained/dropped screening table for the exact predictor set of the single best model.'}
 knitr::include_graphics(fig("main", "watershed_char_storage_mlr_beta.png"))
 ```
 
 ## Using Storage Metrics to Predict Ecological Variables
 
 - Ecological variables modeled
-  - T_7DMax: annual maximum 7-day moving-average stream temperature
   - Q_7Q5: 7-day moving-average low-flow statistic (Q5) for discharge
+  - P_NovJan: Nov-Dec (previous year) + Jan (current year) precipitation sum from paired watershed met inputs
+  - T_7DMax: annual maximum 7-day moving-average stream temperature
   - T_Q7Q5: mean stream temperature during the annual Q5 7-day low-flow window
 
 - Candidate predictor pool for this model set
@@ -311,7 +312,7 @@ catch_with_sep <- dplyr::bind_rows(lapply(seq_along(catch_groups), function(i) {
 
 kable(
   catch_with_sep,
-  caption = "Watershed-characteristics predictors retained across storage responses.",
+  caption = "Watershed-characteristics predictors retained in the single best (minimum AICc) model for each storage response.",
   escape = FALSE
 )
 ```

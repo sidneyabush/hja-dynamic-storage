@@ -71,7 +71,12 @@ if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_at_min_Q_7d_C" %in% names(merg
     mutate(T_Q7Q5 = temp_at_min_Q_7d_C)
 }
 
-response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
+if (!("P_NovJan" %in% names(merged_data)) && ("precip_nov_jan_mm" %in% names(merged_data))) {
+  merged_data <- merged_data %>%
+    mutate(P_NovJan = precip_nov_jan_mm)
+}
+
+response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5", "P_NovJan")
 missing_response_vars <- setdiff(response_vars_required, names(merged_data))
 if (length(missing_response_vars) > 0) {
   stop(
@@ -733,7 +738,7 @@ ws_main <- ws_perf %>%
   dplyr::select(model_family, site, response, n, predictors_final, r2, r2_adj, rmse, rmse_loocv, aicc)
 
 site_rank <- setNames(seq_along(SITE_ORDER_HYDROMETRIC), SITE_ORDER_HYDROMETRIC)
-response_order_eco <- c("Q_7Q5", "T_7DMax", "T_Q7Q5")
+response_order_eco <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
 
 main_table <- bind_rows(eco_perf, ws_main) %>%
   mutate(

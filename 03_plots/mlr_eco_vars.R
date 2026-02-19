@@ -1,4 +1,4 @@
-# Plots: Storage Predictors for Thermal and Low-Flow Responses.
+# Plots: Storage Predictors for Thermal, Low-Flow, and Seasonal-Precip Responses.
 # Inputs: output_dir/storage_ecovar_mlr_coverage.csv.
 # Author: Sidney Bush
 # Date: 2026-02-13
@@ -54,7 +54,7 @@ coverage_df <- if (file.exists(coverage_file)) {
   )
 }
 
-response_order <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
+response_order <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
 site_order <- SITE_ORDER_HYDROMETRIC
 predictor_order <- c("RBI", "RCS", "FDC", "SD", "CHS", "WB")
 
@@ -246,7 +246,8 @@ r2_heat_df <- expand_grid(
   left_join(coverage_df, by = c("Site", "Response")) %>%
   mutate(
     Site = factor(Site, levels = site_order),
-    Response = factor(Response, levels = response_order),
+    # For y-axis display, put the first requested response at the top row.
+    Response = factor(Response, levels = rev(response_order)),
     r2_label = case_when(
       is.finite(adj_r2) ~ sprintf("%.2f", adj_r2),
       TRUE ~ "-"
@@ -257,11 +258,13 @@ p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = adj_r2)) +
   geom_tile(color = "white", linewidth = 0.35) +
   geom_text(aes(label = r2_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
-    low = "#f7fbff",
-    mid = "#6baed6",
-    high = "#08306b",
-    midpoint = 0.4,
-    limits = c(0, 1),
+    low = "firebrick4",
+    mid = "white",
+    high = "dodgerblue3",
+    midpoint = 0,
+    limits = c(-0.25, 1),
+    breaks = c(-0.25, 0, 0.25, 0.5, 0.75, 1),
+    labels = function(x) sprintf("%.2f", x),
     oob = scales::squish,
     na.value = "white",
     name = "Adj R2"

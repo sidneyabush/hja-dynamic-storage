@@ -1,5 +1,5 @@
-# Calculate ecologically-relevant thermal and low-flow metrics:.
-# Inputs: discharge_dir/HF00402_v14.csv.
+# Calculate ecologically-relevant thermal, low-flow, and seasonal-precip metrics.
+# Inputs: discharge_dir/HF00402_v14.csv; OUT_MET_SUPPORT_DIR/watersheds_met_q.csv.
 # Author: Sidney Bush
 # Date: 2026-01-23
 
@@ -114,6 +114,44 @@ discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"),
   ) %>%
   select(site, date, Q_cms, Q_mm_d, WATERYEAR) %>%
   arrange(site, date)
+
+# LOAD & PROCESS PREPROCESSED DAILY MET DATA
+
+met_support_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
+if (!file.exists(met_support_file)) {
+  stop(
+    "Missing paired met support file: ", met_support_file,
+    ". Run 01_metrics/00_create_master_hydrometric_dataset.R first."
+  )
+}
+
+met_daily <- read_csv(met_support_file, show_col_types = FALSE) %>%
+  mutate(
+    date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y")),
+    site = standardize_site_code(SITECODE),
+    P_mm_d = suppressWarnings(as.numeric(P_mm_d))
+  ) %>%
+  filter(site %in% sites_keep, !is.na(date))
+
+# Nov-Jan precipitation by season year where Nov/Dec are assigned to next Jan year.
+# Example: Nov-Dec 2019 + Jan 2020 are assigned to year 2020.
+precip_nov_jan <- met_daily %>%
+  mutate(
+    month_num = month(date),
+    season_year = if_else(month_num %in% c(11L, 12L), year(date) + 1L, year(date))
+  ) %>%
+  filter(month_num %in% c(11L, 12L, 1L), season_year %in% target_years) %>%
+  group_by(site, year = season_year) %>%
+  summarise(
+    n_days = sum(is.finite(P_mm_d)),
+    P_NovJan = if_else(n_days > 0, sum(P_mm_d, na.rm = TRUE), as.numeric(NA)),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    precip_nov_jan_mm = P_NovJan
+  ) %>%
+  select(site, year, P_NovJan, precip_nov_jan_mm)
+assert_unique_keys(precip_nov_jan, c("site", "year"), "precip_nov_jan")
 
 # CALCULATE 7-DAY MOVING AVERAGES
 
@@ -244,6 +282,7 @@ master_metrics <- t_7dmax %>%
   left_join(q_7q5_date, by = c("site", "year")) %>%
   left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
   left_join(q5_period_temp, by = c("site", "year")) %>%
+  left_join(precip_nov_jan, by = c("site", "year")) %>%
   left_join(temp_cv_lowflow, by = c("site", "year")) %>%
   # Keep compatibility aliases while names transition.
   mutate(
@@ -253,7 +292,8 @@ master_metrics <- t_7dmax %>%
     min_Q_7d_mm_d = Q_7Q5,
     temp_at_q5_7d_C = T_at_Q7Q5,
     temp_at_min_Q_7d_C = T_at_Q7Q5,
-    temp_during_min_Q_7d_C = T_Q7Q5
+    temp_during_min_Q_7d_C = T_Q7Q5,
+    precip_nov_jan_mm = ifelse(is.na(precip_nov_jan_mm), P_NovJan, precip_nov_jan_mm)
   ) %>%
   mutate(
     SITECODE = site,
@@ -278,6 +318,8 @@ summary_stats <- master_metrics %>%
     q_7q5_sd     = sd(Q_7Q5, na.rm = TRUE),
     t_q7q5_mean  = mean(T_Q7Q5, na.rm = TRUE),
     t_q7q5_sd    = sd(T_Q7Q5, na.rm = TRUE),
+    p_novjan_mean = mean(P_NovJan, na.rm = TRUE),
+    p_novjan_sd   = sd(P_NovJan, na.rm = TRUE),
     Q5_CV_mean = mean(Q5_CV, na.rm = TRUE),
     Q5_CV_sd   = sd(Q5_CV, na.rm = TRUE),
     .groups = "drop"

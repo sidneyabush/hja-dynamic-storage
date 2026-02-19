@@ -165,8 +165,14 @@ if (
   HJA_Yr <- HJA_Yr %>%
     mutate(T_Q7Q5 = temp_during_q5_7d_C)
 }
+if (
+  !("P_NovJan" %in% names(HJA_Yr)) && ("precip_nov_jan_mm" %in% names(HJA_Yr))
+) {
+  HJA_Yr <- HJA_Yr %>%
+    mutate(P_NovJan = precip_nov_jan_mm)
+}
 
-eco_response_vars <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
+eco_response_vars <- c("Q_7Q5", "P_NovJan", "T_7DMax", "T_Q7Q5")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
 storage_predictor_vars <- c(PLOT_ORDER_DYNAMIC_STORAGE, "CHS", "DR")

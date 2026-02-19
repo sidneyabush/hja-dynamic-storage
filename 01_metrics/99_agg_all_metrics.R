@@ -126,13 +126,14 @@ thermal_lowflow <- read_csv(
     max_temp_7d_C,
     q5_7d_mm_d, temp_at_q5_7d_C, temp_during_q5_7d_C,
     min_Q_7d_mm_d, temp_at_min_Q_7d_C, temp_during_min_Q_7d_C,
-    Q5_CV
+    P_NovJan, precip_nov_jan_mm, Q5_CV
   ) %>%
   mutate(
     T_7DMax = ifelse(is.na(T_7DMax), max_temp_7d_C, T_7DMax),
     Q_7Q5 = ifelse(is.na(Q_7Q5), q5_7d_mm_d, Q_7Q5),
     T_at_Q7Q5 = ifelse(is.na(T_at_Q7Q5), temp_at_q5_7d_C, T_at_Q7Q5),
-    T_Q7Q5 = ifelse(is.na(T_Q7Q5), temp_during_q5_7d_C, T_Q7Q5)
+    T_Q7Q5 = ifelse(is.na(T_Q7Q5), temp_during_q5_7d_C, T_Q7Q5),
+    P_NovJan = ifelse(is.na(P_NovJan), precip_nov_jan_mm, P_NovJan)
   )
 assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
@@ -235,7 +236,7 @@ dynamic_metrics <- DYNAMIC_METRICS
 mobile_metrics_annual <- MOBILE_METRICS_ANNUAL
 mobile_metrics_site <- MOBILE_METRICS_SITE
 extended_metrics <- EXTENDED_DYNAMIC_METRICS
-response_metrics <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
+response_metrics <- c("T_7DMax", "Q_7Q5", "T_Q7Q5", "P_NovJan")
 
 # Count available annual observations per site
 annual_sample_sizes <- HJA_annual %>%
@@ -251,6 +252,7 @@ annual_sample_sizes <- HJA_annual %>%
     n_WB = sum(!is.na(WB)),
     n_t_7dmax = sum(!is.na(T_7DMax)),
     n_q_7q5 = sum(!is.na(Q_7Q5)),
+    n_p_novjan = sum(!is.na(P_NovJan)),
     .groups = "drop"
   )
 
@@ -512,6 +514,7 @@ eco_response_availability <- HJA_annual %>%
     n_wy_T_7DMax = sum(is.finite(T_7DMax)),
     n_wy_Q_7Q5 = sum(is.finite(Q_7Q5)),
     n_wy_T_Q7Q5 = sum(is.finite(T_Q7Q5)),
+    n_wy_P_NovJan = sum(is.finite(P_NovJan)),
     .groups = "drop"
   ) %>%
   right_join(tibble(site = SITE_ORDER_HYDROMETRIC), by = "site") %>%
@@ -520,6 +523,7 @@ eco_response_availability <- HJA_annual %>%
     n_wy_T_7DMax = ifelse(is.na(n_wy_T_7DMax), 0L, n_wy_T_7DMax),
     n_wy_Q_7Q5 = ifelse(is.na(n_wy_Q_7Q5), 0L, n_wy_Q_7Q5),
     n_wy_T_Q7Q5 = ifelse(is.na(n_wy_T_Q7Q5), 0L, n_wy_T_Q7Q5),
+    n_wy_P_NovJan = ifelse(is.na(n_wy_P_NovJan), 0L, n_wy_P_NovJan),
     missing_reason = case_when(
       site == "WS09" & n_wy_T_7DMax == 0 ~ "No WS09 stream-temperature records in HT00451_v10.txt",
       n_wy_T_7DMax == 0 ~ "No stream-temperature WY records",
@@ -530,9 +534,9 @@ eco_response_availability <- HJA_annual %>%
 
 eco_response_wy_coverage <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
-  select(site, year, T_7DMax, Q_7Q5, T_Q7Q5) %>%
+  select(site, year, T_7DMax, Q_7Q5, T_Q7Q5, P_NovJan) %>%
   pivot_longer(
-    cols = c(T_7DMax, Q_7Q5, T_Q7Q5),
+    cols = c(T_7DMax, Q_7Q5, T_Q7Q5, P_NovJan),
     names_to = "response",
     values_to = "value"
   ) %>%
