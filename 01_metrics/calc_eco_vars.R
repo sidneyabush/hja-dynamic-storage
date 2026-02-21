@@ -27,8 +27,6 @@ theme_set(theme_pub(base_size = 12))
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
 temp_dir      <- STREAM_TEMP_DIR
-discharge_dir <- DISCHARGE_DIR
-catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -95,26 +93,6 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
 # WS09 has no stream-temperature records in HT00451 source.
 # Keep WS09 in downstream annual masters; temp responses remain NA for WS09.
 
-# LOAD & PROCESS DISCHARGE DATA
-
-# Load drainage areas
-da_df <- read_csv(resolve_drainage_area_file(),
-                  show_col_types = FALSE)
-
-# Load discharge
-discharge <- read_csv(file.path(discharge_dir, "HF00402_v14.csv"),
-                      show_col_types = FALSE) %>%
-  mutate(site = standardize_site_code(SITECODE)) %>%
-  left_join(da_df, by = "SITECODE") %>%
-  filter(!is.na(DA_M2), site %in% sites_keep) %>%
-  mutate(
-    date = as.Date(DATE, format = "%m/%d/%Y"),
-    Q_cms = MEAN_Q * 0.02831683199881,  # Convert to m³/s
-    Q_mm_d = (Q_cms * 86400) / DA_M2 * 1000  # Convert to mm/day
-  ) %>%
-  select(site, date, Q_cms, Q_mm_d, WATERYEAR) %>%
-  arrange(site, date)
-
 # LOAD & PROCESS PREPROCESSED DAILY MET DATA
 
 met_support_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
@@ -125,13 +103,25 @@ if (!file.exists(met_support_file)) {
   )
 }
 
-met_daily <- read_csv(met_support_file, show_col_types = FALSE) %>%
+met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
   mutate(
     date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y")),
     site = standardize_site_code(SITECODE),
-    P_mm_d = suppressWarnings(as.numeric(P_mm_d))
+    P_mm_d = suppressWarnings(as.numeric(P_mm_d)),
+    Q_mm_d = suppressWarnings(as.numeric(Q_mm_d)),
+    WATERYEAR = get_water_year(date)
   ) %>%
   filter(site %in% sites_keep, !is.na(date))
+assert_unique_keys(met_support, c("site", "date"), "met_support")
+
+# Use standardized Q_mm_d from creation-step support table.
+# No downstream unit conversion should occur in this script.
+discharge <- met_support %>%
+  select(site, date, Q_mm_d, WATERYEAR) %>%
+  arrange(site, date)
+
+met_daily <- met_support %>%
+  select(site, date, P_mm_d)
 
 # Nov-Jan precipitation by season year where Nov/Dec are assigned to next Jan year.
 # Example: Nov-Dec 2019 + Jan 2020 are assigned to year 2020.

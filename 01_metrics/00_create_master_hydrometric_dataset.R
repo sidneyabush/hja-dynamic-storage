@@ -282,7 +282,7 @@ gslook_q_full <- discharge %>%
   filter(SITECODE == "GSLOOK") %>%
   left_join(da_df, by = "SITECODE") %>%
   mutate(
-    Q_mm_d = MEAN_Q * 0.0283168 * 86400 / DA_M2,
+    Q_mm_d = MEAN_Q * 0.0283168 * 86400 / DA_M2 * 1000,
     SITECODE = "GSLOOK"
   ) %>%
   select(DATE, SITECODE, Q_mm_d)

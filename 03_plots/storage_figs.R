@@ -56,6 +56,35 @@ local({
     filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
     mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
+  # For ANOVA/Tukey visualization only, use annual FDC (site-year) values.
+  fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
+  if (file.exists(fdc_wy_file)) {
+    fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE)
+    if ("WaterYear" %in% names(fdc_wy) && !("year" %in% names(fdc_wy))) {
+      fdc_wy <- fdc_wy %>% rename(year = WaterYear)
+    }
+    if ("Slope" %in% names(fdc_wy) && !("FDC_anova" %in% names(fdc_wy))) {
+      fdc_wy <- fdc_wy %>% rename(FDC_anova = Slope)
+    }
+    fdc_wy <- fdc_wy %>%
+      transmute(
+        site = standardize_site_code(site),
+        year = as.integer(year),
+        FDC_anova = as.numeric(FDC_anova)
+      ) %>%
+      filter(
+        site %in% SITE_ORDER_HYDROMETRIC,
+        year >= WY_START,
+        year <= WY_END
+      )
+
+    annual <- annual %>%
+      mutate(year = as.integer(year)) %>%
+      left_join(fdc_wy, by = c("site", "year")) %>%
+      mutate(FDC = dplyr::coalesce(FDC_anova, FDC)) %>%
+      select(-FDC_anova)
+  }
+
   # Isotope predictors are site-level (not annual) and only used in the all-metrics panel.
   iso_mtt_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
   iso_dr_file <- file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv")

@@ -35,6 +35,13 @@ unlink(file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")))
 VIF_THRESHOLD <- 10
 LOW_N_THRESHOLD_CATCH <- 10
 USE_MUMIN_LOOCV <- TRUE
+STRICT_METHOD_LABEL <- "strict"
+STRICT_USE_SCALED_PREDICTORS <- TRUE
+STRICT_USE_ITERATIVE_VIF <- TRUE
+STRICT_ENFORCE_CORRELATED_EXCLUSIONS <- TRUE
+EXCLUDE_SITES_BY_OUTCOME <- list(
+  "CHS_mean" = CHS_EXCLUDE_SITES
+)
 
 env_vif_threshold <- suppressWarnings(as.numeric(Sys.getenv("HJA_MLR_VIF_THRESHOLD", unset = "")))
 if (!is.na(env_vif_threshold) && is.finite(env_vif_threshold) && env_vif_threshold > 0) {
@@ -157,12 +164,21 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
     )
   }
 
-  predictor_keep <- predictors[predictors %in% names(data_in)]
-  if (!(outcome %in% names(data_in)) || length(predictor_keep) == 0) {
+  model_input <- data_in
+  if ("site" %in% names(model_input)) {
+    excluded_sites <- EXCLUDE_SITES_BY_OUTCOME[[outcome]]
+    if (!is.null(excluded_sites) && length(excluded_sites) > 0) {
+      model_input <- model_input %>%
+        filter(!(site %in% excluded_sites))
+    }
+  }
+
+  predictor_keep <- predictors[predictors %in% names(model_input)]
+  if (!(outcome %in% names(model_input)) || length(predictor_keep) == 0) {
     return(NULL)
   }
 
-  model_df <- data_in %>%
+  model_df <- model_input %>%
     dplyr::select(all_of(c(outcome, predictor_keep))) %>%
     na.omit()
 
@@ -382,14 +398,59 @@ fit_mlr_with_vif <- function(data_in, outcome, predictors,
   )
 }
 
-run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, enforce_correlated_exclusions = FALSE) {
+compute_residual_diagnostics <- function(model_obj, model_df) {
+  pull_scalar <- function(obj, key) {
+    val <- tryCatch(obj[[key]], error = function(e) NULL)
+    num <- suppressWarnings(as.numeric(val))
+    if (length(num) >= 1 && is.finite(num[1])) {
+      return(num[1])
+    }
+    NA_real_
+  }
+
+  resid_vals <- residuals(model_obj)
+  resid_vals <- resid_vals[is.finite(resid_vals)]
+
+  shapiro_w <- NA_real_
+  shapiro_p <- NA_real_
+  if (length(resid_vals) >= 3 && length(resid_vals) <= 5000) {
+    sh <- tryCatch(shapiro.test(resid_vals), error = function(e) NULL)
+    if (!is.null(sh)) {
+      shapiro_w <- suppressWarnings(as.numeric(unname(sh$statistic)))
+      shapiro_p <- suppressWarnings(as.numeric(sh$p.value))
+    }
+  }
+
+  ncv_chisq <- NA_real_
+  ncv_p <- NA_real_
+  ncv <- tryCatch(car::ncvTest(model_obj), error = function(e) NULL)
+  if (!is.null(ncv)) {
+    ncv_chisq <- pull_scalar(ncv, "Chisquare")
+    if (!is.finite(ncv_chisq)) {
+      ncv_chisq <- pull_scalar(ncv, "ChiSquare")
+    }
+    ncv_p <- pull_scalar(ncv, "p")
+  }
+
+  tibble(
+    n_residuals = length(resid_vals),
+    shapiro_W = shapiro_w,
+    shapiro_p = shapiro_p,
+    ncv_chisq = ncv_chisq,
+    ncv_p = ncv_p,
+    normality_pass_p05 = ifelse(is.finite(shapiro_p), shapiro_p > 0.05, NA),
+    homoscedasticity_pass_p05 = ifelse(is.finite(ncv_p), ncv_p > 0.05, NA)
+  )
+}
+
+run_strict_method <- function() {
   results_list <- list()
   model_summary_list <- list()
   selection_path_list <- list()
   model_selection_list <- list()
-  model_avg_list <- list()
+  diagnostics_list <- list()
 
-  # Candidate predictor sets for model comparison and averaging.
+  # Candidate predictor sets for model comparison and best-model selection.
   candidate_predictor_sets <- unlist(
     lapply(seq_along(predictor_vars), function(k) {
       combn(predictor_vars, k, simplify = FALSE)
@@ -400,26 +461,24 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
   for (outcome in outcome_vars) {
     candidate_fits <- list()
     candidate_summaries <- list()
-    candidate_coefs <- list()
 
     for (i in seq_along(candidate_predictor_sets)) {
       fit_obj <- fit_mlr_with_vif(
         HJA_Ave,
         outcome,
         candidate_predictor_sets[[i]],
-        use_scaled_predictors = use_scaled_predictors,
-        use_iterative_vif = use_iterative_vif,
+        use_scaled_predictors = STRICT_USE_SCALED_PREDICTORS,
+        use_iterative_vif = STRICT_USE_ITERATIVE_VIF,
         vif_threshold = VIF_THRESHOLD,
-        enforce_correlated_exclusions = enforce_correlated_exclusions
+        enforce_correlated_exclusions = STRICT_ENFORCE_CORRELATED_EXCLUSIONS
       )
       if (is.null(fit_obj)) next
 
-      fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = method_name)
-      fit_obj$coefficients <- fit_obj$coefficients %>% mutate(Candidate_Set = i, Method = method_name)
+      fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
+      fit_obj$coefficients <- fit_obj$coefficients %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
 
       candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
       candidate_summaries[[length(candidate_summaries) + 1]] <- fit_obj$summary
-      candidate_coefs[[length(candidate_coefs) + 1]] <- fit_obj$coefficients
     }
 
     if (length(candidate_fits) == 0) next
@@ -437,68 +496,25 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
       sp <- best_fit$selection_path
       sp$step <- seq_len(nrow(sp))
       sp$Outcome <- ifelse(outcome == "DR", "DR_mean", outcome)
-      sp$Method <- method_name
+      sp$Method <- STRICT_METHOD_LABEL
       sp$Candidate_Set <- best_fit$summary$Candidate_Set[1]
       selection_path_list[[outcome]] <- sp
     }
+    model_summary_list[[outcome]] <- best_fit$summary
 
-    # Model-averaged standardized coefficients for delta AICc <= 2.
-    cand_weights <- cand_tbl %>%
-      filter(is.finite(AICc), delta_AICc <= 2) %>%
-      mutate(w_raw = exp(-0.5 * delta_AICc),
-             weight = w_raw / sum(w_raw, na.rm = TRUE)) %>%
-      dplyr::select(Candidate_Set, Outcome, weight)
-
-    best_summary <- best_fit$summary %>%
+    diag_tbl <- compute_residual_diagnostics(best_fit$model, best_fit$data) %>%
       mutate(
-        R2_weighted_AICc_LTE2 = NA_real_,
-        R2_adj_weighted_AICc_LTE2 = NA_real_
+        Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
+        Predictors_Final = best_fit$summary$Predictors_Final[1],
+        N = best_fit$summary$N[1],
+        Method = STRICT_METHOD_LABEL
+      ) %>%
+      dplyr::select(
+        Outcome, Predictors_Final, N, n_residuals,
+        shapiro_W, shapiro_p, ncv_chisq, ncv_p,
+        normality_pass_p05, homoscedasticity_pass_p05, Method
       )
-
-    if (nrow(cand_weights) > 0) {
-      weighted_fit <- cand_tbl %>%
-        inner_join(cand_weights, by = c("Candidate_Set", "Outcome")) %>%
-        summarise(
-          R2_weighted_AICc_LTE2 = sum(R2 * weight, na.rm = TRUE),
-          R2_adj_weighted_AICc_LTE2 = sum(R2_adj * weight, na.rm = TRUE),
-          .groups = "drop"
-        )
-      if (nrow(weighted_fit) == 1) {
-        best_summary <- best_summary %>%
-          mutate(
-            R2_weighted_AICc_LTE2 = weighted_fit$R2_weighted_AICc_LTE2[1],
-            R2_adj_weighted_AICc_LTE2 = weighted_fit$R2_adj_weighted_AICc_LTE2[1]
-          )
-      }
-    }
-    model_summary_list[[outcome]] <- best_summary
-
-    if (nrow(cand_weights) > 0) {
-      coef_tbl <- bind_rows(candidate_coefs)
-      predictor_universe <- sort(unique(coef_tbl$Predictor))
-      avg_tbl <- tibble(Predictor = predictor_universe) %>%
-        left_join(
-          coef_tbl %>%
-            inner_join(cand_weights, by = c("Candidate_Set", "Outcome")) %>%
-            group_by(Predictor) %>%
-            summarise(
-              Beta_Std_Avg = sum(Beta_Std * weight, na.rm = TRUE),
-              Inclusion_Weight = sum(weight, na.rm = TRUE),
-              Models_Present = n_distinct(Candidate_Set),
-              .groups = "drop"
-            ),
-          by = "Predictor"
-        ) %>%
-        mutate(
-          Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
-          Beta_Std_Avg = ifelse(is.na(Beta_Std_Avg), 0, Beta_Std_Avg),
-          Inclusion_Weight = ifelse(is.na(Inclusion_Weight), 0, Inclusion_Weight),
-          Models_DeltaAICc_LTE2 = nrow(cand_weights)
-        ) %>%
-        dplyr::select(Outcome, Predictor, Beta_Std_Avg, Inclusion_Weight, Models_Present, Models_DeltaAICc_LTE2)
-
-      model_avg_list[[outcome]] <- avg_tbl
-    }
+    diagnostics_list[[outcome]] <- diag_tbl
   }
 
   list(
@@ -506,16 +522,11 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
     summary = bind_rows(model_summary_list),
     selection = bind_rows(selection_path_list),
     model_selection = bind_rows(model_selection_list),
-    model_avg = bind_rows(model_avg_list)
+    diagnostics = bind_rows(diagnostics_list)
   )
 }
 
-model_run <- run_method(
-  method_name = "default",
-  use_scaled_predictors = TRUE,
-  use_iterative_vif = TRUE,
-  enforce_correlated_exclusions = TRUE
-)
+model_run <- run_strict_method()
 
 model_run$summary <- model_run$summary %>%
   mutate(
@@ -543,9 +554,27 @@ write.csv(model_run$selection,
 write.csv(model_run$model_selection,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
-write.csv(model_run$model_avg,
-          file.path(output_dir, paste0(file_prefix, "_model_avg_coef.csv")),
-          row.names = FALSE)
+diagnostics_out <- model_run$diagnostics %>%
+  left_join(
+    model_run$summary %>% dplyr::select(Outcome, low_n_flag, confidence_note),
+    by = "Outcome"
+  )
+write.csv(
+  diagnostics_out,
+  file.path(output_dir, paste0(file_prefix, "_diagnostics.csv")),
+  row.names = FALSE
+)
+aicc_lt2 <- model_run$model_selection %>%
+  filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
+  mutate(Predictors_Final_Label = label_catchment_predictor_list(Predictors_Final)) %>%
+  arrange(Outcome, delta_AICc, AICc, Candidate_Set)
+write.csv(
+  aicc_lt2,
+  file.path(output_dir, paste0(file_prefix, "_aicc_lt2.csv")),
+  row.names = FALSE
+)
+old_model_avg_file <- file.path(output_dir, paste0(file_prefix, "_model_avg_coef.csv"))
+if (file.exists(old_model_avg_file)) unlink(old_model_avg_file)
 flags <- model_run$summary %>%
   filter(constraint_flag) %>%
   arrange(Outcome)
@@ -582,5 +611,18 @@ if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
 write.csv(
   loocv_validation,
   file.path(OUT_TABLES_DIR, "validation", "watershed_char_storage_mlr_loocv_validation.csv"),
+  row.names = FALSE
+)
+if (!dir.exists(OUT_TABLES_MLR_DIR)) {
+  dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
+}
+write.csv(
+  aicc_lt2,
+  file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_aicc_lt2.csv"),
+  row.names = FALSE
+)
+write.csv(
+  diagnostics_out,
+  file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_diagnostics.csv"),
   row.names = FALSE
 )

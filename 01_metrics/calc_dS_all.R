@@ -57,6 +57,10 @@ calc_recession <- function(df) {
     filter(!is.na(dQ_dt), change_ratio >= 0.7, dQ < 0) %>%
     mutate(recession_slope = -dQ_dt)
 
+  if (nrow(tmp) < 10) {
+    return(tibble(slope = NA_real_))
+  }
+
   tibble(slope = coef(lm(log(recession_slope) ~ log(Q), data = tmp))[2])
 }
 
@@ -158,7 +162,13 @@ analyze <- function(df_sub) {
       is_rain = P > 0
     )
 
-  rec <- tmp %>% filter(!is_rain, !is.na(dQ), dQ > 0, Q > 0)
+  rec <- tmp %>%
+    filter(
+      !is_rain,
+      !is.na(dQ),
+      dQ > 0,
+      Q > 0
+    )
   if (nrow(rec) < 10) {
     return(tibble(
       k = NA_real_,
@@ -288,6 +298,13 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
+# Site-level full-period FDC slope used in downstream analyses.
+fdc_slopes_site <- fdc_slopes %>%
+  transmute(
+    site = site,
+    fdc_slope = fdc_slope
+  )
+
 q5_annual <- wb_df %>%
   filter(month(date) >= 8, month(date) <= 10) %>%
   group_by(site, wateryear) %>%
@@ -304,7 +321,7 @@ cv_q5norm <- q5_annual %>%
   )
 
 annual <- annual %>%
-  left_join(fdc_slopes, by = "site") %>%
+  left_join(fdc_slopes_site, by = "site") %>%
   left_join(q5_annual, by = c("site", "wateryear")) %>%
   left_join(cv_q5norm, by = "site")
 

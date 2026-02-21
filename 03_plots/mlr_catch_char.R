@@ -27,6 +27,10 @@ if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_s
 
 mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
+if ("Predictors_Final" %in% names(mlr_summary)) {
+  mlr_summary <- mlr_summary %>%
+    mutate(Predictors_Final = label_catchment_predictor_list(Predictors_Final))
+}
 
 perf_cols <- c("Outcome", "Predictors_Final", "R2_adj", "RMSE", "AICc", "N")
 perf_cols <- perf_cols[perf_cols %in% names(mlr_summary)]
@@ -37,6 +41,7 @@ perf_df <- mlr_summary %>%
 coef_cols <- c("Outcome", "Predictor", "Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AICc")
 coef_cols <- coef_cols[coef_cols %in% names(mlr_results)]
 coef_df <- mlr_results %>%
+  mutate(Predictor = label_catchment_predictor(Predictor)) %>%
   select(all_of(coef_cols)) %>%
   arrange(Outcome, desc(abs(Beta_Std)))
 
@@ -44,13 +49,14 @@ beta_plot_df <- mlr_results %>%
   filter(!is.na(Beta_Std), is.finite(Beta_Std)) %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
+    Predictor = label_catchment_predictor(Predictor),
     beta_label = sprintf("%.2f", Beta_Std)
   )
 
 adj_r2_lookup <- mlr_summary %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    Outcome_label = paste0(Outcome_clean, "\nAdj R2 = ", sprintf("%.2f", R2_adj))
+    Outcome_label = paste0(Outcome_clean, "\nAdj R² = ", sprintf("%.2f", R2_adj))
   ) %>%
   select(Outcome, Outcome_label)
 
@@ -61,6 +67,7 @@ predictor_order <- c(
   "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
   "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
 )
+predictor_order <- label_catchment_predictor(predictor_order)
 
 beta_plot_df <- beta_plot_df %>%
   mutate(

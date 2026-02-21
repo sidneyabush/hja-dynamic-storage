@@ -114,6 +114,9 @@ for (s in metric_scripts) {
   run_script(s)
 }
 
+# Strict unit-consistency gate (fail fast before stats/plots).
+run_script("helpers/check_units_consistency.R")
+
 # Stats.
 stats_scripts <- c(
   "02_stats/storage_sum_stats.R",

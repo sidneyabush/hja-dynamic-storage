@@ -80,8 +80,10 @@ watershed_predictors <- watershed_predictors[
 ]
 
 if (length(watershed_predictors) >= 2) {
+  catchment_df <- HJA_Ave[watershed_predictors]
+  colnames(catchment_df) <- label_catchment_predictor(colnames(catchment_df))
   cor_catchment <- cor(
-    HJA_Ave[watershed_predictors],
+    catchment_df,
     use = "pairwise.complete.obs"
   )
   corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
@@ -185,6 +187,17 @@ eco_corr_vars <- eco_corr_vars[eco_corr_vars %in% names(HJA_Yr)]
 
 if (length(eco_corr_vars) >= 2) {
   cor_eco <- cor(HJA_Yr[eco_corr_vars], use = "pairwise.complete.obs")
+  corr_name_clean <- function(x) {
+    out <- gsub("_", "", x)
+    out[x == "P_NovJan"] <- "Pwinter"
+    out
+  }
+  corr_axis_labels <- function(x) {
+    vals <- as.character(x)
+    vals[vals == "Pwinter"] <- "P[winter]"
+    parse(text = vals)
+  }
+  dimnames(cor_eco) <- lapply(dimnames(cor_eco), corr_name_clean)
   corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
   corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 3
 
@@ -198,6 +211,8 @@ if (length(eco_corr_vars) >= 2) {
     lab_size = corr_value_text_size,
     tl.cex = corr_axis_text_size / ggplot2::.pt
   ) +
+    scale_x_discrete(labels = corr_axis_labels) +
+    scale_y_discrete(labels = corr_axis_labels) +
     labs(x = NULL, y = NULL) +
     theme(
       legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 2),

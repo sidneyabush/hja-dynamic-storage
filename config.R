@@ -140,6 +140,10 @@ WY_END <- 2020
 # Minimum number of daily EC+Q observations needed to keep a CHS water year.
 CHS_MIN_DAYS_PER_WY <- 300
 
+# Sites intentionally excluded from CHS-based modeling summaries.
+# Note: GSLOOK is standardized to Look upstream.
+CHS_EXCLUDE_SITES <- c("Look", "WS09")
+
 # STORAGE METRICS DEFINITIONS
 
 # Dynamic storage metrics (from streamflow data - year-by-year records)
@@ -158,14 +162,15 @@ MOBILE_METRICS_SITE <- c("MTT1", "MTT2", "Fyw", "DR") # Site-level from isotopes
 EXTENDED_DYNAMIC_METRICS <- c("WB")
 
 # Shared metric display order for plotting.
-# Mobile "MTT" display label maps to MTT1 at site level.
+# Keep isotope mobile metrics split as MTT1 and MTT2.
 PLOT_ORDER_DYNAMIC_STORAGE <- c("RBI", "RCS", "FDC", "SD", "WB")
-PLOT_ORDER_MOBILE_STORAGE <- c("CHS", "DR", "Fyw", "MTT")
+PLOT_ORDER_MOBILE_STORAGE <- c("CHS", "DR", "Fyw", "MTT1", "MTT2")
 PLOT_MOBILE_STORAGE_SITE_COLS <- c(
   "CHS" = "CHS_mean",
   "DR" = "DR",
   "Fyw" = "Fyw",
-  "MTT" = "MTT1"
+  "MTT1" = "MTT1",
+  "MTT2" = "MTT2"
 )
 
 # All storage metrics
@@ -304,6 +309,40 @@ make_panel_label_map <- function(values) {
   idx <- seq_along(values)
   labels <- paste0(letters[((idx - 1) %% 26) + 1], ") ", values)
   stats::setNames(labels, values)
+}
+
+CATCHMENT_PREDICTOR_LABELS <- c(
+  "basin_slope" = "Basin Slope",
+  "Harvest" = "Harvest",
+  "Landslide_Total" = "Total Landslide",
+  "Landslide_Young" = "Young Landslide",
+  "Lava1_per" = "Lava 1 (%)",
+  "Lava2_per" = "Lava 2 (%)",
+  "Ash_Per" = "Ash (%)",
+  "Pyro_per" = "Pyroclastic (%)"
+)
+
+label_catchment_predictor <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(CATCHMENT_PREDICTOR_LABELS[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
+label_catchment_predictor_list <- function(x, sep = ";") {
+  x_chr <- as.character(x)
+  vapply(
+    x_chr,
+    function(val) {
+      if (is.na(val) || !nzchar(val)) return(val)
+      parts <- trimws(strsplit(val, sep, fixed = TRUE)[[1]])
+      parts <- parts[nzchar(parts)]
+      if (length(parts) == 0) return(val)
+      paste(label_catchment_predictor(parts), collapse = "; ")
+    },
+    FUN.VALUE = character(1)
+  )
 }
 
 SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))

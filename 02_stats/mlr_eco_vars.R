@@ -21,9 +21,11 @@ file_prefix <- "storage_ecovar_mlr"
 MODEL_MIN_N <- 20
 VIF_THRESHOLD <- 10
 LOW_N_THRESHOLD_ECO <- 25
-ALLOW_LAVA_AND_ASH_TOGETHER <- FALSE
-ALLOW_TOTAL_AND_YOUNG_LS_TOGETHER <- FALSE
 USE_MUMIN_LOOCV <- TRUE
+STRICT_METHOD_LABEL <- "strict"
+STRICT_USE_SCALED_PREDICTORS <- TRUE
+STRICT_USE_ITERATIVE_VIF <- TRUE
+STRICT_ENFORCE_CORRELATED_EXCLUSIONS <- FALSE
 
 env_vif_threshold <- suppressWarnings(as.numeric(Sys.getenv("HJA_MLR_VIF_THRESHOLD", unset = "")))
 if (!is.na(env_vif_threshold) && is.finite(env_vif_threshold) && env_vif_threshold > 0) {
@@ -102,36 +104,25 @@ if (length(missing_required_predictors) > 0) {
 eco_predictors_all <- c("P_NovJan", "RCS", "RBI", "FDC", "SD", "WB", "CHS")
 eco_predictors_all <- eco_predictors_all[eco_predictors_all %in% names(merged_data)]
 
-geology_predictors <- c("Lava1_per", "Lava2_per", "Ash_Per")
-geology_predictors <- geology_predictors[geology_predictors %in% names(merged_data)]
-
-landslide_predictors <- c("Landslide_Total", "Landslide_Young")
-landslide_predictors <- landslide_predictors[landslide_predictors %in% names(merged_data)]
-
 if (length(eco_predictors_all) == 0) {
   stop("No eco predictors found in master annual dataset")
 }
 
-if (ALLOW_LAVA_AND_ASH_TOGETHER) {
-  geology_options <- list(character(0), geology_predictors)
-} else {
-  geology_options <- c(list(character(0)), lapply(geology_predictors, function(x) x))
+# Guardrail: eco models must not include static watershed-characteristic predictors.
+disallowed_watershed_predictors <- c(
+  "basin_slope", "Harvest",
+  "Landslide_Total", "Landslide_Young",
+  "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
+)
+if (any(disallowed_watershed_predictors %in% eco_predictors_all)) {
+  stop(
+    "Eco predictor set contains watershed-characteristic predictors; ",
+    "remove them from eco MLR."
+  )
 }
 
-if (ALLOW_TOTAL_AND_YOUNG_LS_TOGETHER) {
-  ls_options <- list(character(0), landslide_predictors)
-} else {
-  ls_options <- c(list(character(0)), lapply(landslide_predictors, function(x) x))
-}
-
-candidate_predictor_sets <- list()
-set_idx <- 1
-for (geo_set in geology_options) {
-  for (ls_set in ls_options) {
-    candidate_predictor_sets[[set_idx]] <- unique(c(eco_predictors_all, geo_set, ls_set))
-    set_idx <- set_idx + 1
-  }
-}
+# Eco models use only annual storage metrics plus winter precipitation.
+candidate_predictor_sets <- list(eco_predictors_all)
 
 calc_loocv_stats <- function(model_obj, model_formula, df) {
   n <- nrow(df)
@@ -184,6 +175,51 @@ calc_loocv_stats <- function(model_obj, model_formula, df) {
     rmse_loocv = rmse_loocv,
     r2_loocv = r2_loocv,
     rmse_loocv_mean_runs = rmse_loocv_mean_runs
+  )
+}
+
+compute_residual_diagnostics <- function(model_obj, model_df) {
+  pull_scalar <- function(obj, key) {
+    val <- tryCatch(obj[[key]], error = function(e) NULL)
+    num <- suppressWarnings(as.numeric(val))
+    if (length(num) >= 1 && is.finite(num[1])) {
+      return(num[1])
+    }
+    NA_real_
+  }
+
+  resid_vals <- residuals(model_obj)
+  resid_vals <- resid_vals[is.finite(resid_vals)]
+
+  shapiro_w <- NA_real_
+  shapiro_p <- NA_real_
+  if (length(resid_vals) >= 3 && length(resid_vals) <= 5000) {
+    sh <- tryCatch(shapiro.test(resid_vals), error = function(e) NULL)
+    if (!is.null(sh)) {
+      shapiro_w <- suppressWarnings(as.numeric(unname(sh$statistic)))
+      shapiro_p <- suppressWarnings(as.numeric(sh$p.value))
+    }
+  }
+
+  ncv_chisq <- NA_real_
+  ncv_p <- NA_real_
+  ncv <- tryCatch(car::ncvTest(model_obj), error = function(e) NULL)
+  if (!is.null(ncv)) {
+    ncv_chisq <- pull_scalar(ncv, "Chisquare")
+    if (!is.finite(ncv_chisq)) {
+      ncv_chisq <- pull_scalar(ncv, "ChiSquare")
+    }
+    ncv_p <- pull_scalar(ncv, "p")
+  }
+
+  tibble(
+    n_residuals = length(resid_vals),
+    shapiro_W = shapiro_w,
+    shapiro_p = shapiro_p,
+    ncv_chisq = ncv_chisq,
+    ncv_p = ncv_p,
+    normality_pass_p05 = ifelse(is.finite(shapiro_p), shapiro_p > 0.05, NA),
+    homoscedasticity_pass_p05 = ifelse(is.finite(ncv_p), ncv_p > 0.05, NA)
   )
 }
 
@@ -495,11 +531,12 @@ diagnose_site_response <- function(df_in, site_id, response, predictors, min_n =
   list(reason = "fit_failed_after_selection", n_response = n_response, usable_predictors = nrow(usable))
 }
 
-run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, enforce_correlated_exclusions = FALSE) {
+run_strict_method <- function() {
   model_results <- list()
   model_summary <- list()
   model_selection <- list()
   model_coverage <- list()
+  model_diagnostics <- list()
 
   site_order_for_model <- SITE_ORDER_HYDROMETRIC[SITE_ORDER_HYDROMETRIC %in% unique(merged_data$site)]
 
@@ -514,16 +551,16 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
           site_id,
           response,
           candidate_predictor_sets[[i]],
-          use_scaled_predictors = use_scaled_predictors,
-          use_iterative_vif = use_iterative_vif,
+          use_scaled_predictors = STRICT_USE_SCALED_PREDICTORS,
+          use_iterative_vif = STRICT_USE_ITERATIVE_VIF,
           vif_threshold = VIF_THRESHOLD,
           min_n = MODEL_MIN_N,
-          enforce_correlated_exclusions = enforce_correlated_exclusions
+          enforce_correlated_exclusions = STRICT_ENFORCE_CORRELATED_EXCLUSIONS
         )
 
         if (!is.null(fit_obj)) {
-          fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i, Method = method_name)
-          fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = method_name)
+          fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
+          fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
           candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
           candidate_summary[[length(candidate_summary) + 1]] <- fit_obj$summary
         }
@@ -540,7 +577,7 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
         model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
           Site = site_id,
           Response = response,
-          Method = method_name,
+          Method = STRICT_METHOD_LABEL,
           model_status = "not_fit",
           reason_not_fit = diag$reason,
           n_response = diag$n_response,
@@ -559,6 +596,19 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
 
       model_results[[paste(site_id, response, sep = "_")]] <- best_fit$coef
       model_summary[[paste(site_id, response, sep = "_")]] <- best_fit$summary
+      model_diagnostics[[paste(site_id, response, sep = "_")]] <- compute_residual_diagnostics(best_fit$model, best_fit$data) %>%
+        mutate(
+          Site = site_id,
+          Response = response,
+          Predictors_Final = best_fit$summary$Predictors_Final[1],
+          n = best_fit$summary$n[1],
+          Method = STRICT_METHOD_LABEL
+        ) %>%
+        dplyr::select(
+          Site, Response, Predictors_Final, n, n_residuals,
+          shapiro_W, shapiro_p, ncv_chisq, ncv_p,
+          normality_pass_p05, homoscedasticity_pass_p05, Method
+        )
       n_response_site <- merged_data %>%
         filter(site == site_id) %>%
         summarise(n_response = sum(is.finite(.data[[response]]), na.rm = TRUE)) %>%
@@ -566,7 +616,7 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
       model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
         Site = site_id,
         Response = response,
-        Method = method_name,
+        Method = STRICT_METHOD_LABEL,
         model_status = "fit",
         reason_not_fit = NA_character_,
         n_response = n_response_site,
@@ -579,16 +629,12 @@ run_method <- function(method_name, use_scaled_predictors, use_iterative_vif, en
     results = bind_rows(model_results),
     summary = bind_rows(model_summary),
     selection = bind_rows(model_selection),
-    coverage = bind_rows(model_coverage)
+    coverage = bind_rows(model_coverage),
+    diagnostics = bind_rows(model_diagnostics)
   )
 }
 
-model_run <- run_method(
-  method_name = "default",
-  use_scaled_predictors = TRUE,
-  use_iterative_vif = TRUE,
-  enforce_correlated_exclusions = TRUE
-)
+model_run <- run_strict_method()
 
 if (nrow(model_run$summary) == 0) {
   stop("No site-response eco models could be fit. Check predictor availability and MODEL_MIN_N.")
@@ -611,6 +657,16 @@ selection_combined <- model_run$selection %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Candidate_Set, AICc)
 coverage_combined <- model_run$coverage %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+diagnostics_combined <- model_run$diagnostics %>%
+  dplyr::select(-any_of("Method")) %>%
+  left_join(
+    model_run$summary %>% dplyr::select(Site, Response, low_n_flag, confidence_note),
+    by = c("Site", "Response")
+  ) %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+aicc_lt2 <- selection_combined %>%
+  filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), delta_AICc, AICc, Candidate_Set)
 
 cor_data <- merged_data %>%
   dplyr::select(all_of(unique(c(response_vars, eco_predictors_all))))
@@ -633,6 +689,16 @@ write.csv(model_summary_combined,
 write.csv(selection_combined,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
+write.csv(
+  diagnostics_combined,
+  file.path(output_dir, paste0(file_prefix, "_diagnostics.csv")),
+  row.names = FALSE
+)
+write.csv(
+  aicc_lt2,
+  file.path(output_dir, paste0(file_prefix, "_aicc_lt2.csv")),
+  row.names = FALSE
+)
 write.csv(coverage_combined,
           file.path(output_dir, paste0(file_prefix, "_coverage.csv")),
           row.names = FALSE)
@@ -674,6 +740,19 @@ if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
 write.csv(
   loocv_validation,
   file.path(OUT_TABLES_DIR, "validation", "storage_ecovar_mlr_loocv_validation.csv"),
+  row.names = FALSE
+)
+if (!dir.exists(OUT_TABLES_MLR_DIR)) {
+  dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
+}
+write.csv(
+  aicc_lt2,
+  file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_aicc_lt2.csv"),
+  row.names = FALSE
+)
+write.csv(
+  diagnostics_combined,
+  file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_diagnostics.csv"),
   row.names = FALSE
 )
 # Export a unified main MLR results table for manuscript reporting.
@@ -755,7 +834,12 @@ main_table <- bind_rows(eco_perf, ws_main) %>%
   mutate(
     model_rank = if_else(model_family == "storage_ecovar_mlr", 1L, 2L),
     site_rank = if_else(site %in% names(site_rank), as.integer(site_rank[site]), 999L),
-    response_rank = if_else(response %in% response_order_eco, match(response, response_order_eco), 999L)
+    response_rank = if_else(response %in% response_order_eco, match(response, response_order_eco), 999L),
+    predictors_final = if_else(
+      model_family == "watershed_char_storage_mlr",
+      label_catchment_predictor_list(predictors_final),
+      predictors_final
+    )
   ) %>%
   arrange(model_rank, site_rank, response_rank, desc(r2_adj)) %>%
   dplyr::select(-model_rank, -site_rank, -response_rank) %>%

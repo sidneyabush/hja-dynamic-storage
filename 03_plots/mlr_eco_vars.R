@@ -58,6 +58,15 @@ response_order <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 site_order <- SITE_ORDER_HYDROMETRIC
 predictor_order <- c("P_NovJan", "RBI", "RCS", "FDC", "SD", "CHS", "WB")
 
+response_display <- setNames(gsub("_", "", response_order), response_order)
+predictor_display <- setNames(gsub("_", "", predictor_order), predictor_order)
+predictor_axis_labels <- function(x) {
+  keys <- as.character(x)
+  mapped <- unname(predictor_display[keys])
+  mapped[keys == "P_NovJan"] <- "P[winter]"
+  parse(text = mapped)
+}
+
 # Predictor availability by site (distinguish true no-data from not-selected).
 master_dir <- file.path(OUTPUT_DIR, "master")
 annual_path <- file.path(master_dir, MASTER_ANNUAL_FILE)
@@ -113,7 +122,7 @@ coef_df <- model_coefs %>%
 
 response_labels <- tibble(
   Response = response_order,
-  Response_label = response_order
+  Response_label = unname(response_display[response_order])
 )
 response_labels_panel <- make_panel_label_map(response_labels$Response_label)
 
@@ -189,6 +198,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Site, y = Predictor, fill = beta_fill)) +
     na.value = "white",
     name = "Beta"
   ) +
+  scale_y_discrete(labels = predictor_axis_labels) +
   labs(x = "Site", y = "Predictor") +
   theme_pub() +
   theme(
@@ -273,6 +283,7 @@ p_r2 <- ggplot(r2_heat_df, aes(x = Site, y = Response, fill = adj_r2)) +
     na.value = "white",
     name = "Adj R2"
   ) +
+  scale_y_discrete(labels = function(x) unname(response_display[as.character(x)])) +
   labs(x = "Site", y = "Response") +
   theme_pub() +
   theme(

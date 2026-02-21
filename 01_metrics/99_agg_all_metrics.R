@@ -86,6 +86,10 @@ baseflow <- read_csv(
   mutate(year = as.integer(year)) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
+  mutate(
+    CHS = suppressWarnings(as.numeric(CHS)),
+    CHS = ifelse(site %in% CHS_EXCLUDE_SITES, NA_real_, CHS)
+  ) %>%
   select(site, year, CHS)
 assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
