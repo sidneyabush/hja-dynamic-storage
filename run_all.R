@@ -121,6 +121,9 @@ run_script("helpers/check_units_consistency.R")
 stats_scripts <- c(
   "02_stats/storage_sum_stats.R",
   "02_stats/pca.R",
+  "02_stats/unified_framework.R",
+  "02_stats/unified_framework_sensitivity.R",
+  "02_stats/unified_framework_climate_variability.R",
   "02_stats/mlr_catch_char.R",
   "02_stats/mlr_eco_vars.R"
 )
@@ -132,6 +135,8 @@ for (s in stats_scripts) {
 plot_scripts_core <- c(
   "03_plots/pca.R",
   "03_plots/corr_matrices.R",
+  "03_plots/unified_framework.R",
+  "03_plots/unified_framework_climate_variability.R",
   "03_plots/mlr_catch_char.R",
   "03_plots/mlr_eco_vars.R",
   "03_plots/met_context.R",
