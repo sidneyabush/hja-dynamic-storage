@@ -364,17 +364,52 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
                data = triplet_data[model1_rows, ])
 
   if (!is.null(plot_dir) && nzchar(plot_dir)) {
-    model1_summary <- summary(model1)
-    model2_summary <- summary(model2)
-    model3_summary <- summary(model3)
+    if (!dir.exists(plot_dir)) {
+      dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
+    }
 
-    p1 <- create_multiple_regression_plot(site1, c(site2, site3), variable, model1_summary, model1_count)
-    p2 <- create_multiple_regression_plot(site2, c(site1, site3), variable, model2_summary, model1_count)
-    p3 <- create_multiple_regression_plot(site3, c(site1, site2), variable, model3_summary, model1_count)
+    coef_value <- function(coef_tbl, pred_name, col_name) {
+      idx <- which(rownames(coef_tbl) %in% c(pred_name, paste0("`", pred_name, "`")))
+      if (length(idx) == 0) return(NA_real_)
+      suppressWarnings(as.numeric(coef_tbl[idx[1], col_name]))
+    }
 
-    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site1, "_from_", site2, "_", site3, ".png")), p1, width = 8, height = 6, dpi = 300)
-    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site2, "_from_", site1, "_", site3, ".png")), p2, width = 8, height = 6, dpi = 300)
-    ggsave(file.path(plot_dir, paste0("multireg_", variable, "_", site3, "_from_", site1, "_", site2, ".png")), p3, width = 8, height = 6, dpi = 300)
+    summarize_triplet_model <- function(target_site, pred_site1, pred_site2, model_obj, n_obs, variable_name) {
+      sm <- summary(model_obj)
+      coef_tbl <- sm$coefficients
+      tibble(
+        variable = variable_name,
+        target_site = target_site,
+        predictor_1 = pred_site1,
+        predictor_2 = pred_site2,
+        n_complete = n_obs,
+        r2 = as.numeric(sm$r.squared),
+        adj_r2 = as.numeric(sm$adj.r.squared),
+        intercept = suppressWarnings(as.numeric(coef_tbl["(Intercept)", "Estimate"])),
+        beta_1 = coef_value(coef_tbl, pred_site1, "Estimate"),
+        p_beta_1 = coef_value(coef_tbl, pred_site1, "Pr(>|t|)"),
+        beta_2 = coef_value(coef_tbl, pred_site2, "Estimate"),
+        p_beta_2 = coef_value(coef_tbl, pred_site2, "Pr(>|t|)"),
+        rmse = sqrt(mean(residuals(model_obj)^2, na.rm = TRUE))
+      )
+    }
+
+    diag_rows <- bind_rows(
+      summarize_triplet_model(site1, site2, site3, model1, model1_count, variable),
+      summarize_triplet_model(site2, site1, site3, model2, model1_count, variable),
+      summarize_triplet_model(site3, site1, site2, model3, model1_count, variable)
+    )
+
+    diag_file <- file.path(plot_dir, "multireg_triplet_diagnostics.csv")
+    if (file.exists(diag_file)) {
+      existing_diag <- read_csv(diag_file, show_col_types = FALSE)
+      diag_rows <- bind_rows(existing_diag, diag_rows)
+    }
+    diag_rows <- diag_rows %>%
+      distinct(variable, target_site, predictor_1, predictor_2, .keep_all = TRUE) %>%
+      arrange(variable, target_site, predictor_1, predictor_2)
+
+    write_csv(diag_rows, diag_file)
   }
 
   # Case 1: Only site1 is missing

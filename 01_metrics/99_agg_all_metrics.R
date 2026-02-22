@@ -274,12 +274,14 @@ site_isotope <- HJA_avg %>%
 sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
 
-# Save sample-size summary table
-write.csv(
-  sample_sizes,
-  file.path(master_dir, "metric_sample_sizes_by_site.csv"),
-  row.names = FALSE
-)
+# Save sample-size summary table (optional auxiliary output)
+if (isTRUE(WRITE_AUX_OUTPUTS)) {
+  write.csv(
+    sample_sizes,
+    file.path(master_dir, "metric_sample_sizes_by_site.csv"),
+    row.names = FALSE
+  )
+}
 
 # Build per-site summary statistics for all metrics
 annual_metric_cols <- intersect(
@@ -335,11 +337,13 @@ site_metric_summary_stats <- bind_rows(annual_long, site_level_long) %>%
   arrange(site, metric) %>%
   mutate(site = as.character(site))
 
-write.csv(
-  site_metric_summary_stats,
-  file.path(master_dir, "master_site_metric_summary_stats.csv"),
-  row.names = FALSE
-)
+if (isTRUE(WRITE_AUX_OUTPUTS)) {
+  write.csv(
+    site_metric_summary_stats,
+    file.path(master_dir, "master_site_metric_summary_stats.csv"),
+    row.names = FALSE
+  )
+}
 
 # ---- Data availability summary tables (moved from stats into metrics) ----
 
@@ -499,11 +503,13 @@ if (file.exists(met_file)) {
     stringsAsFactors = FALSE
   ) %>%
     arrange(desc(n_obs))
-  write.csv(
-    met_summary,
-    file.path(support_dir, "met_variables_summary.csv"),
-    row.names = FALSE
-  )
+  if (isTRUE(WRITE_AUX_OUTPUTS)) {
+    write.csv(
+      met_summary,
+      file.path(support_dir, "met_variables_summary.csv"),
+      row.names = FALSE
+    )
+  }
 }
 
 comprehensive_summary <- site_info %>%
@@ -598,43 +604,45 @@ if (file.exists(ht004_temp_file)) {
   )
 }
 
-write.csv(
-  site_metric_matrix,
-  file.path(support_dir, "site_metric_availability.csv"),
-  row.names = FALSE
-)
-write.csv(
-  metric_site_counts,
-  file.path(support_dir, "metric_site_counts.csv"),
-  row.names = FALSE
-)
-write.csv(
-  date_ranges,
-  file.path(support_dir, "metric_date_ranges.csv"),
-  row.names = FALSE
-)
-write.csv(
-  comprehensive_summary,
-  file.path(support_dir, "comprehensive_data_summary.csv"),
-  row.names = FALSE
-)
-write.csv(
-  metrics_info,
-  file.path(support_dir, "storage_metrics_definitions.csv"),
-  row.names = FALSE
-)
-write.csv(
-  eco_response_availability,
-  file.path(support_dir, "eco_response_availability_by_site.csv"),
-  row.names = FALSE
-)
-write.csv(
-  eco_response_wy_coverage,
-  file.path(support_dir, "eco_response_wy_coverage.csv"),
-  row.names = FALSE
-)
-write.csv(
-  stream_temp_source_coverage,
-  file.path(support_dir, "stream_temp_source_coverage_ht00451.csv"),
-  row.names = FALSE
-)
+if (isTRUE(WRITE_AUX_OUTPUTS)) {
+  write.csv(
+    site_metric_matrix,
+    file.path(support_dir, "site_metric_availability.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    metric_site_counts,
+    file.path(support_dir, "metric_site_counts.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    date_ranges,
+    file.path(support_dir, "metric_date_ranges.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    comprehensive_summary,
+    file.path(support_dir, "comprehensive_data_summary.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    metrics_info,
+    file.path(support_dir, "storage_metrics_definitions.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    eco_response_availability,
+    file.path(support_dir, "eco_response_availability_by_site.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    eco_response_wy_coverage,
+    file.path(support_dir, "eco_response_wy_coverage.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    stream_temp_source_coverage,
+    file.path(support_dir, "stream_temp_source_coverage_ht00451.csv"),
+    row.names = FALSE
+  )
+}

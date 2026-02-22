@@ -28,19 +28,12 @@ theme_set(
 )
 
 output_dir <- file.path(OUTPUT_DIR, "master")
-plot_dir <- file.path(FIGURES_DIR, "supp", "analysis", "correlations")
-if (!dir.exists(plot_dir)) {
-  dir.create(plot_dir, recursive = TRUE)
-}
-
-# Clear prior correlation files so the folder reflects current workflow outputs.
-old_corr_files <- list.files(
-  plot_dir,
-  pattern = "corrplot\\.png$",
-  full.names = TRUE
-)
-if (length(old_corr_files) > 0) {
-  unlink(old_corr_files)
+supp_plot_dir <- file.path(FIGURES_DIR, "supp")
+main_plot_dir <- file.path(FIGURES_DIR, "main")
+for (d in c(supp_plot_dir, main_plot_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE)
+  }
 }
 
 # Use a ColorBrewer diverging palette (blue negative -> red positive).
@@ -114,7 +107,7 @@ if (length(watershed_predictors) >= 2) {
     )
 
   ggsave(
-    file.path(plot_dir, "watershed_char_storage_mlr_corr.png"),
+    file.path(supp_plot_dir, "watershed_char_storage_mlr_corr.png"),
     p_catchment,
     width = 9 * FIG_WIDTH_SCALE,
     height = 9 * FIG_HEIGHT_SCALE,
@@ -228,7 +221,7 @@ if (length(eco_corr_vars) >= 2) {
     )
 
   ggsave(
-    file.path(plot_dir, "storage_ecovar_mlr_corr.png"),
+    file.path(supp_plot_dir, "storage_ecovar_mlr_corr.png"),
     p_eco,
     width = 11 * FIG_WIDTH_SCALE,
     height = 11 * FIG_HEIGHT_SCALE,
@@ -313,7 +306,7 @@ if ((length(dynamic_metrics_site) >= 1) && (length(mobile_metrics_site) >= 1)) {
     )
 
   ggsave(
-    file.path(plot_dir, "dynamic_mobile_storage_cross_corr.png"),
+    file.path(main_plot_dir, "dynamic_mobile_storage_cross_corr.png"),
     p_cross,
     width = 9 * FIG_WIDTH_SCALE,
     height = 7 * FIG_HEIGHT_SCALE,
@@ -462,7 +455,7 @@ if ((length(dynamic_metrics_site) >= 1) && (length(mobile_metrics_site) >= 1)) {
     )
 
   ggsave(
-    file.path(plot_dir, "dynamic_mobile_storage_points_facet.png"),
+    file.path(supp_plot_dir, "dynamic_mobile_storage_points_facet.png"),
     p_cross_points,
     width = 12 * FIG_WIDTH_SCALE,
     height = 10 * FIG_HEIGHT_SCALE,
@@ -508,7 +501,7 @@ if (length(mobile_corr_vars) >= 2) {
     )
 
   ggsave(
-    file.path(plot_dir, "chs_mobile_storage_corr.png"),
+    file.path(supp_plot_dir, "chs_mobile_storage_corr.png"),
     p_mobile,
     width = 8 * FIG_WIDTH_SCALE,
     height = 8 * FIG_HEIGHT_SCALE,

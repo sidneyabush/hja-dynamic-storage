@@ -52,8 +52,11 @@ find_axes_file <- function() {
 
 write_root <- find_write_root()
 main_fig_dir <- file.path(write_root, "figs", "main")
-if (!dir.exists(main_fig_dir)) {
-  dir.create(main_fig_dir, recursive = TRUE, showWarnings = FALSE)
+main_pdf_dir <- file.path(main_fig_dir, "pdf")
+for (d in c(main_fig_dir, main_pdf_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
 }
 
 axes_file <- find_axes_file()
@@ -117,7 +120,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_state_space.pdf"),
+  file.path(main_pdf_dir, "unified_framework_state_space.pdf"),
   p_state,
   width = 8 * FIG_WIDTH_SCALE,
   height = 6 * FIG_HEIGHT_SCALE
@@ -191,7 +194,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_axes_heatmap.pdf"),
+  file.path(main_pdf_dir, "unified_framework_axes_heatmap.pdf"),
   p_heat,
   width = 9 * FIG_WIDTH_SCALE,
   height = 5.5 * FIG_HEIGHT_SCALE

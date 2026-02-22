@@ -23,9 +23,15 @@ local({
   # Load project config
 
   main_dir <- file.path(FIGURES_DIR, "main")
-  supp_dir <- file.path(FIGURES_DIR, "supp", "analysis", "anova_tukey")
-  table_dir <- file.path(OUT_TABLES_DIR, "anova_tukey")
-  for (d in c(main_dir, supp_dir, table_dir)) {
+  main_pdf_dir <- file.path(main_dir, "pdf")
+  supp_dir <- file.path(FIGURES_DIR, "supp")
+  supp_pdf_dir <- file.path(supp_dir, "pdf")
+  dir_targets <- c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)
+  if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+    table_dir <- file.path(OUT_TABLES_DIR, "anova_tukey")
+    dir_targets <- c(dir_targets, table_dir)
+  }
+  for (d in dir_targets) {
     if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }
 
@@ -535,7 +541,7 @@ local({
     dpi = 300
   )
   safe_ggsave(
-    file.path(main_dir, "ds_anova_tukey.pdf"),
+    file.path(main_pdf_dir, "ds_anova_tukey.pdf"),
     fig_main,
     width = 11 * FIG_WIDTH_SCALE,
     height = 12 * FIG_HEIGHT_SCALE
@@ -551,14 +557,15 @@ local({
     dpi = 300
   )
   safe_ggsave(
-    file.path(supp_dir, "storage_anova_tukey_all.pdf"),
+    file.path(supp_pdf_dir, "storage_anova_tukey_all.pdf"),
     fig_all,
     width = 11 * FIG_WIDTH_SCALE,
     height = 12 * FIG_HEIGHT_SCALE
   )
 
-  # Flat table for manuscript/supplement use
-  if (nrow(anova_df) > 0 && nrow(letters_df) > 0) {
+  # Flat table for manuscript/supplement use (optional)
+  if (isTRUE(WRITE_TABLE_OUTPUTS) && nrow(anova_df) > 0 && nrow(letters_df) > 0) {
+    if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
     summary_table <- letters_df %>%
       left_join(
         anova_df %>% select(metric, F_statistic, p_value),
@@ -596,9 +603,11 @@ local({
 
   base_dir <- BASE_DATA_DIR
   main_dir <- file.path(FIGURES_DIR, "main")
+  main_pdf_dir <- file.path(main_dir, "pdf")
   supp_dir <- file.path(FIGURES_DIR, "supp")
+  supp_pdf_dir <- file.path(supp_dir, "pdf")
 
-  for (d in c(main_dir, supp_dir)) {
+  for (d in c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)) {
     if (!dir.exists(d)) dir.create(d, recursive = TRUE)
   }
 
@@ -867,10 +876,12 @@ local({
         DR_err
       )
 
-    write_csv(
-      isotope_plot_values,
-      file.path(OUT_MET_SUPPORT_DIR, "ms_isotope_plot_values.csv")
-    )
+    if (isTRUE(WRITE_AUX_OUTPUTS)) {
+      write_csv(
+        isotope_plot_values,
+        file.path(OUT_MET_SUPPORT_DIR, "ms_isotope_plot_values.csv")
+      )
+    }
     cat("  Loaded isotope data:", nrow(isotope_data), "rows\n")
   } else {
     isotope_data <- NULL
@@ -1005,14 +1016,14 @@ local({
     labs(x = NULL, y = "Value (WB as drawdown)")
 
   ggsave(
-    file.path(main_dir, "ds_summary.png"),
+    file.path(supp_dir, "ds_summary.png"),
     fig3,
     width = 10 * FIG_WIDTH_SCALE,
     height = 8 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
   ggsave(
-    file.path(main_dir, "ds_summary.pdf"),
+    file.path(supp_pdf_dir, "ds_summary.pdf"),
     fig3,
     width = 10 * FIG_WIDTH_SCALE,
     height = 8 * FIG_HEIGHT_SCALE
@@ -1137,7 +1148,7 @@ local({
       dpi = 300
     )
     ggsave(
-      file.path(main_dir, "ms_isotope.pdf"),
+      file.path(main_pdf_dir, "ms_isotope.pdf"),
       fig4,
       width = 9 * FIG_WIDTH_SCALE,
       height = 8 * FIG_HEIGHT_SCALE
@@ -1203,14 +1214,14 @@ local({
         )
 
       ggsave(
-        file.path(main_dir, "ms_mtt1_mtt2_compare.png"),
+        file.path(supp_dir, "ms_mtt1_mtt2_compare.png"),
         fig4b,
         width = 7 * FIG_WIDTH_SCALE,
         height = 7 * FIG_HEIGHT_SCALE,
         dpi = 300
       )
       ggsave(
-        file.path(main_dir, "ms_mtt1_mtt2_compare.pdf"),
+        file.path(supp_pdf_dir, "ms_mtt1_mtt2_compare.pdf"),
         fig4b,
         width = 7 * FIG_WIDTH_SCALE,
         height = 7 * FIG_HEIGHT_SCALE
@@ -1301,14 +1312,14 @@ local({
       labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
     ggsave(
-      file.path(main_dir, "ms_chs.png"),
+      file.path(supp_dir, "ms_chs.png"),
       fig5,
       width = 8 * FIG_WIDTH_SCALE,
       height = 5 * FIG_HEIGHT_SCALE,
       dpi = 300
     )
     ggsave(
-      file.path(main_dir, "ms_chs.pdf"),
+      file.path(supp_pdf_dir, "ms_chs.pdf"),
       fig5,
       width = 8 * FIG_WIDTH_SCALE,
       height = 5 * FIG_HEIGHT_SCALE
@@ -1361,14 +1372,14 @@ local({
       labs(x = NULL, y = "Baseflow Fraction (CHS)")
 
     ggsave(
-      file.path(main_dir, "ms_chs_boxplot.png"),
+      file.path(supp_dir, "ms_chs_boxplot.png"),
       fig5_box,
       width = 8 * FIG_WIDTH_SCALE,
       height = 5 * FIG_HEIGHT_SCALE,
       dpi = 300
     )
     ggsave(
-      file.path(main_dir, "ms_chs_boxplot.pdf"),
+      file.path(supp_pdf_dir, "ms_chs_boxplot.pdf"),
       fig5_box,
       width = 8 * FIG_WIDTH_SCALE,
       height = 5 * FIG_HEIGHT_SCALE
@@ -1467,7 +1478,7 @@ local({
     dpi = 300
   )
   ggsave(
-    file.path(supp_dir, "ds_annual_ts.pdf"),
+    file.path(supp_pdf_dir, "ds_annual_ts.pdf"),
     supp_dynamic_ts,
     width = 16 * FIG_WIDTH_SCALE,
     height = 10 * FIG_HEIGHT_SCALE
@@ -1547,7 +1558,7 @@ local({
       dpi = 300
     )
     ggsave(
-      file.path(supp_dir, "ms_chs_annual_ts.pdf"),
+      file.path(supp_pdf_dir, "ms_chs_annual_ts.pdf"),
       supp_chs_ts,
       width = 12 * FIG_WIDTH_SCALE,
       height = 10 * FIG_HEIGHT_SCALE

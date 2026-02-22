@@ -14,17 +14,21 @@ EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
 FIGURES_DIR <- file.path(OUTPUT_DIR, "figs")
 
 # Input subdirectories
-DISCHARGE_DIR <- file.path(BASE_DATA_DIR, "q")
-EC_DIR <- file.path(BASE_DATA_DIR, "ec")
-ISOTOPE_DIR <- file.path(BASE_DATA_DIR, "isotopes")
-STREAM_TEMP_DIR <- file.path(BASE_DATA_DIR, "stream_t")
+# Canonical input layout keeps small input groups at the inputs root.
+DISCHARGE_DIR <- BASE_DATA_DIR
+EC_DIR <- BASE_DATA_DIR
+ISOTOPE_DIR <- BASE_DATA_DIR
+STREAM_TEMP_DIR <- BASE_DATA_DIR
 MET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
-CATCHMENT_CHARACTERISTICS_DIR <- file.path(
-  BASE_DATA_DIR,
-  "catchment_characteristics"
-)
+CATCHMENT_CHARACTERISTICS_DIR <- BASE_DATA_DIR
 
 EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
+
+# Output controls
+# Keep only workflow-essential CSVs by default; set TRUE when you need
+# manuscript/helper table exports.
+WRITE_TABLE_OUTPUTS <- FALSE
+WRITE_AUX_OUTPUTS <- FALSE
 
 # Create output directory if it doesn't exist
 if (!dir.exists(OUTPUT_DIR)) {
@@ -55,7 +59,7 @@ OUT_STATS_VALIDATION_DIR <- file.path(OUT_STATS_DIR, "validation")
 OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")
 OUT_TABLES_MLR_DIR <- file.path(OUT_TABLES_DIR, "mlr")
 
-for (d in c(
+output_dirs <- c(
   OUT_METRICS_DIR,
   OUT_MET_DYNAMIC_DIR,
   OUT_MET_MOBILE_DIR,
@@ -69,11 +73,15 @@ for (d in c(
   OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR,
   OUT_MODELS_STORAGE_ECOVAR_MLR_DIR,
   OUT_STATS_VALIDATION_DIR,
-  OUT_TABLES_DIR,
-  OUT_TABLES_MLR_DIR,
   EXPLORATORY_PLOTS_DIR,
   EXPLORATORY_ET_METHODS_DIR
-)) {
+)
+
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  output_dirs <- c(output_dirs, OUT_TABLES_DIR, OUT_TABLES_MLR_DIR)
+}
+
+for (d in output_dirs) {
   if (!dir.exists(d)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }

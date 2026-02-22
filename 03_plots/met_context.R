@@ -1,5 +1,5 @@
 # Create figure showing monthly climatology (median with IQR; Jan–Dec).
-# Inputs: met_dir/Temperature_original_&_filled_1979_2023_v2.csv; met_dir/Precipitation_original_&_filled_1979_2023.csv; met_dir/SWE_original_&_filled_1997_2023_v5.csv.
+# Inputs: MET_DIR/Temperature_original_&_filled_1979_2023_v2.csv; MET_DIR/Precipitation_original_&_filled_1979_2023.csv; MET_DIR/SWE_original_&_filled_1997_2023_v5.csv.
 # Author: Sidney Bush
 # Date: 2026-01-30
 
@@ -17,10 +17,13 @@ source("config.R")
 
 # SETUP
 
-met_dir <- file.path(BASE_DATA_DIR, "all_hydromet")
-output_dir <- file.path(FIGURES_DIR, "main")
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir, recursive = TRUE)
+met_dir <- MET_DIR
+output_dir <- file.path(FIGURES_DIR, "supp")
+pdf_dir <- file.path(output_dir, "pdf")
+for (d in c(output_dir, pdf_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE)
+  }
 }
 
 wy_start <- 1997
@@ -235,7 +238,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(output_dir, "met_context.pdf"),
+  file.path(pdf_dir, "met_context.pdf"),
   fig_combined,
   width = 13 * FIG_WIDTH_SCALE,
   height = 8.5 * FIG_HEIGHT_SCALE

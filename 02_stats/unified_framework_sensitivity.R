@@ -60,7 +60,11 @@ write_root <- find_write_root()
 
 model_out_dir <- file.path(write_root, "models", "unified_framework")
 table_out_dir <- file.path(write_root, "tables", "unified_framework")
-for (d in c(model_out_dir, table_out_dir)) {
+dir_targets <- c(model_out_dir)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  dir_targets <- c(dir_targets, table_out_dir)
+}
+for (d in dir_targets) {
   if (!dir.exists(d)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }
@@ -427,16 +431,17 @@ write_csv(
   file.path(model_out_dir, "unified_framework_loo_summary.csv")
 )
 
-write_csv(
-  sensitivity_summary,
-  file.path(table_out_dir, "unified_framework_sensitivity_summary.csv")
-)
-write_csv(
-  loo_results,
-  file.path(table_out_dir, "unified_framework_loo_site_scores.csv")
-)
-write_csv(
-  loo_summary,
-  file.path(table_out_dir, "unified_framework_loo_summary.csv")
-)
-
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  write_csv(
+    sensitivity_summary,
+    file.path(table_out_dir, "unified_framework_sensitivity_summary.csv")
+  )
+  write_csv(
+    loo_results,
+    file.path(table_out_dir, "unified_framework_loo_site_scores.csv")
+  )
+  write_csv(
+    loo_summary,
+    file.path(table_out_dir, "unified_framework_loo_summary.csv")
+  )
+}

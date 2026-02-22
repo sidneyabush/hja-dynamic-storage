@@ -36,8 +36,6 @@ master_dir <- file.path(OUTPUT_DIR, "master")
 required_outputs <- c(
   file.path(master_dir, MASTER_ANNUAL_FILE),
   file.path(master_dir, MASTER_SITE_FILE),
-  file.path(master_dir, "master_site_metric_summary_stats.csv"),
-  file.path(OUT_MET_SUPPORT_DIR, "site_metric_availability.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "anova_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_hsd_results.csv"),
   file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv"),
@@ -45,18 +43,72 @@ required_outputs <- c(
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
   file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary_strict.csv"),
-  file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary_strict.csv"),
-  file.path(OUT_TABLES_MLR_DIR, "mlr_main_results_table.csv"),
-  file.path(FIGURES_DIR, "main", "ds_summary.png"),
-  file.path(FIGURES_DIR, "main", "pca_biplot.png")
+  file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary_strict.csv")
 )
 
 missing_outputs <- required_outputs[!file.exists(required_outputs)]
+if (isTRUE(WRITE_AUX_OUTPUTS)) {
+  aux_required <- c(
+    file.path(master_dir, "master_site_metric_summary_stats.csv"),
+    file.path(OUT_MET_SUPPORT_DIR, "site_metric_availability.csv")
+  )
+  missing_outputs <- c(
+    missing_outputs,
+    aux_required[!file.exists(aux_required)]
+  )
+}
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  table_required <- c(file.path(OUT_TABLES_MLR_DIR, "mlr_main_results_table.csv"))
+  missing_outputs <- c(
+    missing_outputs,
+    table_required[!file.exists(table_required)]
+  )
+}
+
+required_output_alternatives <- list(
+  ds_summary_png = c(
+    file.path(FIGURES_DIR, "supp", "ds_summary.png"),
+    file.path(FIGURES_DIR, "main", "ds_summary.png")
+  ),
+  pca_biplot_png = c(
+    file.path(FIGURES_DIR, "supp", "pca_biplot.png"),
+    file.path(FIGURES_DIR, "main", "pca_biplot.png")
+  )
+)
+missing_alternatives <- names(required_output_alternatives)[
+  !vapply(
+    required_output_alternatives,
+    function(paths) any(file.exists(paths)),
+    logical(1)
+  )
+]
+missing_alt_lines <- character()
+for (key in missing_alternatives) {
+  missing_alt_lines <- c(
+    missing_alt_lines,
+    paste0("[", key, "] any of:\n  - ", paste(required_output_alternatives[[key]], collapse = "\n  - "))
+  )
+}
+
 if (length(missing_outputs) > 0) {
+  msg <- paste0(
+    "Missing required output file(s):\n- ",
+    paste(missing_outputs, collapse = "\n- ")
+  )
+  if (length(missing_alt_lines) > 0) {
+    msg <- paste0(
+      msg,
+      "\n\nMissing required output alternatives:\n",
+      paste(missing_alt_lines, collapse = "\n")
+    )
+  }
+  stop(msg)
+}
+if (length(missing_alt_lines) > 0) {
   stop(
     paste0(
-      "Missing required output file(s):\n- ",
-      paste(missing_outputs, collapse = "\n- ")
+      "Missing required output alternatives:\n",
+      paste(missing_alt_lines, collapse = "\n")
     )
   )
 }

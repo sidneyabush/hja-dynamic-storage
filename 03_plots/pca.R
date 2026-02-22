@@ -14,10 +14,9 @@ rm(list = ls())
 source("config.R")
 
 
-main_dir <- file.path(FIGURES_DIR, "main")
-supp_dir <- file.path(FIGURES_DIR, "supp", "analysis", "pca")
-table_dir <- file.path(OUT_TABLES_DIR, "pca")
-for (d in c(main_dir, supp_dir, table_dir)) {
+supp_dir <- file.path(FIGURES_DIR, "supp")
+supp_pdf_dir <- file.path(supp_dir, "pdf")
+for (d in c(supp_dir, supp_pdf_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -33,14 +32,6 @@ unlink(file.path(supp_dir, c(
   "storage_ecovar_mlr_pca_biplot.pdf",
   "storage_ecovar_mlr_pca_scree.png",
   "storage_ecovar_mlr_pca_scree.pdf"
-)))
-unlink(file.path(table_dir, c(
-  "watershed_char_storage_mlr_pca_variance_table.csv",
-  "watershed_char_storage_mlr_pca_loading_table.csv"
-)))
-unlink(file.path(table_dir, c(
-  "storage_ecovar_mlr_pca_variance_table.csv",
-  "storage_ecovar_mlr_pca_loading_table.csv"
 )))
 
 scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
@@ -112,8 +103,8 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
-ggsave(file.path(main_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
-ggsave(file.path(main_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
+ggsave(file.path(supp_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(supp_pdf_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
 
 p_scree <- vexp %>%
   mutate(PC = factor(PC, levels = PC)) %>%
@@ -132,9 +123,6 @@ p_scree <- vexp %>%
   )
 
 ggsave(file.path(supp_dir, "pca_scree.png"), p_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE, dpi = 300)
-ggsave(file.path(supp_dir, "pca_scree.pdf"), p_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE)
-
-write_csv(vexp, file.path(table_dir, "pca_variance_table.csv"))
-write_csv(loads, file.path(table_dir, "pca_loading_table.csv"))
+ggsave(file.path(supp_pdf_dir, "pca_scree.pdf"), p_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE)
 
 # Catchment-characteristics and eco-model PCA companion plots removed by design.

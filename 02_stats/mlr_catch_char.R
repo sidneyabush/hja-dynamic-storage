@@ -582,7 +582,7 @@ write.csv(flags,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
 
-# Explicit LOOCV validation output (models + tables validation folders)
+# Explicit LOOCV validation output
 loocv_validation <- model_run$summary %>%
   transmute(
     model_family = "watershed_char_storage_mlr",
@@ -604,25 +604,26 @@ write.csv(
   file.path(OUT_STATS_VALIDATION_DIR, "watershed_char_storage_mlr_loocv_validation.csv"),
   row.names = FALSE
 )
-
-if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
-  dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
+    dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
+  }
+  write.csv(
+    loocv_validation,
+    file.path(OUT_TABLES_DIR, "validation", "watershed_char_storage_mlr_loocv_validation.csv"),
+    row.names = FALSE
+  )
+  if (!dir.exists(OUT_TABLES_MLR_DIR)) {
+    dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
+  }
+  write.csv(
+    aicc_lt2,
+    file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_aicc_lt2.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    diagnostics_out,
+    file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_diagnostics.csv"),
+    row.names = FALSE
+  )
 }
-write.csv(
-  loocv_validation,
-  file.path(OUT_TABLES_DIR, "validation", "watershed_char_storage_mlr_loocv_validation.csv"),
-  row.names = FALSE
-)
-if (!dir.exists(OUT_TABLES_MLR_DIR)) {
-  dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
-}
-write.csv(
-  aicc_lt2,
-  file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_aicc_lt2.csv"),
-  row.names = FALSE
-)
-write.csv(
-  diagnostics_out,
-  file.path(OUT_TABLES_MLR_DIR, "watershed_char_storage_mlr_diagnostics.csv"),
-  row.names = FALSE
-)

@@ -51,8 +51,11 @@ find_model_file <- function(rel_path) {
 
 write_root <- find_write_root()
 main_fig_dir <- file.path(write_root, "figs", "main")
-if (!dir.exists(main_fig_dir)) {
-  dir.create(main_fig_dir, recursive = TRUE, showWarnings = FALSE)
+main_pdf_dir <- file.path(main_fig_dir, "pdf")
+for (d in c(main_fig_dir, main_pdf_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
 }
 
 anom_file <- find_model_file(file.path("models", "unified_framework", "unified_framework_annual_anomalies.csv"))
@@ -239,7 +242,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_dynamic_trajectory_pwinter_anom.pdf"),
+  file.path(main_pdf_dir, "unified_framework_dynamic_trajectory_pwinter_anom.pdf"),
   p_traj_main,
   width = 8.5 * FIG_WIDTH_SCALE,
   height = 6.2 * FIG_HEIGHT_SCALE
@@ -263,7 +266,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_dynamic_trajectory_wb_anom.pdf"),
+  file.path(main_pdf_dir, "unified_framework_dynamic_trajectory_wb_anom.pdf"),
   p_traj_supp,
   width = 8.5 * FIG_WIDTH_SCALE,
   height = 6.2 * FIG_HEIGHT_SCALE
@@ -532,7 +535,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_state_dependence_slopes_supp_wb_by_site.pdf"),
+  file.path(main_pdf_dir, "unified_framework_state_dependence_slopes_supp_wb_by_site.pdf"),
   p_slope_supp_wb_site,
   width = 10.5 * FIG_WIDTH_SCALE,
   height = 4.8 * FIG_HEIGHT_SCALE
@@ -552,7 +555,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_state_dependence_slopes_supp_pwinter_by_site.pdf"),
+  file.path(main_pdf_dir, "unified_framework_state_dependence_slopes_supp_pwinter_by_site.pdf"),
   p_slope_supp_p_site,
   width = 10.5 * FIG_WIDTH_SCALE,
   height = 4.8 * FIG_HEIGHT_SCALE
@@ -657,7 +660,7 @@ ggsave(
   dpi = 300
 )
 ggsave(
-  file.path(main_fig_dir, "unified_framework_eco_site_means_vs_state.pdf"),
+  file.path(main_pdf_dir, "unified_framework_eco_site_means_vs_state.pdf"),
   p_eco_state,
   width = 10.8 * FIG_WIDTH_SCALE,
   height = 4.9 * FIG_HEIGHT_SCALE

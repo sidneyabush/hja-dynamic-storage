@@ -15,9 +15,9 @@ source("config.R")
 
 output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
 plot_dir <- file.path(FIGURES_DIR, "main")
+plot_pdf_dir <- file.path(plot_dir, "pdf")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
-table_dir <- OUT_TABLES_MLR_DIR
-if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
+if (!dir.exists(plot_pdf_dir)) dir.create(plot_pdf_dir, recursive = TRUE)
 
 results_file <- file.path(output_dir, "watershed_char_storage_mlr_results.csv")
 summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
@@ -107,27 +107,8 @@ ggsave(
 )
 
 ggsave(
-  file.path(plot_dir, "watershed_char_storage_mlr_beta.pdf"),
+  file.path(plot_pdf_dir, "watershed_char_storage_mlr_beta.pdf"),
   p_beta,
   width = 11 * FIG_WIDTH_SCALE,
   height = 7 * FIG_HEIGHT_SCALE
-)
-
-write_csv(
-  perf_df,
-  file.path(table_dir, "watershed_char_storage_mlr_model_perf.csv")
-)
-
-write_csv(
-  coef_df,
-  file.path(table_dir, "watershed_char_storage_mlr_coef.csv")
-)
-
-results_table <- coef_df %>%
-  left_join(perf_df, by = "Outcome") %>%
-  arrange(Outcome, desc(abs(Beta_Std)))
-
-write_csv(
-  results_table,
-  file.path(table_dir, "watershed_char_storage_mlr_table.csv")
 )

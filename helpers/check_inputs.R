@@ -103,19 +103,20 @@ check_columns(
   file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
   c("DATE", "SITECODE", "MEAN_Q")
 )
+temp_file <- file.path(STREAM_TEMP_DIR, "HT00451_v10.txt")
 temp_cols <- names(suppressMessages(read_csv(
-  file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"),
+  temp_file,
   n_max = 0,
   show_col_types = FALSE
 )))
 if (!all(c("DATE_TIME", "SITECODE") %in% temp_cols)) {
-  stop(
-    "Missing required columns in Stream_T/HT00451_v10.txt: DATE_TIME and/or SITECODE"
-  )
+  stop("Missing required columns in ", temp_file, ": DATE_TIME and/or SITECODE")
 }
 if (!("WATERTEMP_MEAN" %in% temp_cols)) {
   stop(
-    "Missing stream temperature column in Stream_T/HT00451_v10.txt (expected WATERTEMP_MEAN)"
+    "Missing stream temperature column in ",
+    temp_file,
+    " (expected WATERTEMP_MEAN)"
   )
 }
 check_columns(resolve_catchment_characteristics_file(), c("Site"))

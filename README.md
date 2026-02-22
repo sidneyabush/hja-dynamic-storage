@@ -7,7 +7,8 @@ Eco-response variable notes:
 
 CHS (EC baseflow) notes:
 - CHS keeps a water year only when there are at least `300` days with overlapping EC + discharge data (`CHS_MIN_DAYS_PER_WY` in `config.R`).
-- EC input file is `inputs/ec/CF01201_v4.txt`.
+- EC input file is `inputs/CF01201_v4.txt`.
+- Meteorological input files are in `inputs/all_hydromet/`.
 
 ## scripts
 

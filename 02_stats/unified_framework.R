@@ -65,7 +65,11 @@ write_root <- find_write_root()
 
 model_out_dir <- file.path(write_root, "models", "unified_framework")
 table_out_dir <- file.path(write_root, "tables", "unified_framework")
-for (d in c(model_out_dir, table_out_dir)) {
+dir_targets <- c(model_out_dir)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  dir_targets <- c(dir_targets, table_out_dir)
+}
+for (d in dir_targets) {
   if (!dir.exists(d)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }
@@ -241,8 +245,10 @@ write_csv(
   file.path(model_out_dir, "unified_framework_axis_correlations.csv")
 )
 
-# Mirror core table into tables output for manuscript lookup.
-write_csv(
-  axes_site,
-  file.path(table_out_dir, "unified_framework_site_axes.csv")
-)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  # Mirror core table into tables output for manuscript lookup.
+  write_csv(
+    axes_site,
+    file.path(table_out_dir, "unified_framework_site_axes.csv")
+  )
+}

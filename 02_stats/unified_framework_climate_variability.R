@@ -161,7 +161,11 @@ axes_file <- find_axes_file(read_root, write_root)
 
 model_out_dir <- file.path(write_root, "models", "unified_framework")
 table_out_dir <- file.path(write_root, "tables", "unified_framework")
-for (d in c(model_out_dir, table_out_dir)) {
+dir_targets <- c(model_out_dir)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  dir_targets <- c(dir_targets, table_out_dir)
+}
+for (d in dir_targets) {
   if (!dir.exists(d)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
   }
@@ -518,55 +522,57 @@ write_csv(
   file.path(model_out_dir, "unified_framework_slope_state_correlations.csv")
 )
 
-write_csv(
-  main_models,
-  file.path(table_out_dir, "unified_framework_climate_main_models.csv")
-)
-write_csv(
-  main_coefs,
-  file.path(table_out_dir, "unified_framework_climate_main_coefficients.csv")
-)
-write_csv(
-  supp_models,
-  file.path(table_out_dir, "unified_framework_climate_supp_wb_models.csv")
-)
-write_csv(
-  supp_coefs,
-  file.path(table_out_dir, "unified_framework_climate_supp_wb_coefficients.csv")
-)
-write_csv(
-  interaction_models,
-  file.path(table_out_dir, "unified_framework_climate_interaction_models.csv")
-)
-write_csv(
-  interaction_coefs,
-  file.path(table_out_dir, "unified_framework_climate_interaction_coefficients.csv")
-)
-write_csv(
-  site_slopes,
-  file.path(table_out_dir, "unified_framework_site_sensitivity_slopes.csv")
-)
-write_csv(
-  site_slopes_ols,
-  file.path(table_out_dir, "unified_framework_site_sensitivity_slopes_ols.csv")
-)
-write_csv(
-  site_slopes_sen,
-  file.path(table_out_dir, "unified_framework_site_sensitivity_slopes_sen.csv")
-)
-write_csv(
-  slope_method_comparison,
-  file.path(table_out_dir, "unified_framework_slope_method_comparison.csv")
-)
-write_csv(
-  slope_state_corr_ols,
-  file.path(table_out_dir, "unified_framework_slope_state_correlations_ols.csv")
-)
-write_csv(
-  slope_state_corr_sen,
-  file.path(table_out_dir, "unified_framework_slope_state_correlations_sen.csv")
-)
-write_csv(
-  slope_state_corr,
-  file.path(table_out_dir, "unified_framework_slope_state_correlations.csv")
-)
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  write_csv(
+    main_models,
+    file.path(table_out_dir, "unified_framework_climate_main_models.csv")
+  )
+  write_csv(
+    main_coefs,
+    file.path(table_out_dir, "unified_framework_climate_main_coefficients.csv")
+  )
+  write_csv(
+    supp_models,
+    file.path(table_out_dir, "unified_framework_climate_supp_wb_models.csv")
+  )
+  write_csv(
+    supp_coefs,
+    file.path(table_out_dir, "unified_framework_climate_supp_wb_coefficients.csv")
+  )
+  write_csv(
+    interaction_models,
+    file.path(table_out_dir, "unified_framework_climate_interaction_models.csv")
+  )
+  write_csv(
+    interaction_coefs,
+    file.path(table_out_dir, "unified_framework_climate_interaction_coefficients.csv")
+  )
+  write_csv(
+    site_slopes,
+    file.path(table_out_dir, "unified_framework_site_sensitivity_slopes.csv")
+  )
+  write_csv(
+    site_slopes_ols,
+    file.path(table_out_dir, "unified_framework_site_sensitivity_slopes_ols.csv")
+  )
+  write_csv(
+    site_slopes_sen,
+    file.path(table_out_dir, "unified_framework_site_sensitivity_slopes_sen.csv")
+  )
+  write_csv(
+    slope_method_comparison,
+    file.path(table_out_dir, "unified_framework_slope_method_comparison.csv")
+  )
+  write_csv(
+    slope_state_corr_ols,
+    file.path(table_out_dir, "unified_framework_slope_state_correlations_ols.csv")
+  )
+  write_csv(
+    slope_state_corr_sen,
+    file.path(table_out_dir, "unified_framework_slope_state_correlations_sen.csv")
+  )
+  write_csv(
+    slope_state_corr,
+    file.path(table_out_dir, "unified_framework_slope_state_correlations.csv")
+  )
+}

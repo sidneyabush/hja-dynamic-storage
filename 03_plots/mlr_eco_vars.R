@@ -16,9 +16,9 @@ source("config.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
 plot_dir <- file.path(FIGURES_DIR, "main")
+plot_pdf_dir <- file.path(plot_dir, "pdf")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
-table_dir <- OUT_TABLES_MLR_DIR
-if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
+if (!dir.exists(plot_pdf_dir)) dir.create(plot_pdf_dir, recursive = TRUE)
 
 models_file <- file.path(output_dir, "storage_ecovar_mlr_results.csv")
 summary_file <- file.path(output_dir, "storage_ecovar_mlr_summary.csv")
@@ -237,7 +237,7 @@ save_plot_safe(
 )
 
 save_plot_safe(
-  file.path(plot_dir, "storage_ecovar_mlr_beta.pdf"),
+  file.path(plot_pdf_dir, "storage_ecovar_mlr_beta.pdf"),
   p_beta,
   width = 11 * FIG_WIDTH_SCALE,
   height = 13 * FIG_HEIGHT_SCALE
@@ -301,104 +301,109 @@ save_plot_safe(
   dpi = 300
 )
 save_plot_safe(
-  file.path(plot_dir, "storage_ecovar_mlr_r2_heatmap.pdf"),
+  file.path(plot_pdf_dir, "storage_ecovar_mlr_r2_heatmap.pdf"),
   p_r2,
   width = 10 * FIG_WIDTH_SCALE,
   height = 4 * FIG_HEIGHT_SCALE
 )
 
-save_csv_safe <- function(df, path) {
-  tryCatch(
-    {
-      write_csv(df, path)
-      TRUE
-    },
-    error = function(e) {
-      warning(sprintf("Failed to write table to %s: %s", path, e$message))
-      FALSE
-    }
+if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+  table_dir <- OUT_TABLES_MLR_DIR
+  if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE)
+
+  save_csv_safe <- function(df, path) {
+    tryCatch(
+      {
+        write_csv(df, path)
+        TRUE
+      },
+      error = function(e) {
+        warning(sprintf("Failed to write table to %s: %s", path, e$message))
+        FALSE
+      }
+    )
+  }
+
+  pretty_text <- function(x) gsub("_", " ", x)
+
+  perf_export <- perf_df %>%
+    mutate(
+      Response = pretty_text(as.character(Response)),
+      Predictors_Final = pretty_text(as.character(Predictors_Final))
+    ) %>%
+    rename(
+      site = Site,
+      response = Response,
+      predictors_final = Predictors_Final,
+      r2 = R2,
+      r2_adj = R2_adj,
+      rmse = RMSE,
+      aicc = AICc,
+      rmse_loocv = RMSE_LOOCV,
+      rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
+      r2_loocv = R2_LOOCV,
+      delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
+      delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
+    ) %>%
+    mutate(
+      r2 = signif(r2, 3),
+      r2_adj = signif(r2_adj, 3),
+      rmse = signif(rmse, 3),
+      aicc = signif(aicc, 3),
+      rmse_loocv = signif(rmse_loocv, 3),
+      rmse_loocv_mean_runs = signif(rmse_loocv_mean_runs, 3),
+      r2_loocv = signif(r2_loocv, 3),
+      delta_rmse_loocv_minus_model = signif(delta_rmse_loocv_minus_model, 3),
+      delta_rmse_loocv_mean_runs_minus_model = signif(delta_rmse_loocv_mean_runs_minus_model, 3)
+    )
+
+  save_csv_safe(
+    perf_export,
+    file.path(table_dir, "storage_ecovar_mlr_model_perf.csv")
   )
-}
-
-pretty_text <- function(x) gsub("_", " ", x)
-
-perf_export <- perf_df %>%
-  mutate(
-    Response = pretty_text(as.character(Response)),
-    Predictors_Final = pretty_text(as.character(Predictors_Final))
-  ) %>%
-  rename(
-    site = Site,
-    response = Response,
-    predictors_final = Predictors_Final,
-    r2 = R2,
-    r2_adj = R2_adj,
-    rmse = RMSE,
-    aicc = AICc,
-    rmse_loocv = RMSE_LOOCV,
-    rmse_loocv_mean_runs = RMSE_LOOCV_MEAN_RUNS,
-    r2_loocv = R2_LOOCV,
-    delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
-    delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
-  ) %>%
-  mutate(
-    r2 = signif(r2, 3),
-    r2_adj = signif(r2_adj, 3),
-    rmse = signif(rmse, 3),
-    aicc = signif(aicc, 3),
-    rmse_loocv = signif(rmse_loocv, 3),
-    rmse_loocv_mean_runs = signif(rmse_loocv_mean_runs, 3),
-    r2_loocv = signif(r2_loocv, 3),
-    delta_rmse_loocv_minus_model = signif(delta_rmse_loocv_minus_model, 3),
-    delta_rmse_loocv_mean_runs_minus_model = signif(delta_rmse_loocv_mean_runs_minus_model, 3)
+  save_csv_safe(
+    r2_heat_df %>%
+      transmute(
+        site = as.character(Site),
+        response = pretty_text(as.character(Response)),
+        adj_r2 = signif(adj_r2, 3),
+        model_status,
+        reason_not_fit,
+        n_response
+      ),
+    file.path(table_dir, "storage_ecovar_mlr_r2_heatmap_table.csv")
   )
 
-save_csv_safe(
-  perf_export,
-  file.path(table_dir, "storage_ecovar_mlr_model_perf.csv")
-)
-save_csv_safe(
-  r2_heat_df %>%
+  save_csv_safe(
+    coef_df,
+    file.path(table_dir, "storage_ecovar_mlr_coef.csv")
+  )
+
+  manuscript_table <- beta_plot_df %>%
     transmute(
       site = as.character(Site),
       response = pretty_text(as.character(Response)),
-      adj_r2 = signif(adj_r2, 3),
+      predictor = as.character(Predictor),
+      beta_std = signif(Beta_Std, 3),
+      r2_model = signif(R2_model, 3),
+      tile_label = tile_label,
       model_status,
       reason_not_fit,
-      n_response
-    ),
-  file.path(table_dir, "storage_ecovar_mlr_r2_heatmap_table.csv")
-)
+      n_response,
+      usable_predictors
+    ) %>%
+    left_join(
+      perf_export %>%
+        mutate(
+          site = as.character(site),
+          response = as.character(response)
+        ),
+      by = c("site", "response")
+    ) %>%
+    arrange(factor(site, levels = site_order), response, predictor)
 
-save_csv_safe(
-  coef_df,
-  file.path(table_dir, "storage_ecovar_mlr_coef.csv")
-)
-
-manuscript_table <- beta_plot_df %>%
-  transmute(
-    site = as.character(Site),
-    response = pretty_text(as.character(Response)),
-    predictor = as.character(Predictor),
-    beta_std = signif(Beta_Std, 3),
-    r2_model = signif(R2_model, 3),
-    tile_label = tile_label,
-    model_status,
-    reason_not_fit,
-    n_response,
-    usable_predictors
-  ) %>%
-  left_join(
-    perf_export %>%
-      mutate(
-        site = as.character(site),
-        response = as.character(response)
-      ),
-    by = c("site", "response")
-  ) %>%
-  arrange(factor(site, levels = site_order), response, predictor)
-
-save_csv_safe(
-  manuscript_table,
-  file.path(table_dir, "storage_ecovar_mlr_table.csv")
-)
+  save_csv_safe(
+    manuscript_table,
+    file.path(table_dir, "storage_ecovar_mlr_table.csv")
+  )
+}
