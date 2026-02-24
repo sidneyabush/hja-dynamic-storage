@@ -106,7 +106,10 @@ coverage_df <- if (file.exists(coverage_file)) {
 
 response_order <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 site_order <- SITE_ORDER_HYDROMETRIC
-predictor_order <- c("P_WetSeason", "RBI", "RCS", "FDC", "SD", "CHS", "WB")
+predictor_order <- c(
+  "P_WetSeason",
+  STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "CHS")]
+)
 
 response_display <- setNames(gsub("_", "", response_order), response_order)
 predictor_display <- setNames(gsub("_", "", predictor_order), predictor_order)

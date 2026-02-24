@@ -15,6 +15,7 @@ source("config.R")
 
 
 output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
+ALPHA <- 0.05
 plot_dir <- file.path(FIGURES_DIR, "main")
 plot_pdf_dir <- file.path(plot_dir, "pdf")
 supp_plot_dir <- file.path(FIGURES_DIR, "supp")
@@ -32,6 +33,39 @@ if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_s
 
 mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
+outcome_order <- STORAGE_METRIC_ORDER
+
+format_model_p <- function(p) {
+  ifelse(
+    is.finite(p),
+    format(signif(p, 3), scientific = TRUE, trim = TRUE),
+    "NA"
+  )
+}
+
+predictor_count <- mlr_results %>%
+  group_by(Outcome) %>%
+  summarise(k_predictors = sum(is.finite(Beta_Std)), .groups = "drop")
+
+mlr_summary <- mlr_summary %>%
+  left_join(predictor_count, by = "Outcome")
+
+if (!("model_p_global" %in% names(mlr_summary))) {
+  r2_num <- suppressWarnings(as.numeric(mlr_summary$R2))
+  n_num <- suppressWarnings(as.numeric(mlr_summary$N))
+  k_num <- suppressWarnings(as.numeric(mlr_summary$k_predictors))
+  f_stat <- ifelse(
+    is.finite(r2_num) & is.finite(n_num) & is.finite(k_num) &
+      k_num > 0 & (n_num - k_num - 1) > 0 & r2_num < 1,
+    (r2_num / k_num) / ((1 - r2_num) / (n_num - k_num - 1)),
+    NA_real_
+  )
+  mlr_summary$model_p_global <- ifelse(
+    is.finite(f_stat),
+    pf(f_stat, k_num, n_num - k_num - 1, lower.tail = FALSE),
+    NA_real_
+  )
+}
 if ("Predictors_Final" %in% names(mlr_summary)) {
   mlr_summary <- mlr_summary %>%
     mutate(Predictors_Final = label_catchment_predictor_list(Predictors_Final))
@@ -55,15 +89,26 @@ beta_plot_df <- mlr_results %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
     Predictor = label_catchment_predictor(Predictor),
-    beta_label = sprintf("%.2f", Beta_Std)
+    p_value = suppressWarnings(as.numeric(p_value)),
+    sig_label = ifelse(is.finite(p_value) & p_value <= ALPHA, "*", ""),
+    beta_label = paste0(sprintf("%.2f", Beta_Std), sig_label)
   )
 
 adj_r2_lookup <- mlr_summary %>%
   mutate(
     Outcome_clean = gsub("_mean$", "", Outcome),
-    Outcome_label = paste0(Outcome_clean, "\nAdj R² = ", sprintf("%.2f", R2_adj))
+    Outcome_label = factor(Outcome_clean, levels = outcome_order),
+    Outcome_stats = paste0(
+      Outcome_clean,
+      ": adj R2 ",
+      sprintf("%.2f", R2_adj),
+      ", model p ",
+      format_model_p(suppressWarnings(as.numeric(model_p_global)))
+    )
   ) %>%
-  select(Outcome, Outcome_label)
+  arrange(Outcome_label) %>%
+  mutate(Outcome_label = as.character(Outcome_label)) %>%
+  select(Outcome, Outcome_label, Outcome_stats)
 
 beta_plot_df <- beta_plot_df %>%
   left_join(adj_r2_lookup, by = "Outcome")
@@ -77,7 +122,7 @@ predictor_order <- label_catchment_predictor(predictor_order)
 beta_plot_df <- beta_plot_df %>%
   mutate(
     Predictor = factor(Predictor, levels = rev(predictor_order)),
-    Outcome_label = factor(Outcome_label, levels = unique(adj_r2_lookup$Outcome_label))
+    Outcome_label = factor(Outcome_label, levels = outcome_order)
   )
 
 p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
@@ -95,7 +140,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
     axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
     legend.position = "right",
@@ -121,10 +166,7 @@ ggsave(
 # Companion diagnostics heatmap: p-values for residual checks.
 diagnostics_file <- file.path(output_dir, "watershed_char_storage_mlr_diagnostics.csv")
 if (file.exists(diagnostics_file)) {
-  outcome_levels <- mlr_summary %>%
-    mutate(Outcome_clean = gsub("_mean$", "", Outcome)) %>%
-    pull(Outcome_clean) %>%
-    unique()
+  outcome_levels <- outcome_order[outcome_order %in% gsub("_mean$", "", as.character(mlr_summary$Outcome))]
 
   diag_df <- read_csv(diagnostics_file, show_col_types = FALSE) %>%
     transmute(

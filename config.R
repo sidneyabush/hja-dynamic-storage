@@ -154,25 +154,29 @@ CHS_EXCLUDE_SITES <- c("Look", "WS09")
 
 # STORAGE METRICS DEFINITIONS
 
+# Canonical storage-metric order across figures/tables:
+# RBI, RCS, FDC, SD, WB, CHS, DR, Fyw, MTT1, MTT2
+STORAGE_METRIC_ORDER <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT1", "MTT2")
+
 # Dynamic storage metrics (from streamflow data - year-by-year records)
 # RBI = Richards-Baker Index, RCS = Recession Curve Slope
 # FDC = Flow Duration Curve, SD = Storage-Discharge
-DYNAMIC_METRICS <- c("RBI", "RCS", "FDC", "SD")
+DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD")]
 
 # Mobile storage metrics
 # CHS = Chemical Hydrograph Separation (mean baseflow fraction)
 # MTT1/MTT2 = Mean Transit Time period-specific values, Fyw = Young Water Fraction, DR = Damping Ratio
-MOBILE_METRICS_ANNUAL <- c("CHS")
-MOBILE_METRICS_SITE <- c("MTT1", "MTT2", "Fyw", "DR") # Site-level from isotopes
+MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS")]
+MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT1", "MTT2")] # Site-level from isotopes
 
 # Extended dynamic storage metrics (from water balance - annual)
 # WB = Water Balance (extended dynamic storage)
-EXTENDED_DYNAMIC_METRICS <- c("WB")
+EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("WB")]
 
 # Shared metric display order for plotting.
 # Keep isotope mobile metrics split as MTT1 and MTT2.
-PLOT_ORDER_DYNAMIC_STORAGE <- c("RBI", "RCS", "FDC", "SD", "WB")
-PLOT_ORDER_MOBILE_STORAGE <- c("CHS", "DR", "Fyw", "MTT1", "MTT2")
+PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")]
+PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT1", "MTT2")]
 PLOT_MOBILE_STORAGE_SITE_COLS <- c(
   "CHS" = "CHS_mean",
   "DR" = "DR",
@@ -182,12 +186,7 @@ PLOT_MOBILE_STORAGE_SITE_COLS <- c(
 )
 
 # All storage metrics
-ALL_STORAGE_METRICS <- c(
-  DYNAMIC_METRICS,
-  MOBILE_METRICS_ANNUAL,
-  MOBILE_METRICS_SITE,
-  EXTENDED_DYNAMIC_METRICS
-)
+ALL_STORAGE_METRICS <- STORAGE_METRIC_ORDER
 
 # SHARED FILE NAMES AND CODE MAPPINGS
 

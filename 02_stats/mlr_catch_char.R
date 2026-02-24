@@ -68,23 +68,20 @@ if (!("basin_slope" %in% names(HJA_Ave)) && ("Slope_mean" %in% names(HJA_Ave))) 
 
 # DEFINE OUTCOME VARIABLES (STORAGE METRICS)
 # Note: Q5norm and CV_Q5norm are NOT storage metrics - they are response variables
-# Storage metrics by type (using method abbreviations):
-#   Dynamic: RBI, RCS, FDC, SD
-#   Mobile: CHS, MTT1, MTT2, Fyw, DR
-#   Extended Dynamic: WB
-
-outcome_vars <- c(
-  "RCS_mean",   # RCS - Recession Curve Slope - Dynamic
-  "RBI_mean",   # RBI - Richards-Baker Index - Dynamic
-  "FDC_mean",   # FDC - Flow Duration Curve - Dynamic
-  "SD_mean",    # SD  - Storage-Discharge - Dynamic
-  "CHS_mean",   # CHS - Chemical Hydrograph Separation - Mobile
-  "MTT1",       # MTT1 - Mean Transit Time period 1 - Mobile
-  "MTT2",       # MTT2 - Mean Transit Time period 2 - Mobile
-  "Fyw",        # Fyw - Young Water Fraction - Mobile
-  "DR",         # DR  - Damping Ratio - Mobile
-  "WB_mean"     # WB  - Water Balance - Extended Dynamic
+# Follow canonical storage metric order from config.R.
+outcome_map <- c(
+  "RBI" = "RBI_mean",
+  "RCS" = "RCS_mean",
+  "FDC" = "FDC_mean",
+  "SD" = "SD_mean",
+  "WB" = "WB_mean",
+  "CHS" = "CHS_mean",
+  "DR" = "DR",
+  "Fyw" = "Fyw",
+  "MTT1" = "MTT1",
+  "MTT2" = "MTT2"
 )
+outcome_vars <- unname(outcome_map[STORAGE_METRIC_ORDER])
 
 # DEFINE PREDICTOR VARIABLES (CATCHMENT ATTRIBUTES)
 # Note: Reduced predictor set to avoid overfitting (N=10 sites)

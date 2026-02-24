@@ -508,7 +508,7 @@ local({
     paste0(
       letters[seq_along(metrics_main)],
       ") ",
-      c("RBI", "RCS", "FDC", "SD", "WB")
+      PLOT_ORDER_DYNAMIC_STORAGE
     ),
     metrics_main
   )
@@ -921,7 +921,7 @@ local({
 
   # Dynamic storage annual long table used by downstream supplement plots.
 
-  dynamic_metrics_target <- c("RBI", "RCS", "FDC", "SD", "WB")
+  dynamic_metrics_target <- PLOT_ORDER_DYNAMIC_STORAGE
   dynamic_metrics <- dynamic_metrics_target[dynamic_metrics_target %in% names(annual_data)]
   missing_dynamic_metrics <- setdiff(dynamic_metrics_target, dynamic_metrics)
   if (length(missing_dynamic_metrics) > 0) {

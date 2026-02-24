@@ -1,7 +1,7 @@
-# Fit stepwise-AIC linear models for annual eco response metrics,.
+# Fit pooled (all-sites) stepwise-AIC linear models for annual eco response metrics.
 # Inputs: No direct CSV file reads in this script.
 # Author: Sidney Bush
-# Date: 2026-02-13
+# Date: 2026-02-24
 
 library(dplyr)
 library(readr)
@@ -16,7 +16,8 @@ source("config.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
-file_prefix <- "storage_ecovar_mlr"
+file_prefix <- "storage_ecovar_mlr_all_sites"
+ALL_SITES_ID <- "all_sites"
 
 MODEL_MIN_N <- 20
 VIF_THRESHOLD <- 10
@@ -24,7 +25,6 @@ LOW_N_THRESHOLD_ECO <- 25
 USE_MUMIN_LOOCV <- TRUE
 STRICT_USE_SCALED_PREDICTORS <- TRUE
 STRICT_USE_ITERATIVE_VIF <- TRUE
-STRICT_ENFORCE_CORRELATED_EXCLUSIONS <- FALSE
 
 env_vif_threshold <- suppressWarnings(as.numeric(Sys.getenv("HJA_MLR_VIF_THRESHOLD", unset = "")))
 if (!is.na(env_vif_threshold) && is.finite(env_vif_threshold) && env_vif_threshold > 0) {
@@ -233,24 +233,23 @@ compute_residual_diagnostics <- function(model_obj, model_df) {
   )
 }
 
-fit_one_model <- function(df_in, site_id, response, predictors,
+fit_one_model <- function(df_in, response, predictors,
                           use_scaled_predictors = FALSE,
                           use_iterative_vif = FALSE,
                           vif_threshold = 10,
                           min_n = 20,
-                          enforce_correlated_exclusions = FALSE) {
-  site_df <- df_in %>%
-    filter(site == site_id)
+                          model_id = ALL_SITES_ID) {
+  model_df_in <- df_in
 
-  predictors_use <- predictors[predictors %in% names(site_df)]
+  predictors_use <- predictors[predictors %in% names(model_df_in)]
   if (length(predictors_use) == 0) {
     return(NULL)
   }
 
   # Keep only predictors with enough overlap with the response and real variation.
   pred_stats <- lapply(predictors_use, function(p) {
-    x <- site_df[[p]]
-    y <- site_df[[response]]
+    x <- model_df_in[[p]]
+    y <- model_df_in[[response]]
     n_pair <- sum(is.finite(x) & is.finite(y))
     sdx <- suppressWarnings(sd(x, na.rm = TRUE))
     tibble(Predictor = p, n_pair = n_pair, sdx = sdx)
@@ -268,8 +267,8 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   # If we do not have enough years, drop the sparsest predictor and try again.
   build_model_df <- function(preds) {
     keep_cols <- unique(c("site", "year", response, preds))
-    keep_cols <- keep_cols[keep_cols %in% names(site_df)]
-    site_df %>%
+    keep_cols <- keep_cols[keep_cols %in% names(model_df_in)]
+    model_df_in %>%
       dplyr::select(all_of(keep_cols)) %>%
       na.omit()
   }
@@ -277,7 +276,7 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   model_df <- build_model_df(predictors_use)
   while (nrow(model_df) < min_n && length(predictors_use) > 1) {
     keep_counts <- sapply(predictors_use, function(p) {
-      sum(is.finite(site_df[[p]]) & is.finite(site_df[[response]]))
+      sum(is.finite(model_df_in[[p]]) & is.finite(model_df_in[[response]]))
     })
     drop_var <- names(which.min(keep_counts))
     predictors_use <- setdiff(predictors_use, drop_var)
@@ -344,71 +343,10 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     }
   }
 
-  if (enforce_correlated_exclusions) {
-    fit_candidate_from_retained <- function(retained_set) {
-      if (length(retained_set) == 0) return(NULL)
-      lm_next <- tryCatch(
-        lm(as.formula(paste(response, "~", paste(retained_set, collapse = " + "))), data = model_df),
-        error = function(e) NULL
-      )
-      if (is.null(lm_next)) return(NULL)
-      lm_next <- tryCatch(stepAIC(lm_next, direction = "backward", trace = 0), error = function(e) lm_next)
-      retained_next <- setdiff(names(coef(lm_next)), "(Intercept)")
-      if (length(retained_next) == 0) return(NULL)
-      n_obs_next <- nrow(model_df)
-      k_params_next <- length(coef(lm_next)) + 1
-      aic_next <- AIC(lm_next)
-      aicc_next <- if ((n_obs_next - k_params_next - 1) > 0) {
-        aic_next + (2 * k_params_next * (k_params_next + 1)) / (n_obs_next - k_params_next - 1)
-      } else {
-        Inf
-      }
-      list(model = lm_next, aicc = aicc_next)
-    }
-
-    repeat {
-      retained_iter <- setdiff(names(coef(lm_aic)), "(Intercept)")
-      has_ash <- "Ash_Per" %in% retained_iter
-      has_lava <- any(c("Lava1_per", "Lava2_per") %in% retained_iter)
-      has_ls_both <- all(c("Landslide_Total", "Landslide_Young") %in% retained_iter)
-      if (!(has_ash && has_lava) && !has_ls_both) break
-
-      if (has_ash && has_lava) {
-        drop_options <- c("Ash_Per")
-        if ("Lava1_per" %in% retained_iter) drop_options <- c(drop_options, "Lava1_per")
-        if ("Lava2_per" %in% retained_iter) drop_options <- c(drop_options, "Lava2_per")
-        cand_models <- lapply(drop_options, function(v) {
-          retained_next <- setdiff(retained_iter, v)
-          fit_candidate_from_retained(retained_next)
-        })
-        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
-        if (length(valid_idx) == 0) break
-        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
-        lm_aic <- cand_models[[best_idx]]$model
-      } else if (has_ls_both) {
-        drop_options <- c("Landslide_Total", "Landslide_Young")
-        cand_models <- lapply(drop_options, function(v) {
-          retained_next <- setdiff(retained_iter, v)
-          fit_candidate_from_retained(retained_next)
-        })
-        valid_idx <- which(vapply(cand_models, function(x) !is.null(x), logical(1)))
-        if (length(valid_idx) == 0) break
-        best_idx <- valid_idx[which.min(vapply(cand_models[valid_idx], function(x) x$aicc, numeric(1)))]
-        lm_aic <- cand_models[[best_idx]]$model
-      }
-    }
-  }
-
   retained <- setdiff(names(coef(lm_aic)), "(Intercept)")
   if (length(retained) == 0) {
     return(NULL)
   }
-
-  has_ash <- "Ash_Per" %in% retained
-  has_lava <- any(c("Lava1_per", "Lava2_per") %in% retained)
-  flag_lava_ash <- has_ash && has_lava
-  flag_ls_total_young <- all(c("Landslide_Total", "Landslide_Young") %in% retained)
-  constraint_flag <- flag_lava_ash || flag_ls_total_young
 
   n_obs <- nrow(model_df)
   k_params <- length(coef(lm_aic)) + 1
@@ -420,6 +358,12 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   }
 
   lm_summary <- summary(lm_aic)
+  fstat <- suppressWarnings(as.numeric(lm_summary$fstatistic))
+  model_p_global <- if (!is.null(fstat) && length(fstat) >= 3 && all(is.finite(fstat[1:3]))) {
+    pf(fstat[1], fstat[2], fstat[3], lower.tail = FALSE)
+  } else {
+    NA_real_
+  }
 
   vif_df <- if (length(retained) > 1) {
     vif_vals <- tryCatch(vif(lm_aic), error = function(e) NULL)
@@ -449,7 +393,7 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     left_join(vif_df, by = "variable") %>%
     left_join(beta_df, by = "variable") %>%
     mutate(
-      Site = site_id,
+      Site = model_id,
       Response = response,
       R2 = lm_summary$r.squared,
       R2_adj = lm_summary$adj.r.squared,
@@ -462,19 +406,17 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     dplyr::select(Site, Response, Predictor = variable, Beta_Std = beta_std, p_value = `Pr(>|t|)`, VIF, R2, R2_adj, RMSE, AIC, AICc, n)
 
   summary_out <- tibble(
-    Site = site_id,
+    Site = model_id,
     Response = response,
     Predictors_Final = paste(retained, collapse = "; "),
     R2 = lm_summary$r.squared,
     R2_adj = lm_summary$adj.r.squared,
+    model_p_global = model_p_global,
     RMSE = sqrt(mean(residuals(lm_aic)^2, na.rm = TRUE)),
     AIC = aic_val,
     AICc = aicc_val,
     n = n_obs,
-    selection_fallback_full_model = fallback_full_model,
-    flag_lava_and_ash = flag_lava_ash,
-    flag_landslide_total_and_young = flag_ls_total_young,
-    constraint_flag = constraint_flag
+    selection_fallback_full_model = fallback_full_model
   )
 
   loocv <- calc_loocv_stats(lm_aic, formula(lm_aic), model_df)
@@ -495,27 +437,24 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   )
 }
 
-diagnose_site_response <- function(df_in, site_id, response, predictors, min_n = 20) {
-  site_df <- df_in %>%
-    filter(site == site_id)
-
-  if (!(response %in% names(site_df))) {
+diagnose_pooled_response <- function(df_in, response, predictors, min_n = 20) {
+  if (!(response %in% names(df_in))) {
     return(list(reason = "response_missing", n_response = 0, usable_predictors = 0))
   }
 
-  n_response <- sum(is.finite(site_df[[response]]))
+  n_response <- sum(is.finite(df_in[[response]]))
   if (n_response < min_n) {
     return(list(reason = "insufficient_response_n", n_response = n_response, usable_predictors = 0))
   }
 
-  predictors_use <- predictors[predictors %in% names(site_df)]
+  predictors_use <- predictors[predictors %in% names(df_in)]
   if (length(predictors_use) == 0) {
     return(list(reason = "no_predictors_present", n_response = n_response, usable_predictors = 0))
   }
 
   pred_stats <- lapply(predictors_use, function(p) {
-    x <- site_df[[p]]
-    y <- site_df[[response]]
+    x <- df_in[[p]]
+    y <- df_in[[response]]
     tibble(
       predictor = p,
       n_pair = sum(is.finite(x) & is.finite(y)),
@@ -531,8 +470,8 @@ diagnose_site_response <- function(df_in, site_id, response, predictors, min_n =
   }
 
   keep_cols <- unique(c("site", "year", response, usable$predictor))
-  model_df <- site_df %>%
-    dplyr::select(all_of(keep_cols[keep_cols %in% names(site_df)])) %>%
+  model_df <- df_in %>%
+    dplyr::select(all_of(keep_cols[keep_cols %in% names(df_in)])) %>%
     na.omit()
   if (nrow(model_df) < min_n) {
     return(list(reason = "insufficient_complete_cases", n_response = n_response, usable_predictors = nrow(usable)))
@@ -548,88 +487,81 @@ run_strict_method <- function() {
   model_coverage <- list()
   model_diagnostics <- list()
 
-  site_order_for_model <- SITE_ORDER_HYDROMETRIC[SITE_ORDER_HYDROMETRIC %in% unique(merged_data$site)]
+  for (response in response_vars) {
+    candidate_fits <- list()
+    candidate_summary <- list()
 
-  for (site_id in site_order_for_model) {
-    for (response in response_vars) {
-      candidate_fits <- list()
-      candidate_summary <- list()
-
-      for (i in seq_along(candidate_predictor_sets)) {
-        fit_obj <- fit_one_model(
-          merged_data,
-          site_id,
-          response,
-          candidate_predictor_sets[[i]],
-          use_scaled_predictors = STRICT_USE_SCALED_PREDICTORS,
-          use_iterative_vif = STRICT_USE_ITERATIVE_VIF,
-          vif_threshold = VIF_THRESHOLD,
-          min_n = MODEL_MIN_N,
-          enforce_correlated_exclusions = STRICT_ENFORCE_CORRELATED_EXCLUSIONS
-        )
-
-        if (!is.null(fit_obj)) {
-          fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i)
-          fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i)
-          candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
-          candidate_summary[[length(candidate_summary) + 1]] <- fit_obj$summary
-        }
-      }
-
-      if (length(candidate_fits) == 0) {
-        diag <- diagnose_site_response(
-          merged_data,
-          site_id,
-          response,
-          eco_predictors_all,
-          min_n = MODEL_MIN_N
-        )
-        model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
-          Site = site_id,
-          Response = response,
-          model_status = "not_fit",
-          reason_not_fit = diag$reason,
-          n_response = diag$n_response,
-          usable_predictors = diag$usable_predictors
-        )
-        next
-      }
-
-      cand_tbl <- bind_rows(candidate_summary) %>%
-        mutate(delta_AICc = AICc - min(AICc, na.rm = TRUE)) %>%
-        arrange(AICc)
-      model_selection[[paste(site_id, response, sep = "_")]] <- cand_tbl
-
-      best_idx <- which.min(sapply(candidate_fits, function(x) x$summary$AICc))
-      best_fit <- candidate_fits[[best_idx]]
-
-      model_results[[paste(site_id, response, sep = "_")]] <- best_fit$coef
-      model_summary[[paste(site_id, response, sep = "_")]] <- best_fit$summary
-      model_diagnostics[[paste(site_id, response, sep = "_")]] <- compute_residual_diagnostics(best_fit$model, best_fit$data) %>%
-        mutate(
-          Site = site_id,
-          Response = response,
-          Predictors_Final = best_fit$summary$Predictors_Final[1],
-          n = best_fit$summary$n[1]
-        ) %>%
-        dplyr::select(
-          Site, Response, Predictors_Final, n, n_residuals,
-          shapiro_W, shapiro_p, ncv_chisq, ncv_p,
-          normality_pass_p05, homoscedasticity_pass_p05
-        )
-      n_response_site <- merged_data %>%
-        filter(site == site_id) %>%
-        summarise(n_response = sum(is.finite(.data[[response]]), na.rm = TRUE)) %>%
-        pull(n_response)
-      model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
-        Site = site_id,
-        Response = response,
-        model_status = "fit",
-        reason_not_fit = NA_character_,
-        n_response = n_response_site,
-        usable_predictors = NA_integer_
+    for (i in seq_along(candidate_predictor_sets)) {
+      fit_obj <- fit_one_model(
+        merged_data,
+        response,
+        candidate_predictor_sets[[i]],
+        use_scaled_predictors = STRICT_USE_SCALED_PREDICTORS,
+        use_iterative_vif = STRICT_USE_ITERATIVE_VIF,
+        vif_threshold = VIF_THRESHOLD,
+        min_n = MODEL_MIN_N,
+        model_id = ALL_SITES_ID
       )
+
+      if (!is.null(fit_obj)) {
+        fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i)
+        fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i)
+        candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
+        candidate_summary[[length(candidate_summary) + 1]] <- fit_obj$summary
+      }
     }
+
+    if (length(candidate_fits) == 0) {
+      diag <- diagnose_pooled_response(
+        merged_data,
+        response,
+        eco_predictors_all,
+        min_n = MODEL_MIN_N
+      )
+      model_coverage[[response]] <- tibble(
+        Site = ALL_SITES_ID,
+        Response = response,
+        model_status = "not_fit",
+        reason_not_fit = diag$reason,
+        n_response = diag$n_response,
+        usable_predictors = diag$usable_predictors
+      )
+      next
+    }
+
+    cand_tbl <- bind_rows(candidate_summary) %>%
+      mutate(delta_AICc = AICc - min(AICc, na.rm = TRUE)) %>%
+      arrange(AICc)
+    model_selection[[response]] <- cand_tbl
+
+    best_idx <- which.min(sapply(candidate_fits, function(x) x$summary$AICc))
+    best_fit <- candidate_fits[[best_idx]]
+
+    model_results[[response]] <- best_fit$coef
+    model_summary[[response]] <- best_fit$summary
+    model_diagnostics[[response]] <- compute_residual_diagnostics(best_fit$model, best_fit$data) %>%
+      mutate(
+        Site = ALL_SITES_ID,
+        Response = response,
+        Predictors_Final = best_fit$summary$Predictors_Final[1],
+        n = best_fit$summary$n[1]
+      ) %>%
+      dplyr::select(
+        Site, Response, Predictors_Final, n, n_residuals,
+        shapiro_W, shapiro_p, ncv_chisq, ncv_p,
+        normality_pass_p05, homoscedasticity_pass_p05
+      )
+    n_response_all <- merged_data %>%
+      summarise(n_response = sum(is.finite(.data[[response]]), na.rm = TRUE)) %>%
+      pull(n_response)
+    model_coverage[[response]] <- tibble(
+      Site = ALL_SITES_ID,
+      Response = response,
+      model_status = "fit",
+      reason_not_fit = NA_character_,
+      n_response = n_response_all,
+      usable_predictors = NA_integer_
+    )
   }
 
   list(
@@ -644,7 +576,7 @@ run_strict_method <- function() {
 model_run <- run_strict_method()
 
 if (nrow(model_run$summary) == 0) {
-  stop("No site-response eco models could be fit. Check predictor availability and MODEL_MIN_N.")
+  stop("No pooled eco models could be fit. Check predictor availability and MODEL_MIN_N.")
 }
 
 model_run$summary <- model_run$summary %>%
@@ -672,22 +604,22 @@ round_export_cols <- function(df, cols, digits = 3) {
 }
 
 model_results_combined <- model_run$results %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Predictor)
+  arrange(match(Response, response_vars), Predictor)
 model_summary_combined <- model_run$summary %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+  arrange(match(Response, response_vars))
 selection_combined <- model_run$selection %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Candidate_Set, AICc)
+  arrange(match(Response, response_vars), Candidate_Set, AICc)
 coverage_combined <- model_run$coverage %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+  arrange(match(Response, response_vars))
 diagnostics_combined <- model_run$diagnostics %>%
   left_join(
     model_run$summary %>% dplyr::select(Site, Response, low_n_flag, confidence_note),
     by = c("Site", "Response")
   ) %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+  arrange(match(Response, response_vars))
 aicc_lt2 <- selection_combined %>%
   filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
-  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), delta_AICc, AICc, Candidate_Set)
+  arrange(match(Response, response_vars), delta_AICc, AICc, Candidate_Set)
 
 model_results_export <- model_results_combined %>%
   mutate(
@@ -705,7 +637,7 @@ model_summary_export <- model_summary_combined %>%
   ) %>%
   round_export_cols(
     c(
-      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "R2", "R2_adj", "model_p_global", "RMSE", "AIC", "AICc",
       "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
       "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
     )
@@ -718,7 +650,7 @@ selection_export <- selection_combined %>%
   ) %>%
   round_export_cols(
     c(
-      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "R2", "R2_adj", "model_p_global", "RMSE", "AIC", "AICc",
       "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
       "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
       "delta_AICc"
@@ -742,7 +674,7 @@ aicc_lt2_export <- aicc_lt2 %>%
   ) %>%
   round_export_cols(
     c(
-      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "R2", "R2_adj", "model_p_global", "RMSE", "AIC", "AICc",
       "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
       "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
       "delta_AICc"
@@ -756,7 +688,7 @@ if (ncol(cor_data) >= 2) {
   cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
   cor_response_predictors <- cor_matrix[response_vars, eco_predictors_all, drop = FALSE]
   write.csv(cor_response_predictors,
-            file.path(output_dir, "storage_ecovar_mlr_corr_matrix.csv"),
+            file.path(output_dir, paste0(file_prefix, "_corr_matrix.csv")),
             row.names = TRUE)
 }
 
@@ -784,29 +716,11 @@ write.csv(coverage_export,
           file.path(output_dir, paste0(file_prefix, "_coverage.csv")),
           row.names = FALSE)
 
-flags <- model_run$summary %>%
-  filter(constraint_flag) %>%
-  arrange(Site, Response)
-flags_export <- flags %>%
-  mutate(
-    Response = format_export_response(Response),
-    Predictors_Final = format_export_predictor_text(Predictors_Final)
-  ) %>%
-  round_export_cols(
-    c(
-      "R2", "R2_adj", "RMSE", "AIC", "AICc",
-      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
-      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
-    )
-  )
-write.csv(flags_export,
-          file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
-          row.names = FALSE)
-
 # Cleanup legacy strict-suffixed outputs; strict is now the default workflow.
 legacy_strict_files <- c(
   file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
-  file.path(output_dir, paste0(file_prefix, "_results_strict.csv"))
+  file.path(output_dir, paste0(file_prefix, "_results_strict.csv")),
+  file.path(output_dir, paste0(file_prefix, "_corr_flags.csv"))
 )
 for (legacy_file in legacy_strict_files) {
   if (file.exists(legacy_file)) unlink(legacy_file)
@@ -815,7 +729,7 @@ for (legacy_file in legacy_strict_files) {
 # Explicit LOOCV validation output
 loocv_validation <- model_run$summary %>%
   transmute(
-    model_family = "storage_ecovar_mlr",
+    model_family = file_prefix,
     site = Site,
     response = Response,
     n = n,
@@ -828,11 +742,11 @@ loocv_validation <- model_run$summary %>%
     delta_rmse_loocv_minus_model = delta_RMSE_LOOCV_minus_model,
     delta_rmse_loocv_mean_runs_minus_model = delta_RMSE_LOOCV_mean_runs_minus_model
   ) %>%
-  arrange(match(site, SITE_ORDER_HYDROMETRIC), match(response, response_vars))
+  arrange(match(response, response_vars))
 
 write.csv(
   loocv_validation,
-  file.path(OUT_STATS_VALIDATION_DIR, "storage_ecovar_mlr_loocv_validation.csv"),
+  file.path(OUT_STATS_VALIDATION_DIR, paste0(file_prefix, "_loocv_validation.csv")),
   row.names = FALSE
 )
 if (isTRUE(WRITE_TABLE_OUTPUTS)) {
@@ -841,7 +755,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   }
   write.csv(
     loocv_validation,
-    file.path(OUT_TABLES_DIR, "validation", "storage_ecovar_mlr_loocv_validation.csv"),
+    file.path(OUT_TABLES_DIR, "validation", paste0(file_prefix, "_loocv_validation.csv")),
     row.names = FALSE
   )
   if (!dir.exists(OUT_TABLES_MLR_DIR)) {
@@ -849,117 +763,12 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   }
   write.csv(
     aicc_lt2,
-    file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_aicc_lt2.csv"),
+    file.path(OUT_TABLES_MLR_DIR, paste0(file_prefix, "_aicc_lt2.csv")),
     row.names = FALSE
   )
   write.csv(
     diagnostics_combined,
-    file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_diagnostics.csv"),
+    file.path(OUT_TABLES_MLR_DIR, paste0(file_prefix, "_diagnostics.csv")),
     row.names = FALSE
   )
-}
-if (isTRUE(WRITE_TABLE_OUTPUTS)) {
-  # Export a unified main MLR results table for manuscript reporting.
-  # Inputs: mlr_dir/storage_ecovar_mlr_model_perf.csv; mlr_dir/watershed_char_storage_mlr_model_perf.csv; val_dir/watershed_char_storage_mlr_loocv_validation.csv.
-  # Author: Sidney Bush
-  # Date: 2026-02-13
-
-  library(dplyr)
-  library(readr)
-
-  rm(list = ls())
-
-  # Load project config
-  source("config.R")
-
-  mlr_dir <- file.path(OUT_TABLES_DIR, "mlr")
-  val_dir <- file.path(OUT_TABLES_DIR, "validation")
-  if (!dir.exists(mlr_dir)) dir.create(mlr_dir, recursive = TRUE, showWarnings = FALSE)
-
-  eco_perf_file <- file.path(mlr_dir, "storage_ecovar_mlr_model_perf.csv")
-  ws_perf_file <- file.path(mlr_dir, "watershed_char_storage_mlr_model_perf.csv")
-  ws_val_file <- file.path(val_dir, "watershed_char_storage_mlr_loocv_validation.csv")
-
-  if (!file.exists(eco_perf_file)) stop("Missing file: ", eco_perf_file)
-  if (!file.exists(ws_perf_file)) stop("Missing file: ", ws_perf_file)
-
-  pick_col <- function(df, candidates) {
-    hit <- candidates[candidates %in% names(df)][1]
-    if (is.na(hit)) return(rep(NA, nrow(df)))
-    df[[hit]]
-  }
-
-  eco_raw <- read_csv(eco_perf_file, show_col_types = FALSE)
-  eco_perf <- read_csv(eco_perf_file, show_col_types = FALSE) %>%
-    transmute(
-      model_family = "storage_ecovar_mlr",
-      site = pick_col(eco_raw, c("site", "Site")),
-      response = pick_col(eco_raw, c("response", "Response")),
-      n = pick_col(eco_raw, c("n", "N")),
-      predictors_final = pick_col(eco_raw, c("predictors_final", "Predictors_Final")),
-      r2 = pick_col(eco_raw, c("r2", "R2")),
-      r2_adj = pick_col(eco_raw, c("r2_adj", "R2_adj")),
-      rmse = pick_col(eco_raw, c("rmse", "RMSE")),
-      rmse_loocv = pick_col(eco_raw, c("rmse_loocv", "RMSE_LOOCV")),
-      aicc = pick_col(eco_raw, c("aicc", "AICc"))
-    )
-
-  ws_perf <- read_csv(ws_perf_file, show_col_types = FALSE)
-
-  ws_r2 <- if (file.exists(ws_val_file)) {
-    read_csv(ws_val_file, show_col_types = FALSE) %>%
-      transmute(
-        response = outcome,
-        r2 = r2_model,
-        rmse_loocv = rmse_loocv
-      )
-  } else {
-    tibble(response = character(), r2 = numeric(), rmse_loocv = numeric())
-  }
-
-  ws_main <- ws_perf %>%
-    transmute(
-      model_family = "watershed_char_storage_mlr",
-      site = "all_sites",
-      response = pick_col(ws_perf, c("Outcome", "response")),
-      n = pick_col(ws_perf, c("N", "n")),
-      predictors_final = pick_col(ws_perf, c("Predictors_Final", "predictors_final")),
-      r2_adj = pick_col(ws_perf, c("R2_adj", "r2_adj")),
-      rmse = pick_col(ws_perf, c("RMSE", "rmse")),
-      aicc = pick_col(ws_perf, c("AICc", "aicc"))
-    ) %>%
-    left_join(ws_r2, by = "response") %>%
-    dplyr::select(model_family, site, response, n, predictors_final, r2, r2_adj, rmse, rmse_loocv, aicc)
-
-  site_rank <- setNames(seq_along(SITE_ORDER_HYDROMETRIC), SITE_ORDER_HYDROMETRIC)
-  response_order_eco <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
-
-  main_table <- bind_rows(eco_perf, ws_main) %>%
-    mutate(
-      model_rank = if_else(model_family == "storage_ecovar_mlr", 1L, 2L),
-      site_rank = if_else(site %in% names(site_rank), as.integer(site_rank[site]), 999L),
-      response_rank = if_else(response %in% response_order_eco, match(response, response_order_eco), 999L),
-      predictors_final = if_else(
-        model_family == "watershed_char_storage_mlr",
-        label_catchment_predictor_list(predictors_final),
-        predictors_final
-      )
-    ) %>%
-    arrange(model_rank, site_rank, response_rank, desc(r2_adj)) %>%
-    dplyr::select(-model_rank, -site_rank, -response_rank) %>%
-    mutate(
-      response = gsub("_", "", response),
-      predictors_final = gsub("P_WetSeason", "Pws", predictors_final, fixed = TRUE),
-      predictors_final = gsub("_", "", predictors_final)
-    ) %>%
-    mutate(
-      r2 = signif(r2, 3),
-      r2_adj = signif(r2_adj, 3),
-      rmse = signif(rmse, 3),
-      rmse_loocv = signif(rmse_loocv, 3),
-      aicc = signif(aicc, 3)
-    )
-
-  out_file <- file.path(mlr_dir, "mlr_main_results_table.csv")
-  write_csv(main_table, out_file)
 }

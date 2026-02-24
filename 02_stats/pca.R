@@ -55,13 +55,9 @@ HJA_Yr <- read_csv(
 # Core streamflow storage metrics (annual values)
 # Using method abbreviations: RBI, RCS, FDC, SD, WB
 # Q5norm is an ecological response, so we do not include it in storage-metric PCA.
-features <- c(
-  "RCS",
-  "RBI",
-  "FDC",
-  "SD",
-  "WB"
-)
+features <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
+]
 
 site_column <- "site"
 year_column <- "year"

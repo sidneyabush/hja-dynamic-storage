@@ -306,15 +306,10 @@ if (isTRUE(WRITE_AUX_OUTPUTS)) {
 }
 
 # Build per-site summary statistics for all metrics
-annual_metric_cols <- intersect(
-  c(
-    dynamic_metrics,
-    mobile_metrics_annual,
-    extended_metrics,
-    response_metrics
-  ),
-  names(HJA_annual)
-)
+storage_metric_cols <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c(dynamic_metrics, mobile_metrics_annual, extended_metrics)
+]
+annual_metric_cols <- intersect(c(storage_metric_cols, response_metrics), names(HJA_annual))
 
 annual_long <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
@@ -391,12 +386,12 @@ metrics_info <- tribble(
   "Dynamic"          , "Recession Curve Slope"    , "RCS"         , "RCS"                   , "hydrometric" ,
   "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "FDC"                   , "hydrometric" ,
   "Dynamic"          , "Storage-Discharge"        , "SD"          , "SD"                    , "hydrometric" ,
-  "Mobile"           , "Mean Transit Time (MTT1)" , "MTT1"        , "MTT1"                  , "isotopes"    ,
-  "Mobile"           , "Mean Transit Time (MTT2)" , "MTT2"        , "MTT2"                  , "isotopes"    ,
-  "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
+  "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric" ,
   "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "CHS"                   , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
-  "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric"
+  "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
+  "Mobile"           , "Mean Transit Time (MTT1)" , "MTT1"        , "MTT1"                  , "isotopes"    ,
+  "Mobile"           , "Mean Transit Time (MTT2)" , "MTT2"        , "MTT2"                  , "isotopes"
 )
 
 annual_metric_presence <- HJA_annual %>%
@@ -422,7 +417,7 @@ site_metric_presence <- isotope_metrics %>%
     DR = is.finite(DR)
   )
 
-metric_cols <- c("RBI", "RCS", "FDC", "SD", "MTT1", "MTT2", "Fyw", "CHS", "DR", "WB")
+metric_cols <- STORAGE_METRIC_ORDER
 
 site_metric_matrix <- site_info %>%
   select(site, site_name) %>%

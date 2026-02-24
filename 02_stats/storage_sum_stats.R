@@ -81,14 +81,9 @@ fdc_annual <- if (file.exists(fdc_wy_file)) {
 #   Mobile: CHS - note: MTT, Fyw, DR are site-level only
 #   Extended Dynamic: WB
 
-storage_metrics <- c(
-  "RCS",   # RCS - Recession Curve Slope - Dynamic
-  "RBI",   # RBI - Richards-Baker Index - Dynamic
-  "FDC",   # FDC - Flow Duration Curve - Dynamic
-  "SD",    # SD  - Storage-Discharge - Dynamic
-  "CHS",   # CHS - Chemical Hydrograph Separation - Mobile
-  "WB"     # WB  - Water Balance - Extended Dynamic
-)
+storage_metrics <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "CHS")
+]
 
 get_metric_anova_data <- function(metric_name) {
   if (identical(metric_name, "FDC")) {
@@ -158,7 +153,7 @@ for (metric in storage_metrics) {
 
 # Save ANOVA results
 anova_results <- anova_results %>%
-  arrange(metric)
+  arrange(factor(metric, levels = storage_metrics))
 
 write.csv(anova_results,
           file.path(output_dir, "anova_results.csv"),
@@ -205,7 +200,7 @@ for (metric in storage_metrics) {
 # Save Tukey HSD results
 if (nrow(tukey_results) > 0) {
   tukey_results <- tukey_results %>%
-    arrange(metric, comparison)
+    arrange(factor(metric, levels = storage_metrics), comparison)
   write.csv(tukey_results,
             file.path(output_dir, "tukey_hsd_results.csv"),
             row.names = FALSE)
@@ -214,7 +209,7 @@ if (nrow(tukey_results) > 0) {
 if (nrow(tukey_group_letters) > 0) {
   tukey_group_letters <- tukey_group_letters %>%
     mutate(site = factor(site, levels = site_order)) %>%
-    arrange(metric, site) %>%
+    arrange(factor(metric, levels = storage_metrics), site) %>%
     mutate(site = as.character(site))
   write.csv(tukey_group_letters,
             file.path(output_dir, "tukey_group_letters.csv"),
@@ -280,7 +275,7 @@ site_summary_stats <- HJA_annual %>%
     n = ifelse(is.na(n), 0L, as.integer(n))
   ) %>%
   mutate(site = factor(site, levels = site_order)) %>%
-  arrange(site, metric) %>%
+  arrange(site, factor(metric, levels = storage_metrics)) %>%
   mutate(site = as.character(site))
 
 write.csv(
