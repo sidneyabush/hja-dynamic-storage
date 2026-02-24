@@ -35,7 +35,6 @@ unlink(file.path(output_dir, paste0(file_prefix, "_pca_screening.csv")))
 VIF_THRESHOLD <- 10
 LOW_N_THRESHOLD_CATCH <- 10
 USE_MUMIN_LOOCV <- TRUE
-STRICT_METHOD_LABEL <- "strict"
 STRICT_USE_SCALED_PREDICTORS <- TRUE
 STRICT_USE_ITERATIVE_VIF <- TRUE
 STRICT_ENFORCE_CORRELATED_EXCLUSIONS <- TRUE
@@ -474,8 +473,8 @@ run_strict_method <- function() {
       )
       if (is.null(fit_obj)) next
 
-      fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
-      fit_obj$coefficients <- fit_obj$coefficients %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
+      fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i)
+      fit_obj$coefficients <- fit_obj$coefficients %>% mutate(Candidate_Set = i)
 
       candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
       candidate_summaries[[length(candidate_summaries) + 1]] <- fit_obj$summary
@@ -496,7 +495,6 @@ run_strict_method <- function() {
       sp <- best_fit$selection_path
       sp$step <- seq_len(nrow(sp))
       sp$Outcome <- ifelse(outcome == "DR", "DR_mean", outcome)
-      sp$Method <- STRICT_METHOD_LABEL
       sp$Candidate_Set <- best_fit$summary$Candidate_Set[1]
       selection_path_list[[outcome]] <- sp
     }
@@ -506,13 +504,12 @@ run_strict_method <- function() {
       mutate(
         Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
         Predictors_Final = best_fit$summary$Predictors_Final[1],
-        N = best_fit$summary$N[1],
-        Method = STRICT_METHOD_LABEL
+        N = best_fit$summary$N[1]
       ) %>%
       dplyr::select(
         Outcome, Predictors_Final, N, n_residuals,
         shapiro_W, shapiro_p, ncv_chisq, ncv_p,
-        normality_pass_p05, homoscedasticity_pass_p05, Method
+        normality_pass_p05, homoscedasticity_pass_p05
       )
     diagnostics_list[[outcome]] <- diag_tbl
   }
@@ -534,24 +531,78 @@ model_run$summary <- model_run$summary %>%
     confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
   )
 
+format_export_outcome <- function(x) {
+  out <- gsub("_mean$", "", as.character(x))
+  gsub("_", "", out, fixed = TRUE)
+}
+
+round_export_cols <- function(df, cols, digits = 3) {
+  keep <- intersect(cols, names(df))
+  if (length(keep) == 0) return(df)
+  df %>%
+    mutate(across(all_of(keep), ~ signif(.x, digits)))
+}
+
 beta_matrix <- model_run$results %>%
   dplyr::select(Predictor, Outcome, Beta_Std) %>%
   tidyr::pivot_wider(names_from = Outcome, values_from = Beta_Std)
 
+results_export <- model_run$results %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictor = label_catchment_predictor(Predictor)
+  ) %>%
+  round_export_cols(c("Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AIC", "AICc"))
+
+summary_export <- model_run$summary %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictors_Final = label_catchment_predictor_list(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
+    )
+  )
+
+beta_matrix_export <- beta_matrix %>%
+  mutate(Predictor = label_catchment_predictor(Predictor)) %>%
+  round_export_cols(setdiff(names(beta_matrix), "Predictor"))
+
+selection_export <- model_run$selection %>%
+  mutate(Outcome = format_export_outcome(Outcome)) %>%
+  round_export_cols(c("Deviance", "Resid. Df", "Resid. Dev", "AIC"))
+
+model_selection_export <- model_run$model_selection %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictors_Final = label_catchment_predictor_list(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
+      "delta_AICc"
+    )
+  )
+
 # Save outputs as primary for downstream plotting
-write.csv(model_run$results,
+write.csv(results_export,
           file.path(output_dir, paste0(file_prefix, "_results.csv")),
           row.names = FALSE)
-write.csv(model_run$summary,
+write.csv(summary_export,
           file.path(output_dir, paste0(file_prefix, "_summary.csv")),
           row.names = FALSE)
-write.csv(beta_matrix,
+write.csv(beta_matrix_export,
           file.path(output_dir, paste0(file_prefix, "_beta_matrix.csv")),
           row.names = FALSE)
-write.csv(model_run$selection,
+write.csv(selection_export,
           file.path(output_dir, paste0(file_prefix, "_stepwise_path.csv")),
           row.names = FALSE)
-write.csv(model_run$model_selection,
+write.csv(model_selection_export,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
 diagnostics_out <- model_run$diagnostics %>%
@@ -559,8 +610,14 @@ diagnostics_out <- model_run$diagnostics %>%
     model_run$summary %>% dplyr::select(Outcome, low_n_flag, confidence_note),
     by = "Outcome"
   )
+diagnostics_export <- diagnostics_out %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictors_Final = label_catchment_predictor_list(Predictors_Final)
+  ) %>%
+  round_export_cols(c("shapiro_W", "shapiro_p", "ncv_chisq", "ncv_p"))
 write.csv(
-  diagnostics_out,
+  diagnostics_export,
   file.path(output_dir, paste0(file_prefix, "_diagnostics.csv")),
   row.names = FALSE
 )
@@ -568,8 +625,21 @@ aicc_lt2 <- model_run$model_selection %>%
   filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
   mutate(Predictors_Final_Label = label_catchment_predictor_list(Predictors_Final)) %>%
   arrange(Outcome, delta_AICc, AICc, Candidate_Set)
+aicc_lt2_export <- aicc_lt2 %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictors_Final = label_catchment_predictor_list(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
+      "delta_AICc"
+    )
+  )
 write.csv(
-  aicc_lt2,
+  aicc_lt2_export,
   file.path(output_dir, paste0(file_prefix, "_aicc_lt2.csv")),
   row.names = FALSE
 )
@@ -578,9 +648,30 @@ if (file.exists(old_model_avg_file)) unlink(old_model_avg_file)
 flags <- model_run$summary %>%
   filter(constraint_flag) %>%
   arrange(Outcome)
-write.csv(flags,
+flags_export <- flags %>%
+  mutate(
+    Outcome = format_export_outcome(Outcome),
+    Predictors_Final = label_catchment_predictor_list(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
+    )
+  )
+write.csv(flags_export,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
+
+# Cleanup legacy strict-suffixed outputs; strict is now the default workflow.
+legacy_strict_files <- c(
+  file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
+  file.path(output_dir, paste0(file_prefix, "_results_strict.csv"))
+)
+for (legacy_file in legacy_strict_files) {
+  if (file.exists(legacy_file)) unlink(legacy_file)
+}
 
 # Explicit LOOCV validation output
 loocv_validation <- model_run$summary %>%

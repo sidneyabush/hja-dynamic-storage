@@ -14,9 +14,11 @@ rm(list = ls())
 source("config.R")
 
 
+main_dir <- file.path(FIGURES_DIR, "main")
+main_pdf_dir <- file.path(main_dir, "pdf")
 supp_dir <- file.path(FIGURES_DIR, "supp")
 supp_pdf_dir <- file.path(supp_dir, "pdf")
-for (d in c(supp_dir, supp_pdf_dir)) {
+for (d in c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)) {
   if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -33,6 +35,8 @@ unlink(file.path(supp_dir, c(
   "storage_ecovar_mlr_pca_scree.png",
   "storage_ecovar_mlr_pca_scree.pdf"
 )))
+unlink(file.path(supp_dir, c("pca_biplot.png", "pca_biplot.pdf")))
+unlink(file.path(supp_pdf_dir, "pca_biplot.pdf"))
 
 scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
 loads_file <- file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv")
@@ -103,8 +107,8 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
-ggsave(file.path(supp_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
-ggsave(file.path(supp_pdf_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
+ggsave(file.path(main_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(main_pdf_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
 
 p_scree <- vexp %>%
   mutate(PC = factor(PC, levels = PC)) %>%

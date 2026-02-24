@@ -6,6 +6,7 @@
 library(dplyr)
 library(readr)
 library(ggplot2)
+library(tidyr)
 
 rm(list = ls())
 
@@ -16,8 +17,12 @@ source("config.R")
 output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
 plot_dir <- file.path(FIGURES_DIR, "main")
 plot_pdf_dir <- file.path(plot_dir, "pdf")
+supp_plot_dir <- file.path(FIGURES_DIR, "supp")
+supp_plot_pdf_dir <- file.path(supp_plot_dir, "pdf")
 if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
 if (!dir.exists(plot_pdf_dir)) dir.create(plot_pdf_dir, recursive = TRUE)
+if (!dir.exists(supp_plot_dir)) dir.create(supp_plot_dir, recursive = TRUE)
+if (!dir.exists(supp_plot_pdf_dir)) dir.create(supp_plot_pdf_dir, recursive = TRUE)
 
 results_file <- file.path(output_dir, "watershed_char_storage_mlr_results.csv")
 summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
@@ -112,3 +117,86 @@ ggsave(
   width = 11 * FIG_WIDTH_SCALE,
   height = 7 * FIG_HEIGHT_SCALE
 )
+
+# Companion diagnostics heatmap: p-values for residual checks.
+diagnostics_file <- file.path(output_dir, "watershed_char_storage_mlr_diagnostics.csv")
+if (file.exists(diagnostics_file)) {
+  outcome_levels <- mlr_summary %>%
+    mutate(Outcome_clean = gsub("_mean$", "", Outcome)) %>%
+    pull(Outcome_clean) %>%
+    unique()
+
+  diag_df <- read_csv(diagnostics_file, show_col_types = FALSE) %>%
+    transmute(
+      Outcome = factor(
+        gsub("_mean$", "", as.character(Outcome)),
+        levels = outcome_levels
+      ),
+      shapiro_p = suppressWarnings(as.numeric(shapiro_p)),
+      ncv_p = suppressWarnings(as.numeric(ncv_p))
+    )
+
+  diag_long <- diag_df %>%
+    pivot_longer(
+      cols = c(shapiro_p, ncv_p),
+      names_to = "Diagnostic",
+      values_to = "p_value"
+    ) %>%
+    mutate(
+      Diagnostic = recode(
+        Diagnostic,
+        shapiro_p = "Normality (Shapiro p)",
+        ncv_p = "Homoscedasticity (NCV p)"
+      ),
+      p_label = case_when(
+        is.finite(p_value) ~ sprintf("%.3f", p_value),
+        TRUE ~ "-"
+      ),
+      fail = is.finite(p_value) & (p_value <= 0.05)
+    )
+
+  p_diag <- ggplot(diag_long, aes(x = Outcome, y = Diagnostic, fill = p_value)) +
+    geom_tile(color = "white", linewidth = 0.35) +
+    geom_text(aes(label = p_label), size = FIG_TILE_TEXT_SIZE) +
+    geom_point(
+      data = diag_long %>% filter(fail),
+      aes(x = Outcome, y = Diagnostic),
+      inherit.aes = FALSE,
+      shape = 4,
+      size = 2.0,
+      stroke = 0.75,
+      color = "black"
+    ) +
+    scale_fill_gradientn(
+      colors = c("firebrick4", "goldenrod2", "seagreen4"),
+      values = scales::rescale(c(0, 0.05, 1)),
+      limits = c(0, 1),
+      oob = scales::squish,
+      na.value = "grey90",
+      name = "p-value"
+    ) +
+    labs(
+      x = "Response",
+      y = "Diagnostic"
+    ) +
+    theme_pub() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE)
+    )
+
+  ggsave(
+    file.path(supp_plot_dir, "watershed_char_storage_mlr_diagnostics.png"),
+    p_diag,
+    width = 11 * FIG_WIDTH_SCALE,
+    height = 4.5 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  )
+  ggsave(
+    file.path(supp_plot_pdf_dir, "watershed_char_storage_mlr_diagnostics.pdf"),
+    p_diag,
+    width = 11 * FIG_WIDTH_SCALE,
+    height = 4.5 * FIG_HEIGHT_SCALE
+  )
+}

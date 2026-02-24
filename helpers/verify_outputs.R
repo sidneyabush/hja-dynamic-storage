@@ -42,8 +42,8 @@ required_outputs <- c(
   file.path(OUT_STATS_ANOVA_DIR, "storage_metrics_summary_stats_by_site.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
-  file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary_strict.csv"),
-  file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary_strict.csv")
+  file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary.csv"),
+  file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary.csv")
 )
 
 missing_outputs <- required_outputs[!file.exists(required_outputs)]
@@ -66,14 +66,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
 }
 
 required_output_alternatives <- list(
-  ds_summary_png = c(
-    file.path(FIGURES_DIR, "supp", "ds_summary.png"),
-    file.path(FIGURES_DIR, "main", "ds_summary.png")
-  ),
-  pca_biplot_png = c(
-    file.path(FIGURES_DIR, "supp", "pca_biplot.png"),
-    file.path(FIGURES_DIR, "main", "pca_biplot.png")
-  )
+  pca_biplot_png = c(file.path(FIGURES_DIR, "main", "pca_biplot.png"))
 )
 missing_alternatives <- names(required_output_alternatives)[
   !vapply(

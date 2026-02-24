@@ -160,17 +160,23 @@ if (
   HJA_Yr <- HJA_Yr %>%
     mutate(T_Q7Q5 = temp_during_q5_7d_C)
 }
-if (
-  !("P_NovJan" %in% names(HJA_Yr)) && ("precip_nov_jan_mm" %in% names(HJA_Yr))
-) {
-  HJA_Yr <- HJA_Yr %>%
-    mutate(P_NovJan = precip_nov_jan_mm)
+if (!("P_WetSeason" %in% names(HJA_Yr))) {
+  HJA_Yr$P_WetSeason <- NA_real_
+}
+if ("precip_nov_may_mm" %in% names(HJA_Yr)) {
+  HJA_Yr$P_WetSeason <- dplyr::coalesce(HJA_Yr$P_WetSeason, HJA_Yr$precip_nov_may_mm)
+}
+if ("P_NovJan" %in% names(HJA_Yr)) {
+  HJA_Yr$P_WetSeason <- dplyr::coalesce(HJA_Yr$P_WetSeason, HJA_Yr$P_NovJan)
+}
+if ("precip_nov_jan_mm" %in% names(HJA_Yr)) {
+  HJA_Yr$P_WetSeason <- dplyr::coalesce(HJA_Yr$P_WetSeason, HJA_Yr$precip_nov_jan_mm)
 }
 
 eco_response_vars <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
 eco_response_vars <- eco_response_vars[eco_response_vars %in% names(HJA_Yr)]
 
-eco_predictor_vars <- c("P_NovJan", PLOT_ORDER_DYNAMIC_STORAGE, "CHS")
+eco_predictor_vars <- c("P_WetSeason", PLOT_ORDER_DYNAMIC_STORAGE, "CHS")
 eco_predictor_vars <- eco_predictor_vars[
   eco_predictor_vars %in% names(HJA_Yr)
 ]
@@ -182,12 +188,12 @@ if (length(eco_corr_vars) >= 2) {
   cor_eco <- cor(HJA_Yr[eco_corr_vars], use = "pairwise.complete.obs")
   corr_name_clean <- function(x) {
     out <- gsub("_", "", x)
-    out[x == "P_NovJan"] <- "Pwinter"
+    out[x == "P_WetSeason"] <- "Pwetseason"
     out
   }
   corr_axis_labels <- function(x) {
     vals <- as.character(x)
-    vals[vals == "Pwinter"] <- "P[winter]"
+    vals[vals == "Pwetseason"] <- "P[wetseason]"
     parse(text = vals)
   }
   dimnames(cor_eco) <- lapply(dimnames(cor_eco), corr_name_clean)

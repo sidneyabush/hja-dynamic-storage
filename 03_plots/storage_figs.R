@@ -147,18 +147,6 @@ local({
   }
 
   metrics_main <- PLOT_ORDER_DYNAMIC_STORAGE
-  metrics_all <- c(
-    "RBI",
-    "RCS",
-    "FDC",
-    "SD",
-    "CHS",
-    "WB",
-    "MTT1",
-    "MTT2",
-    "DR",
-    "FYW"
-  )
   metric_display_labels <- c(
     RBI = "RBI",
     RCS = "RCS",
@@ -547,22 +535,6 @@ local({
     height = 12 * FIG_HEIGHT_SCALE
   )
 
-  all_long <- bind_rows(annual_long, iso_long)
-  fig_all <- build_mean_se_plot(all_summary, metrics_all, ncol_facets = 2)
-  safe_ggsave(
-    file.path(supp_dir, "storage_anova_tukey_all.png"),
-    fig_all,
-    width = 11 * FIG_WIDTH_SCALE,
-    height = 12 * FIG_HEIGHT_SCALE,
-    dpi = 300
-  )
-  safe_ggsave(
-    file.path(supp_pdf_dir, "storage_anova_tukey_all.pdf"),
-    fig_all,
-    width = 11 * FIG_WIDTH_SCALE,
-    height = 12 * FIG_HEIGHT_SCALE
-  )
-
   # Flat table for manuscript/supplement use (optional)
   if (isTRUE(WRITE_TABLE_OUTPUTS) && nrow(anova_df) > 0 && nrow(letters_df) > 0) {
     if (!dir.exists(table_dir)) dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
@@ -610,6 +582,18 @@ local({
   for (d in c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)) {
     if (!dir.exists(d)) dir.create(d, recursive = TRUE)
   }
+
+  # Remove legacy supplement figures that are no longer generated.
+  unlink(file.path(supp_dir, c(
+    "ds_summary.png",
+    "ms_chs.png",
+    "storage_anova_tukey_all.png"
+  )))
+  unlink(file.path(supp_pdf_dir, c(
+    "ds_summary.pdf",
+    "ms_chs.pdf",
+    "storage_anova_tukey_all.pdf"
+  )))
 
   site_order <- SITE_ORDER_HYDROMETRIC
   site_order_iso <- SITE_ORDER_ALL
@@ -935,9 +919,20 @@ local({
     }
   }
 
-  # FIGURE 3: DYNAMIC STORAGE (RBI, RCS, FDC, SD)
+  # Dynamic storage annual long table used by downstream supplement plots.
 
-  dynamic_metrics <- PLOT_ORDER_DYNAMIC_STORAGE
+  dynamic_metrics_target <- c("RBI", "RCS", "FDC", "SD", "WB")
+  dynamic_metrics <- dynamic_metrics_target[dynamic_metrics_target %in% names(annual_data)]
+  missing_dynamic_metrics <- setdiff(dynamic_metrics_target, dynamic_metrics)
+  if (length(missing_dynamic_metrics) > 0) {
+    warning(
+      "Missing expected dynamic metrics in annual data: ",
+      paste(missing_dynamic_metrics, collapse = ", ")
+    )
+  }
+  if (!("FDC" %in% dynamic_metrics)) {
+    stop("FDC column is required for ds_annual_ts.png but was not found in annual data.")
+  }
   dynamic_metric_titles <- c(
     RBI = "RBI",
     RCS = "RCS",
@@ -958,76 +953,14 @@ local({
       values_to = "value"
     ) %>%
     mutate(value = ifelse(metric == "WB", -value, value)) %>%
-    filter(!is.na(value)) %>%
-    mutate(metric = factor(metric, levels = dynamic_metrics)) %>%
+    mutate(metric = factor(metric, levels = dynamic_metrics_target)) %>%
     mutate(
       metric_label = factor(
         as.character(metric),
-        levels = dynamic_metrics,
-        labels = dynamic_metric_titles[dynamic_metrics]
+        levels = dynamic_metrics_target,
+        labels = dynamic_metric_titles[dynamic_metrics_target]
       )
     )
-
-  # Calculate mean ± SD per site
-  dynamic_summary <- dynamic_long %>%
-    group_by(site, metric, metric_label) %>%
-    summarise(
-      mean_val = mean(value, na.rm = TRUE),
-      sd_val = sd(value, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    complete(
-      site = factor(site_order, levels = site_order),
-      metric = factor(dynamic_metrics, levels = dynamic_metrics),
-      metric_label = factor(
-        dynamic_metric_titles[dynamic_metrics],
-        levels = dynamic_metric_titles[dynamic_metrics]
-      ),
-      fill = list(mean_val = NA_real_, sd_val = NA_real_)
-    )
-
-  # Add mean labels for each facet
-  dynamic_labels <- dynamic_summary %>%
-    group_by(metric) %>%
-    summarise(
-      x_pos = -Inf,
-      y_pos = -Inf,
-      .groups = "drop"
-    )
-
-  fig3 <- ggplot(dynamic_summary, aes(x = site, y = mean_val, color = site)) +
-    geom_point(size = FIG_POINT_SIZE_MED, na.rm = TRUE) +
-    geom_errorbar(
-      aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
-      width = 0.3,
-      linewidth = 0.5,
-      na.rm = TRUE
-    ) +
-    facet_wrap(
-      ~metric_label,
-      scales = "free_y",
-      ncol = 2,
-      axes = "margins",
-      axis.labels = "margins",
-      labeller = labeller(metric_label = metric_labels_panel)
-    ) +
-    scale_color_manual(values = site_colors, guide = "none") +
-    scale_x_discrete(limits = site_order, drop = FALSE) +
-    labs(x = NULL, y = "Value (WB as drawdown)")
-
-  ggsave(
-    file.path(supp_dir, "ds_summary.png"),
-    fig3,
-    width = 10 * FIG_WIDTH_SCALE,
-    height = 8 * FIG_HEIGHT_SCALE,
-    dpi = 300
-  )
-  ggsave(
-    file.path(supp_pdf_dir, "ds_summary.pdf"),
-    fig3,
-    width = 10 * FIG_WIDTH_SCALE,
-    height = 8 * FIG_HEIGHT_SCALE
-  )
 
   # FIGURE 4: MOBILE ISOTOPE (MTT, Fyw, DR)
 
@@ -1237,42 +1170,13 @@ local({
   # FIGURE 5: CHS (BASEFLOW FRACTION)
 
   if (!is.null(chs_data) && nrow(chs_data) > 0) {
-    # Summary stats
-    chs_summary <- chs_data %>%
-      group_by(site) %>%
-      summarise(
-        mean_val = mean(CHS, na.rm = TRUE),
-        sd_val = sd(CHS, na.rm = TRUE),
-        n = n(),
-        .groups = "drop"
-      ) %>%
+    chs_n_lookup <- chs_data %>%
+      count(site, name = "n") %>%
       complete(
         site = factor(site_order_chs, levels = site_order_chs),
-        fill = list(mean_val = NA_real_, sd_val = NA_real_, n = 0)
-      )
-
-    # Tukey letters for CHS
-    chs_letters <- letters_df %>%
-      filter(metric == "CHS", site %in% site_order_chs) %>%
-      mutate(site = factor(site, levels = site_order_chs)) %>%
-      left_join(
-        chs_summary %>%
-          mutate(
-            y_site_max = mean_val + ifelse(is.na(sd_val), 0, sd_val)
-          ) %>%
-          transmute(site, y_site_max),
-        by = "site"
+        fill = list(n = 0)
       ) %>%
-      mutate(
-        y_span = {
-          y_max <- suppressWarnings(max(chs_summary$mean_val + chs_summary$sd_val, na.rm = TRUE))
-          y_min <- suppressWarnings(min(chs_summary$mean_val - chs_summary$sd_val, na.rm = TRUE))
-          ifelse(is.finite(y_max - y_min) && (y_max - y_min) > 0, y_max - y_min, 1)
-        },
-        y_label_mean = ifelse(is.finite(y_site_max), y_site_max + 0.06 * y_span, NA_real_)
-      )
-
-    chs_n_lookup <- setNames(chs_summary$n, as.character(chs_summary$site))
+      { setNames(.$n, as.character(.$site)) }
     chs_site_labels_n <- setNames(
       paste0(
         site_order_chs,
@@ -1285,44 +1189,6 @@ local({
         ")"
       ),
       site_order_chs
-    )
-
-    fig5 <- ggplot(chs_summary, aes(x = site, y = mean_val, color = site)) +
-      geom_point(size = FIG_POINT_SIZE_LARGE, na.rm = TRUE) +
-      geom_errorbar(
-        aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
-        width = 0.3,
-        linewidth = 0.6,
-        na.rm = TRUE
-      ) +
-      scale_color_manual(values = site_colors) +
-      scale_x_discrete(
-        limits = site_order_chs,
-        drop = FALSE,
-        labels = chs_site_labels_n
-      ) +
-      geom_text(
-        data = chs_letters,
-        aes(x = site, y = y_label_mean, label = group_letter),
-        inherit.aes = FALSE,
-        color = "black",
-        size = FIG_ANNOT_TEXT_SIZE,
-        vjust = 0
-      ) +
-      labs(x = NULL, y = "Baseflow Fraction (CHS)")
-
-    ggsave(
-      file.path(supp_dir, "ms_chs.png"),
-      fig5,
-      width = 8 * FIG_WIDTH_SCALE,
-      height = 5 * FIG_HEIGHT_SCALE,
-      dpi = 300
-    )
-    ggsave(
-      file.path(supp_pdf_dir, "ms_chs.pdf"),
-      fig5,
-      width = 8 * FIG_WIDTH_SCALE,
-      height = 5 * FIG_HEIGHT_SCALE
     )
 
     chs_data_box <- chs_data %>%

@@ -123,25 +123,25 @@ discharge <- met_support %>%
 met_daily <- met_support %>%
   select(site, date, P_mm_d)
 
-# Nov-Jan precipitation by season year where Nov/Dec are assigned to next Jan year.
-# Example: Nov-Dec 2019 + Jan 2020 are assigned to year 2020.
-precip_nov_jan <- met_daily %>%
+# Wet-season precipitation (Nov-May) by season year.
+# Example: Nov-Dec 2019 + Jan-May 2020 are assigned to year 2020.
+precip_nov_may <- met_daily %>%
   mutate(
     month_num = month(date),
     season_year = if_else(month_num %in% c(11L, 12L), year(date) + 1L, year(date))
   ) %>%
-  filter(month_num %in% c(11L, 12L, 1L), season_year %in% target_years) %>%
+  filter(month_num %in% c(11L, 12L, 1L, 2L, 3L, 4L, 5L), season_year %in% target_years) %>%
   group_by(site, year = season_year) %>%
   summarise(
     n_days = sum(is.finite(P_mm_d)),
-    P_NovJan = if_else(n_days > 0, sum(P_mm_d, na.rm = TRUE), as.numeric(NA)),
+    P_WetSeason = if_else(n_days > 0, sum(P_mm_d, na.rm = TRUE), as.numeric(NA)),
     .groups = "drop"
   ) %>%
   mutate(
-    precip_nov_jan_mm = P_NovJan
+    precip_nov_may_mm = P_WetSeason
   ) %>%
-  select(site, year, P_NovJan, precip_nov_jan_mm)
-assert_unique_keys(precip_nov_jan, c("site", "year"), "precip_nov_jan")
+  select(site, year, P_WetSeason, precip_nov_may_mm)
+assert_unique_keys(precip_nov_may, c("site", "year"), "precip_nov_may")
 
 # CALCULATE 7-DAY MOVING AVERAGES
 
@@ -272,7 +272,7 @@ master_metrics <- t_7dmax %>%
   left_join(q_7q5_date, by = c("site", "year")) %>%
   left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
   left_join(q5_period_temp, by = c("site", "year")) %>%
-  left_join(precip_nov_jan, by = c("site", "year")) %>%
+  left_join(precip_nov_may, by = c("site", "year")) %>%
   left_join(temp_cv_lowflow, by = c("site", "year")) %>%
   # Keep compatibility aliases while names transition.
   mutate(
@@ -283,7 +283,7 @@ master_metrics <- t_7dmax %>%
     temp_at_q5_7d_C = T_at_Q7Q5,
     temp_at_min_Q_7d_C = T_at_Q7Q5,
     temp_during_min_Q_7d_C = T_Q7Q5,
-    precip_nov_jan_mm = ifelse(is.na(precip_nov_jan_mm), P_NovJan, precip_nov_jan_mm)
+    precip_nov_may_mm = ifelse(is.na(precip_nov_may_mm), P_WetSeason, precip_nov_may_mm)
   ) %>%
   mutate(
     SITECODE = site,
@@ -308,8 +308,8 @@ summary_stats <- master_metrics %>%
     q_7q5_sd     = sd(Q_7Q5, na.rm = TRUE),
     t_q7q5_mean  = mean(T_Q7Q5, na.rm = TRUE),
     t_q7q5_sd    = sd(T_Q7Q5, na.rm = TRUE),
-    p_novjan_mean = mean(P_NovJan, na.rm = TRUE),
-    p_novjan_sd   = sd(P_NovJan, na.rm = TRUE),
+    p_wetseason_mean = mean(P_WetSeason, na.rm = TRUE),
+    p_wetseason_sd   = sd(P_WetSeason, na.rm = TRUE),
     Q5_CV_mean = mean(Q5_CV, na.rm = TRUE),
     Q5_CV_sd   = sd(Q5_CV, na.rm = TRUE),
     .groups = "drop"

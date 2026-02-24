@@ -22,7 +22,6 @@ MODEL_MIN_N <- 20
 VIF_THRESHOLD <- 10
 LOW_N_THRESHOLD_ECO <- 25
 USE_MUMIN_LOOCV <- TRUE
-STRICT_METHOD_LABEL <- "strict"
 STRICT_USE_SCALED_PREDICTORS <- TRUE
 STRICT_USE_ITERATIVE_VIF <- TRUE
 STRICT_ENFORCE_CORRELATED_EXCLUSIONS <- FALSE
@@ -73,9 +72,17 @@ if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_at_min_Q_7d_C" %in% names(merg
     mutate(T_Q7Q5 = temp_at_min_Q_7d_C)
 }
 
-if (!("P_NovJan" %in% names(merged_data)) && ("precip_nov_jan_mm" %in% names(merged_data))) {
-  merged_data <- merged_data %>%
-    mutate(P_NovJan = precip_nov_jan_mm)
+if (!("P_WetSeason" %in% names(merged_data))) {
+  merged_data$P_WetSeason <- NA_real_
+}
+if ("precip_nov_may_mm" %in% names(merged_data)) {
+  merged_data$P_WetSeason <- dplyr::coalesce(merged_data$P_WetSeason, merged_data$precip_nov_may_mm)
+}
+if ("P_NovJan" %in% names(merged_data)) {
+  merged_data$P_WetSeason <- dplyr::coalesce(merged_data$P_WetSeason, merged_data$P_NovJan)
+}
+if ("precip_nov_jan_mm" %in% names(merged_data)) {
+  merged_data$P_WetSeason <- dplyr::coalesce(merged_data$P_WetSeason, merged_data$precip_nov_jan_mm)
 }
 
 response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
@@ -90,7 +97,7 @@ if (length(missing_response_vars) > 0) {
 }
 response_vars <- response_vars_required
 
-required_predictors <- c("P_NovJan")
+required_predictors <- c("P_WetSeason")
 missing_required_predictors <- setdiff(required_predictors, names(merged_data))
 if (length(missing_required_predictors) > 0) {
   stop(
@@ -101,7 +108,7 @@ if (length(missing_required_predictors) > 0) {
   )
 }
 
-eco_predictors_all <- c("P_NovJan", "RCS", "RBI", "FDC", "SD", "WB", "CHS")
+eco_predictors_all <- c("P_WetSeason", "RCS", "RBI", "FDC", "SD", "WB", "CHS")
 eco_predictors_all <- eco_predictors_all[eco_predictors_all %in% names(merged_data)]
 
 if (length(eco_predictors_all) == 0) {
@@ -121,7 +128,7 @@ if (any(disallowed_watershed_predictors %in% eco_predictors_all)) {
   )
 }
 
-# Eco models use only annual storage metrics plus winter precipitation.
+# Eco models use only annual storage metrics plus wet-season precipitation.
 candidate_predictor_sets <- list(eco_predictors_all)
 
 calc_loocv_stats <- function(model_obj, model_formula, df) {
@@ -559,8 +566,8 @@ run_strict_method <- function() {
         )
 
         if (!is.null(fit_obj)) {
-          fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
-          fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i, Method = STRICT_METHOD_LABEL)
+          fit_obj$coef <- fit_obj$coef %>% mutate(Candidate_Set = i)
+          fit_obj$summary <- fit_obj$summary %>% mutate(Candidate_Set = i)
           candidate_fits[[length(candidate_fits) + 1]] <- fit_obj
           candidate_summary[[length(candidate_summary) + 1]] <- fit_obj$summary
         }
@@ -577,7 +584,6 @@ run_strict_method <- function() {
         model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
           Site = site_id,
           Response = response,
-          Method = STRICT_METHOD_LABEL,
           model_status = "not_fit",
           reason_not_fit = diag$reason,
           n_response = diag$n_response,
@@ -601,13 +607,12 @@ run_strict_method <- function() {
           Site = site_id,
           Response = response,
           Predictors_Final = best_fit$summary$Predictors_Final[1],
-          n = best_fit$summary$n[1],
-          Method = STRICT_METHOD_LABEL
+          n = best_fit$summary$n[1]
         ) %>%
         dplyr::select(
           Site, Response, Predictors_Final, n, n_residuals,
           shapiro_W, shapiro_p, ncv_chisq, ncv_p,
-          normality_pass_p05, homoscedasticity_pass_p05, Method
+          normality_pass_p05, homoscedasticity_pass_p05
         )
       n_response_site <- merged_data %>%
         filter(site == site_id) %>%
@@ -616,7 +621,6 @@ run_strict_method <- function() {
       model_coverage[[paste(site_id, response, sep = "_")]] <- tibble(
         Site = site_id,
         Response = response,
-        Method = STRICT_METHOD_LABEL,
         model_status = "fit",
         reason_not_fit = NA_character_,
         n_response = n_response_site,
@@ -646,19 +650,33 @@ model_run$summary <- model_run$summary %>%
     confidence_note = ifelse(low_n_flag, "lower confidence (small n)", "standard confidence")
   )
 
+format_export_response <- function(x) {
+  gsub("_", "", as.character(x), fixed = TRUE)
+}
+
+format_export_predictor_text <- function(x) {
+  out <- as.character(x)
+  out <- gsub("P_WetSeason", "Pws", out, fixed = TRUE)
+  out <- gsub("_", "", out, fixed = TRUE)
+  out
+}
+
+round_export_cols <- function(df, cols, digits = 3) {
+  keep <- intersect(cols, names(df))
+  if (length(keep) == 0) return(df)
+  df %>%
+    mutate(across(all_of(keep), ~ signif(.x, digits)))
+}
+
 model_results_combined <- model_run$results %>%
-  dplyr::select(-any_of("Method")) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Predictor)
 model_summary_combined <- model_run$summary %>%
-  dplyr::select(-any_of("Method")) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
 selection_combined <- model_run$selection %>%
-  dplyr::select(-any_of("Method")) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), Candidate_Set, AICc)
 coverage_combined <- model_run$coverage %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
 diagnostics_combined <- model_run$diagnostics %>%
-  dplyr::select(-any_of("Method")) %>%
   left_join(
     model_run$summary %>% dplyr::select(Site, Response, low_n_flag, confidence_note),
     by = c("Site", "Response")
@@ -667,6 +685,66 @@ diagnostics_combined <- model_run$diagnostics %>%
 aicc_lt2 <- selection_combined %>%
   filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), delta_AICc, AICc, Candidate_Set)
+
+model_results_export <- model_results_combined %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictor = format_export_predictor_text(Predictor)
+  ) %>%
+  round_export_cols(
+    c("Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AIC", "AICc")
+  )
+
+model_summary_export <- model_summary_combined %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictors_Final = format_export_predictor_text(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
+    )
+  )
+
+selection_export <- selection_combined %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictors_Final = format_export_predictor_text(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
+      "delta_AICc"
+    )
+  )
+
+coverage_export <- coverage_combined %>%
+  mutate(Response = format_export_response(Response))
+
+diagnostics_export <- diagnostics_combined %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictors_Final = format_export_predictor_text(Predictors_Final)
+  ) %>%
+  round_export_cols(c("shapiro_W", "shapiro_p", "ncv_chisq", "ncv_p"))
+
+aicc_lt2_export <- aicc_lt2 %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictors_Final = format_export_predictor_text(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model",
+      "delta_AICc"
+    )
+  )
 
 cor_data <- merged_data %>%
   dplyr::select(all_of(unique(c(response_vars, eco_predictors_all))))
@@ -679,36 +757,57 @@ if (ncol(cor_data) >= 2) {
             row.names = TRUE)
 }
 
-write.csv(model_results_combined,
+write.csv(model_results_export,
           file.path(output_dir, paste0(file_prefix, "_results.csv")),
           row.names = FALSE)
 
-write.csv(model_summary_combined,
+write.csv(model_summary_export,
           file.path(output_dir, paste0(file_prefix, "_summary.csv")),
           row.names = FALSE)
-write.csv(selection_combined,
+write.csv(selection_export,
           file.path(output_dir, paste0(file_prefix, "_model_selection.csv")),
           row.names = FALSE)
 write.csv(
-  diagnostics_combined,
+  diagnostics_export,
   file.path(output_dir, paste0(file_prefix, "_diagnostics.csv")),
   row.names = FALSE
 )
 write.csv(
-  aicc_lt2,
+  aicc_lt2_export,
   file.path(output_dir, paste0(file_prefix, "_aicc_lt2.csv")),
   row.names = FALSE
 )
-write.csv(coverage_combined,
+write.csv(coverage_export,
           file.path(output_dir, paste0(file_prefix, "_coverage.csv")),
           row.names = FALSE)
 
 flags <- model_run$summary %>%
   filter(constraint_flag) %>%
   arrange(Site, Response)
-write.csv(flags,
+flags_export <- flags %>%
+  mutate(
+    Response = format_export_response(Response),
+    Predictors_Final = format_export_predictor_text(Predictors_Final)
+  ) %>%
+  round_export_cols(
+    c(
+      "R2", "R2_adj", "RMSE", "AIC", "AICc",
+      "RMSE_LOOCV", "RMSE_LOOCV_MEAN_RUNS", "R2_LOOCV",
+      "delta_RMSE_LOOCV_minus_model", "delta_RMSE_LOOCV_mean_runs_minus_model"
+    )
+  )
+write.csv(flags_export,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
+
+# Cleanup legacy strict-suffixed outputs; strict is now the default workflow.
+legacy_strict_files <- c(
+  file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
+  file.path(output_dir, paste0(file_prefix, "_results_strict.csv"))
+)
+for (legacy_file in legacy_strict_files) {
+  if (file.exists(legacy_file)) unlink(legacy_file)
+}
 
 # Explicit LOOCV validation output
 loocv_validation <- model_run$summary %>%
@@ -846,8 +945,9 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
     arrange(model_rank, site_rank, response_rank, desc(r2_adj)) %>%
     dplyr::select(-model_rank, -site_rank, -response_rank) %>%
     mutate(
-      response = gsub("_", " ", response),
-      predictors_final = gsub("_", " ", predictors_final)
+      response = gsub("_", "", response),
+      predictors_final = gsub("P_WetSeason", "Pws", predictors_final, fixed = TRUE),
+      predictors_final = gsub("_", "", predictors_final)
     ) %>%
     mutate(
       r2 = signif(r2, 3),

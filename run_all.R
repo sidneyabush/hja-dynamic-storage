@@ -14,7 +14,7 @@ find_repo_root <- function(start_dir) {
     }
     parent <- dirname(cur)
     if (identical(parent, cur)) {
-      break
+      break2
     }
     cur <- parent
   }
@@ -118,12 +118,12 @@ for (s in metric_scripts) {
 run_script("helpers/check_units_consistency.R")
 
 # Stats.
+# Deprecated unified-framework climate/sensitivity scripts are kept under
+# 02_stats/deprecated and are intentionally excluded from the core run.
 stats_scripts <- c(
   "02_stats/storage_sum_stats.R",
   "02_stats/pca.R",
   "02_stats/unified_framework.R",
-  "02_stats/unified_framework_sensitivity.R",
-  "02_stats/unified_framework_climate_variability.R",
   "02_stats/mlr_catch_char.R",
   "02_stats/mlr_eco_vars.R"
 )
@@ -132,11 +132,12 @@ for (s in stats_scripts) {
 }
 
 # Plots: core manuscript set.
+# Deprecated unified-framework climate-variability plotting is kept under
+# 03_plots/deprecated and is intentionally excluded from the core run.
 plot_scripts_core <- c(
   "03_plots/pca.R",
   "03_plots/corr_matrices.R",
   "03_plots/unified_framework.R",
-  "03_plots/unified_framework_climate_variability.R",
   "03_plots/mlr_catch_char.R",
   "03_plots/mlr_eco_vars.R",
   "03_plots/met_context.R",
