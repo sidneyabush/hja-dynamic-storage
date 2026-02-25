@@ -36,8 +36,8 @@ for (d in c(supp_plot_dir, main_plot_dir)) {
   }
 }
 
-# Use a ColorBrewer diverging palette (blue negative -> red positive).
-CORR_COLORS <- rev(RColorBrewer::brewer.pal(11, "RdBu"))[c(2, 6, 10)]
+# Use a ColorBrewer diverging palette (red negative -> blue positive).
+CORR_COLORS <- RColorBrewer::brewer.pal(11, "RdBu")[c(2, 6, 10)]
 
 # load data
 
@@ -231,6 +231,53 @@ if (length(eco_corr_vars) >= 2) {
     p_eco,
     width = 11 * FIG_WIDTH_SCALE,
     height = 11 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  )
+}
+
+# dynamic + extended dynamic storage metrics correlation matrix (annual)
+
+dynamic_extended_metrics <- c("RBI", "RCS", "FDC", "SD", "WB")
+dynamic_extended_metrics <- dynamic_extended_metrics[
+  dynamic_extended_metrics %in% names(HJA_Yr)
+]
+
+if (length(dynamic_extended_metrics) >= 2) {
+  cor_dynamic_extended <- cor(
+    HJA_Yr[, dynamic_extended_metrics, drop = FALSE],
+    use = "pairwise.complete.obs"
+  )
+
+  corr_value_text_size <- FIG_TILE_TEXT_SIZE + 2
+  corr_axis_text_size <- FIG_AXIS_TEXT_SIZE + 1
+
+  p_dynamic_extended <- ggcorrplot(
+    cor_dynamic_extended,
+    hc.order = FALSE,
+    type = "upper",
+    outline.col = "white",
+    colors = CORR_COLORS,
+    lab = TRUE,
+    lab_size = corr_value_text_size,
+    tl.cex = corr_axis_text_size / ggplot2::.pt
+  ) +
+    labs(x = NULL, y = NULL) +
+    theme(
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = corr_axis_text_size),
+      axis.text.y = element_text(size = corr_axis_text_size),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank()
+    )
+
+  ggsave(
+    file.path(supp_plot_dir, "dynamic_extended_storage_corr.png"),
+    p_dynamic_extended,
+    width = 8 * FIG_WIDTH_SCALE,
+    height = 8 * FIG_HEIGHT_SCALE,
     dpi = 300
   )
 }
