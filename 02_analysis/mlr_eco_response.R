@@ -5,11 +5,11 @@ suppressPackageStartupMessages({
   library(readr)
   library(MASS)
   library(car)
-  library(tidyr)
 })
 
 rm(list = ls())
 source("config.R")
+source("helpers/mlr_utils.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -75,123 +75,6 @@ if (length(storage_predictors) > 0) {
   candidate_sets <- c(candidate_sets, lapply(storage_combos, function(x) c("Pws", x)))
 }
 
-calc_aicc <- function(model_obj, n_obs) {
-  k_params <- length(coef(model_obj)) + 1
-  aic_val <- AIC(model_obj)
-  if ((n_obs - k_params - 1) <= 0) {
-    return(NA_real_)
-  }
-  aic_val + (2 * k_params * (k_params + 1)) / (n_obs - k_params - 1)
-}
-
-calc_loocv_stats <- function(model_formula, df) {
-  n <- nrow(df)
-  if (n < 6) {
-    return(list(rmse_loocv = NA_real_, rmse_loocv_mean_runs = NA_real_, r2_loocv = NA_real_))
-  }
-
-  response <- all.vars(model_formula)[1]
-  obs <- df[[response]]
-  preds <- rep(NA_real_, n)
-
-  for (i in seq_len(n)) {
-    fit_i <- tryCatch(lm(model_formula, data = df[-i, , drop = FALSE]), error = function(e) NULL)
-    if (!is.null(fit_i)) {
-      preds[i] <- tryCatch(as.numeric(predict(fit_i, newdata = df[i, , drop = FALSE])), error = function(e) NA_real_)
-    }
-  }
-
-  valid <- is.finite(obs) & is.finite(preds)
-  if (sum(valid) < 3) {
-    return(list(rmse_loocv = NA_real_, rmse_loocv_mean_runs = NA_real_, r2_loocv = NA_real_))
-  }
-
-  errs <- obs[valid] - preds[valid]
-  rmse_loocv <- sqrt(mean(errs^2, na.rm = TRUE))
-  rmse_loocv_mean_runs <- mean(abs(errs), na.rm = TRUE)
-  sst <- sum((obs[valid] - mean(obs[valid], na.rm = TRUE))^2, na.rm = TRUE)
-  sse <- sum(errs^2, na.rm = TRUE)
-  r2_loocv <- ifelse(sst > 0, 1 - sse / sst, NA_real_)
-
-  list(
-    rmse_loocv = rmse_loocv,
-    rmse_loocv_mean_runs = rmse_loocv_mean_runs,
-    r2_loocv = r2_loocv
-  )
-}
-
-iterative_vif <- function(model_obj, response, model_df, threshold) {
-  lm_current <- model_obj
-
-  repeat {
-    retained <- setdiff(names(coef(lm_current)), "(Intercept)")
-    non_mandatory <- setdiff(retained, mandatory_predictors)
-    if (length(non_mandatory) == 0 || length(retained) <= 1) {
-      break
-    }
-
-    vif_vals <- tryCatch(vif(lm_current), error = function(e) NULL)
-    if (is.null(vif_vals)) {
-      break
-    }
-
-    if (max(vif_vals, na.rm = TRUE) <= threshold) {
-      break
-    }
-
-    ordered <- names(sort(vif_vals, decreasing = TRUE))
-    drop_var <- ordered[ordered %in% non_mandatory][1]
-    if (is.na(drop_var) || !nzchar(drop_var)) {
-      break
-    }
-
-    retained_next <- setdiff(retained, drop_var)
-    lm_current <- lm(
-      as.formula(paste(response, "~", paste(retained_next, collapse = " + "))),
-      data = model_df
-    )
-  }
-
-  lm_current
-}
-
-compute_residual_diagnostics <- function(model_obj) {
-  pull_scalar <- function(obj, key) {
-    val <- tryCatch(obj[[key]], error = function(e) NULL)
-    num <- suppressWarnings(as.numeric(val))
-    if (length(num) >= 1 && is.finite(num[1])) return(num[1])
-    NA_real_
-  }
-
-  resid_vals <- residuals(model_obj)
-  resid_vals <- resid_vals[is.finite(resid_vals)]
-
-  shapiro_w <- NA_real_
-  shapiro_p <- NA_real_
-  if (length(resid_vals) >= 3 && length(resid_vals) <= 5000) {
-    sh <- tryCatch(shapiro.test(resid_vals), error = function(e) NULL)
-    if (!is.null(sh)) {
-      shapiro_w <- suppressWarnings(as.numeric(unname(sh$statistic)))
-      shapiro_p <- suppressWarnings(as.numeric(sh$p.value))
-    }
-  }
-
-  ncv <- tryCatch(car::ncvTest(model_obj), error = function(e) NULL)
-  ncv_chisq <- if (!is.null(ncv)) pull_scalar(ncv, "Chisquare") else NA_real_
-  if (!is.finite(ncv_chisq) && !is.null(ncv)) ncv_chisq <- pull_scalar(ncv, "ChiSquare")
-  ncv_p <- if (!is.null(ncv)) pull_scalar(ncv, "p") else NA_real_
-
-  tibble(
-    n_residuals = length(resid_vals),
-    shapiro_W = shapiro_w,
-    shapiro_p = shapiro_p,
-    ncv_chisq = ncv_chisq,
-    ncv_p = ncv_p,
-    normality_pass_p05 = ifelse(is.finite(shapiro_p), shapiro_p > 0.05, NA),
-    homoscedasticity_pass_p05 = ifelse(is.finite(ncv_p), ncv_p > 0.05, NA)
-  )
-}
-
 fit_candidate <- function(df_in, response, predictors) {
   predictors <- unique(predictors[predictors %in% names(df_in)])
   if (!("Pws" %in% predictors)) {
@@ -221,7 +104,16 @@ fit_candidate <- function(df_in, response, predictors) {
     return(NULL)
   }
 
-  fit <- iterative_vif(fit, response, model_df, VIF_THRESHOLD)
+  fit <- apply_vif_filter(
+    model_obj = fit,
+    outcome = response,
+    model_df = model_df,
+    threshold = VIF_THRESHOLD,
+    protected = mandatory_predictors
+  )
+  if (is.null(fit)) {
+    return(NULL)
+  }
 
   retained <- setdiff(names(coef(fit)), "(Intercept)")
   if (!("Pws" %in% retained)) {
@@ -302,11 +194,11 @@ fit_candidate <- function(df_in, response, predictors) {
     AIC = aic_val,
     AICc = aicc_val,
     n = nrow(model_df),
-    RMSE_LOOCV = loocv$rmse_loocv,
-    RMSE_LOOCV_MEAN_RUNS = loocv$rmse_loocv_mean_runs,
-    R2_LOOCV = loocv$r2_loocv,
-    delta_RMSE_LOOCV_minus_model = loocv$rmse_loocv - sqrt(mean(residuals(fit)^2, na.rm = TRUE)),
-    delta_RMSE_LOOCV_mean_runs_minus_model = loocv$rmse_loocv_mean_runs - sqrt(mean(residuals(fit)^2, na.rm = TRUE))
+    RMSE_LOOCV = loocv$rmse,
+    RMSE_LOOCV_MEAN_RUNS = loocv$mae,
+    R2_LOOCV = loocv$r2,
+    delta_RMSE_LOOCV_minus_model = loocv$rmse - sqrt(mean(residuals(fit)^2, na.rm = TRUE)),
+    delta_RMSE_LOOCV_mean_runs_minus_model = loocv$mae - sqrt(mean(residuals(fit)^2, na.rm = TRUE))
   )
 
   pred_obs_out <- model_df %>%
@@ -399,32 +291,16 @@ diagnostics <- bind_rows(diagnostics_list) %>%
   )
 selection <- bind_rows(selection_list)
 
-to_export_response <- function(x) {
-  out <- as.character(x)
-  out <- gsub("_", "", out, fixed = TRUE)
-  out
-}
-
-to_export_predictor <- function(x) {
-  as.character(x)
-}
-
-round_export_cols <- function(df, cols, digits = 3) {
-  keep <- intersect(cols, names(df))
-  if (length(keep) == 0) return(df)
-  df %>% mutate(across(all_of(keep), ~ signif(.x, digits)))
-}
-
 results_export <- results %>%
   mutate(
-    Response = to_export_response(Response),
-    Predictor = to_export_predictor(Predictor)
+    Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE),
+    Predictor = as.character(Predictor)
   ) %>%
   round_export_cols(c("Beta_Std", "p_value", "VIF", "R2", "R2_adj", "RMSE", "AIC", "AICc"))
 
 summary_export <- summary_tbl %>%
   mutate(
-    Response = to_export_response(Response),
+    Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE),
     Predictors_Final = as.character(Predictors_Final)
   ) %>%
   round_export_cols(
@@ -437,19 +313,19 @@ summary_export <- summary_tbl %>%
 
 diagnostics_export <- diagnostics %>%
   mutate(
-    Response = to_export_response(Response),
+    Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE),
     Predictors_Final = as.character(Predictors_Final)
   ) %>%
   round_export_cols(c("shapiro_W", "shapiro_p", "ncv_chisq", "ncv_p"))
 
 pred_obs_export <- pred_obs %>%
-  mutate(Response = to_export_response(Response)) %>%
+  mutate(Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE)) %>%
   round_export_cols(c("Observed", "Predicted", "Residual"), digits = 4)
 
 aicc_lt2_export <- selection %>%
   filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
   mutate(
-    Response = to_export_response(Response),
+    Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE),
     Predictors_Final = as.character(Predictors_Final)
   ) %>%
   round_export_cols(
