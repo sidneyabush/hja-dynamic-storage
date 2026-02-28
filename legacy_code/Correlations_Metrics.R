@@ -124,7 +124,8 @@ pdf("HJA_Storage_CorrPlot_CatchM.pdf", width = 8, height = 8)
 ggcorrplot(cor_storage1, 
            hc.order = FALSE,
            type = "lower",
-           outline.col = "white", lab = T)
+           outline.col = "white", lab = T,
+           tl.srt = 0)
 
 dev.off()
 
@@ -135,7 +136,8 @@ pdf("HJA_Storage_CorrPlot.pdf", width = 12, height = 12)
 ggcorrplot(cor_storage, 
            hc.order = FALSE,
            type = "lower",
-           outline.col = "white", lab = T)
+           outline.col = "white", lab = T,
+           tl.srt = 0)
 
 dev.off()
 
@@ -148,4 +150,3 @@ ggpairs(
 )+theme_bw()
 
 dev.off()
-

@@ -135,7 +135,7 @@ loading_plot <- loading_df %>%
     yend = ly * arrow_scale
   )
 
-FIG9_TEXT_SCALE <- 1.25
+FIG9_TEXT_SCALE <- 1.45
 site_label_size <- (FIG_ANNOT_TEXT_SIZE + 1.2) * FIG9_TEXT_SCALE
 loading_label_size <- (FIG_ANNOT_TEXT_SIZE + 0.3) * FIG9_TEXT_SCALE
 axis_text_size <- (FIG_AXIS_TEXT_SIZE + 1.5) * FIG9_TEXT_SCALE
@@ -380,27 +380,27 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
 
 fig9 <- p_geo / p_state +
   plot_layout(heights = c(1.15, 1)) +
-  plot_annotation(tag_levels = "a") &
+  plot_annotation(tag_levels = "a", tag_suffix = ")") &
   theme(plot.tag = element_text(face = "plain", size = tag_label_size))
 
 nm <- "Fig9_conceptual_diagram"
 invisible(safe_ggsave(
   file.path(main_dir, paste0(nm, ".png")),
   fig9,
-  width = 10.2 * FIG_WIDTH_SCALE,
-  height = 13.2 * FIG_HEIGHT_SCALE,
+  width = 12.8 * FIG_WIDTH_SCALE,
+  height = 16.4 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))
 invisible(safe_ggsave(
   file.path(main_pdf_dir, paste0(nm, ".pdf")),
   fig9,
-  width = 10.2 * FIG_WIDTH_SCALE,
-  height = 13.2 * FIG_HEIGHT_SCALE
+  width = 12.8 * FIG_WIDTH_SCALE,
+  height = 16.4 * FIG_HEIGHT_SCALE
 ))
 invisible(safe_ggsave(
   file.path(explore_dir, paste0(nm, ".png")),
   fig9,
-  width = 10.2 * FIG_WIDTH_SCALE,
-  height = 13.2 * FIG_HEIGHT_SCALE,
+  width = 12.8 * FIG_WIDTH_SCALE,
+  height = 16.4 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))

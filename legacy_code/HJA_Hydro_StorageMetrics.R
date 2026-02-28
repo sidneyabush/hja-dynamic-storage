@@ -200,7 +200,7 @@ cor_storage<-cor(HJA_complete[2:10])
 pdf("HJA_Storage_CorrPlot.pdf", width = 8, height = 8)
 
 ggcorrplot(cor_storage, hc.order = TRUE,type = "lower",
-           outline.col = "white", lab = T)
+           outline.col = "white", lab = T, tl.srt = 0)
 
 dev.off()
 
@@ -249,4 +249,3 @@ for (i in 1:length(sites)) {
 }
 
 dev.off()
-
