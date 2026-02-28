@@ -10,17 +10,61 @@ suppressPackageStartupMessages({
 rm(list = ls())
 source("config.R")
 
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+  dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
+  ext <- tools::file_ext(filename)
+  tmp_file <- tempfile(
+    pattern = "fig8_",
+    tmpdir = tempdir(),
+    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
+  )
+  tryCatch(
+    {
+      if (is.null(dpi)) {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+      } else {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+      }
+      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
+      unlink(tmp_file)
+      if (!isTRUE(ok)) {
+        stop("Failed to copy rendered file to destination")
+      }
+      TRUE
+    },
+    error = function(e) {
+      unlink(tmp_file)
+      warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
+      FALSE
+    }
+  )
+}
+
 output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
+legacy_eco_dir <- file.path(OUT_STATS_DIR, "storage_ecovar_mlr")
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
 for (d in c(main_dir, main_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-results_file <- file.path(output_dir, "storage_eco_response_mlr_results.csv")
-if (!file.exists(results_file)) {
-  stop("Missing required file: ", results_file)
+results_candidates <- c(
+  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_results.csv"),
+  file.path(output_dir, "storage_eco_response_mlr_results.csv")
+)
+results_file <- results_candidates[file.exists(results_candidates)][1]
+if (is.na(results_file) || !nzchar(results_file) || !file.exists(results_file)) {
+  stop(
+    "Missing required eco pooled model file; checked: ",
+    paste(results_candidates, collapse = ", ")
+  )
 }
+
+summary_candidates <- c(
+  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_summary.csv"),
+  file.path(output_dir, "storage_eco_response_mlr_summary.csv")
+)
+summary_file <- summary_candidates[file.exists(summary_candidates)][1]
 
 norm_response <- function(x) {
   out <- as.character(x)
@@ -38,7 +82,28 @@ norm_predictor <- function(x) {
 response_order <- c("Q7Q5", "T7DMax")
 predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS")
 
-coef_df <- read_csv(results_file, show_col_types = FALSE) %>%
+coef_raw <- read_csv(results_file, show_col_types = FALSE)
+
+# legacy all-sites file can include multiple candidate models per response;
+# retain only the selected candidate set when available.
+if ("Candidate_Set" %in% names(coef_raw) && !is.na(summary_file) && file.exists(summary_file)) {
+  selected_sets <- read_csv(summary_file, show_col_types = FALSE) %>%
+    transmute(
+      Response = norm_response(Response),
+      Candidate_Set = suppressWarnings(as.numeric(Candidate_Set))
+    ) %>%
+    filter(is.finite(Candidate_Set)) %>%
+    distinct(Response, Candidate_Set)
+
+  coef_raw <- coef_raw %>%
+    mutate(
+      Response = norm_response(Response),
+      Candidate_Set = suppressWarnings(as.numeric(Candidate_Set))
+    ) %>%
+    inner_join(selected_sets, by = c("Response", "Candidate_Set"))
+}
+
+coef_df <- coef_raw %>%
   mutate(
     Response = norm_response(Response),
     Predictor = norm_predictor(Predictor),
@@ -75,8 +140,14 @@ predictor_axis_labels <- function(vals) {
   parse(text = txt)
 }
 
-p <- ggplot(plot_df, aes(x = Response, y = Predictor, fill = Beta_Std)) +
-  geom_tile(color = "white", linewidth = 0.3) +
+p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
+  geom_tile(fill = "white", color = "white", linewidth = 0.3) +
+  geom_tile(
+    data = plot_df %>% filter(is.finite(Beta_Std)),
+    aes(fill = Beta_Std),
+    color = "white",
+    linewidth = 0.3
+  ) +
   geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
     low = "firebrick3",
@@ -97,17 +168,17 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor, fill = Beta_Std)) +
     legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
   )
 
-ggsave(
+invisible(safe_ggsave(
   file.path(main_dir, "Fig8_eco_mlr_beta.png"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE,
   dpi = 300
-)
+))
 
-ggsave(
+invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig8_eco_mlr_beta.pdf"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE
-)
+))

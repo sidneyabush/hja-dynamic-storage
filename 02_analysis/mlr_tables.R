@@ -88,15 +88,29 @@ to_md_table <- function(df_in) {
 
 # ---- inputs ----
 eco_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
-eco_res_file <- file.path(eco_dir, "storage_eco_response_mlr_results.csv")
-eco_sum_file <- file.path(eco_dir, "storage_eco_response_mlr_summary.csv")
+legacy_eco_dir <- file.path(OUT_STATS_DIR, "storage_ecovar_mlr")
+eco_res_candidates <- c(
+  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_results.csv"),
+  file.path(eco_dir, "storage_eco_response_mlr_results.csv")
+)
+eco_sum_candidates <- c(
+  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_summary.csv"),
+  file.path(eco_dir, "storage_eco_response_mlr_summary.csv")
+)
+eco_res_file <- eco_res_candidates[file.exists(eco_res_candidates)][1]
+eco_sum_file <- eco_sum_candidates[file.exists(eco_sum_candidates)][1]
 
 ws_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
 ws_res_file <- file.path(ws_dir, "catchment_char_storage_mlr_results.csv")
 ws_sum_file <- file.path(ws_dir, "catchment_char_storage_mlr_summary.csv")
 
-if (!file.exists(eco_res_file) || !file.exists(eco_sum_file)) {
-  stop("Missing eco model inputs: expected storage_eco_response_mlr_results.csv and _summary.csv")
+if (is.na(eco_res_file) || is.na(eco_sum_file) || !file.exists(eco_res_file) || !file.exists(eco_sum_file)) {
+  stop(
+    "Missing eco model inputs; checked results: ",
+    paste(eco_res_candidates, collapse = ", "),
+    " ; checked summaries: ",
+    paste(eco_sum_candidates, collapse = ", ")
+  )
 }
 if (!file.exists(ws_res_file) || !file.exists(ws_sum_file)) {
   stop("Missing catchment model inputs: expected catchment_char_storage_mlr_results.csv and _summary.csv")
@@ -104,13 +118,16 @@ if (!file.exists(ws_res_file) || !file.exists(ws_sum_file)) {
 
 # ---- pooled eco-response models ----
 eco_res <- read_csv(eco_res_file, show_col_types = FALSE) %>%
-  transmute(model_id = as.character(Response), Beta_Std = suppressWarnings(as.numeric(Beta_Std)))
+  transmute(
+    model_id = gsub("_", "", as.character(Response), fixed = TRUE),
+    Beta_Std = suppressWarnings(as.numeric(Beta_Std))
+  )
 eco_k <- eco_res %>%
   group_by(model_id) %>%
   summarise(k_predictors = sum(is.finite(Beta_Std)), .groups = "drop")
 
 eco_sum <- read_csv(eco_sum_file, show_col_types = FALSE) %>%
-  mutate(model_id = as.character(Response))
+  mutate(model_id = gsub("_", "", as.character(Response), fixed = TRUE))
 eco_sum <- compute_model_p_if_missing(
   summary_df = eco_sum,
   id_col = "model_id",

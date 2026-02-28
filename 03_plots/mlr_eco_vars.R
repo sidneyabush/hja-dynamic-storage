@@ -627,12 +627,14 @@ build_pred_obs_plot <- function(pred_obs_path) {
 p_pred_obs <- build_pred_obs_plot(pred_obs_file)
 if (!is.null(p_pred_obs)) {
   save_plot_pair(
-    "storage_ecovar_mlr_predicted_vs_observed",
+    "FigSX_eco_observed_v_predicted",
     p_pred_obs,
     width = 9 * FIG_WIDTH_SCALE,
     height = 10 * FIG_HEIGHT_SCALE,
     to_supp = TRUE
   )
+  unlink(file.path(supp_plot_dir, "storage_ecovar_mlr_predicted_vs_observed.png"))
+  unlink(file.path(supp_plot_pdf_dir, "storage_ecovar_mlr_predicted_vs_observed.pdf"))
 }
 
 # pooled diagnostics heatmap with p values for residual checks

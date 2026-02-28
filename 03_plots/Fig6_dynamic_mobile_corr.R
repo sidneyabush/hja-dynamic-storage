@@ -10,6 +10,36 @@ suppressPackageStartupMessages({
 rm(list = ls())
 source("config.R")
 
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+  dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
+  ext <- tools::file_ext(filename)
+  tmp_file <- tempfile(
+    pattern = "fig6_",
+    tmpdir = tempdir(),
+    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
+  )
+  tryCatch(
+    {
+      if (is.null(dpi)) {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+      } else {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+      }
+      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
+      unlink(tmp_file)
+      if (!isTRUE(ok)) {
+        stop("Failed to copy rendered file to destination")
+      }
+      TRUE
+    },
+    error = function(e) {
+      unlink(tmp_file)
+      warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
+      FALSE
+    }
+  )
+}
+
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
 for (d in c(main_dir, main_pdf_dir)) {
@@ -90,17 +120,17 @@ p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
     legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
   )
 
-ggsave(
+invisible(safe_ggsave(
   file.path(main_dir, "Fig6_dynamic_mobile_corr.png"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
   dpi = 300
-)
+))
 
-ggsave(
+invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig6_dynamic_mobile_corr.pdf"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
-)
+))

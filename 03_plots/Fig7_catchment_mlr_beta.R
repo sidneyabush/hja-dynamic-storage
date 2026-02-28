@@ -12,6 +12,36 @@ rm(list = ls())
 # load project config
 source("config.R")
 
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+  dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
+  ext <- tools::file_ext(filename)
+  tmp_file <- tempfile(
+    pattern = "fig7_",
+    tmpdir = tempdir(),
+    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
+  )
+  tryCatch(
+    {
+      if (is.null(dpi)) {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+      } else {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+      }
+      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
+      unlink(tmp_file)
+      if (!isTRUE(ok)) {
+        stop("Failed to copy rendered file to destination")
+      }
+      TRUE
+    },
+    error = function(e) {
+      unlink(tmp_file)
+      warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
+      FALSE
+    }
+  )
+}
+
 
 output_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
 ALPHA <- 0.05
@@ -128,11 +158,11 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
   scale_fill_gradient2(
-    low = "firebrick4",
+    low = "firebrick3",
     mid = "white",
     high = "dodgerblue3",
     midpoint = 0,
-    limits = c(-3, 3),
+    limits = c(-1, 1),
     oob = scales::squish,
     name = expression(italic(beta))
   ) +
@@ -149,17 +179,17 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
-ggsave(
+invisible(safe_ggsave(
   file.path(plot_dir, "Fig7_catch_char_mlr_beta.png"),
   p_beta,
   width = 10.2 * FIG_WIDTH_SCALE,
   height = 6.8 * FIG_HEIGHT_SCALE,
   dpi = 300
-)
+))
 
-ggsave(
+invisible(safe_ggsave(
   file.path(plot_pdf_dir, "Fig7_catch_char_mlr_beta.pdf"),
   p_beta,
   width = 10.2 * FIG_WIDTH_SCALE,
   height = 6.8 * FIG_HEIGHT_SCALE
-)
+))

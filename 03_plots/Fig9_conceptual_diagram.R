@@ -12,6 +12,36 @@ suppressPackageStartupMessages({
 rm(list = ls())
 source("config.R")
 
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+  dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
+  ext <- tools::file_ext(filename)
+  tmp_file <- tempfile(
+    pattern = "fig9_",
+    tmpdir = tempdir(),
+    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
+  )
+  tryCatch(
+    {
+      if (is.null(dpi)) {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+      } else {
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+      }
+      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
+      unlink(tmp_file)
+      if (!isTRUE(ok)) {
+        stop("Failed to copy rendered file to destination")
+      }
+      TRUE
+    },
+    error = function(e) {
+      unlink(tmp_file)
+      warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
+      FALSE
+    }
+  )
+}
+
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
 explore_dir <- CONCEPTUAL_DIAGRAM_DIR
@@ -29,14 +59,27 @@ for (f in c(axes_file, loadings_file, variance_file, master_site_file)) {
 }
 
 axes <- read_csv(axes_file, show_col_types = FALSE) %>%
+  mutate(site = standardize_site_code(as.character(site))) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  group_by(site) %>%
+  slice(1) %>%
+  ungroup() %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
 
 loadings <- read_csv(loadings_file, show_col_types = FALSE)
 variance <- read_csv(variance_file, show_col_types = FALSE)
 master_site <- read_csv(master_site_file, show_col_types = FALSE) %>%
+  mutate(site = standardize_site_code(as.character(site))) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
+
+missing_biplot_sites <- setdiff(SITE_ORDER_HYDROMETRIC, as.character(axes$site))
+if (length(missing_biplot_sites) > 0) {
+  warning(
+    "Sites missing from unified_framework_site_axes.csv for biplot: ",
+    paste(missing_biplot_sites, collapse = ", ")
+  )
+}
 
 if (!all(c("geology_pc1", "geology_pc2") %in% names(axes))) {
   stop("unified_framework_site_axes.csv is missing geology_pc1/geology_pc2")
@@ -92,13 +135,20 @@ loading_plot <- loading_df %>%
     yend = ly * arrow_scale
   )
 
-site_label_size <- FIG_ANNOT_TEXT_SIZE + 1.2
-loading_label_size <- FIG_ANNOT_TEXT_SIZE + 0.3
+FIG9_TEXT_SCALE <- 1.25
+site_label_size <- (FIG_ANNOT_TEXT_SIZE + 1.2) * FIG9_TEXT_SCALE
+loading_label_size <- (FIG_ANNOT_TEXT_SIZE + 0.3) * FIG9_TEXT_SCALE
+axis_text_size <- (FIG_AXIS_TEXT_SIZE + 1.5) * FIG9_TEXT_SCALE
+axis_title_size <- (FIG_AXIS_TITLE_SIZE + 1.6) * FIG9_TEXT_SCALE
+legend_title_size <- (FIG_AXIS_TITLE_SIZE + 1.3) * FIG9_TEXT_SCALE
+legend_text_size <- (FIG_AXIS_TEXT_SIZE + 1.1) * FIG9_TEXT_SCALE
+quad_label_size <- (FIG_ANNOT_TEXT_SIZE + 0.8) * FIG9_TEXT_SCALE
+stats_label_size <- (FIG_ANNOT_TEXT_SIZE + 0.9) * FIG9_TEXT_SCALE
+tag_label_size <- (FIG_AXIS_TITLE_SIZE + 1) * FIG9_TEXT_SCALE
 
 p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
   geom_hline(yintercept = 0, linewidth = 0.5, color = "grey70") +
   geom_vline(xintercept = 0, linewidth = 0.5, color = "grey70") +
-  geom_point(aes(color = site), size = FIG_POINT_SIZE_LARGE + 2.1, alpha = 0.98) +
   geom_segment(
     data = loading_plot,
     aes(x = 0, y = 0, xend = xend, yend = yend),
@@ -111,18 +161,33 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
     data = loading_plot,
     aes(x = xend, y = yend, label = label),
     inherit.aes = FALSE,
+    seed = 20260228,
     color = "grey45",
-    fill = alpha("white", 0.55),
-    label.size = 0,
+    fill = alpha("white", 0.45),
+    label.size = 0.25,
+    label.padding = unit(0.08, "lines"),
+    label.r = unit(0.10, "lines"),
     size = loading_label_size,
-    box.padding = 0.12,
-    point.padding = 0.08,
-    segment.color = alpha("grey60", 0.55),
-    force = 0.3,
-    max.overlaps = Inf,
-    min.segment.length = 0
+    box.padding = 0.10,
+    point.padding = 0.12,
+    force = 0.9,
+    force_pull = 0.95,
+    min.segment.length = 0,
+    segment.size = 0.23,
+    segment.alpha = 0.75,
+    segment.color = "grey55",
+    max.overlaps = Inf
+  ) +
+  geom_point(
+    aes(fill = site),
+    shape = 21,
+    color = "grey20",
+    stroke = 0.35,
+    size = FIG_POINT_SIZE_LARGE + 1.8,
+    alpha = 0.98
   ) +
   geom_text_repel(
+    data = pca_scores %>% filter(!site %in% c("Mack", "Look")),
     aes(label = site, color = site),
     size = site_label_size,
     box.padding = 0.32,
@@ -131,39 +196,82 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
     max.overlaps = Inf,
     show.legend = FALSE
   ) +
+  geom_text_repel(
+    data = pca_scores %>% filter(site == "Mack"),
+    aes(label = site, color = site),
+    size = site_label_size,
+    nudge_y = -0.24,
+    box.padding = 0.30,
+    point.padding = 0.26,
+    min.segment.length = 0,
+    max.overlaps = Inf,
+    show.legend = FALSE
+  ) +
+  geom_text_repel(
+    data = pca_scores %>% filter(site == "Look"),
+    aes(label = site, color = site),
+    size = site_label_size,
+    nudge_y = 0.24,
+    box.padding = 0.30,
+    point.padding = 0.26,
+    min.segment.length = 0,
+    max.overlaps = Inf,
+    show.legend = FALSE
+  ) +
   scale_color_manual(values = SITE_COLORS) +
+  scale_fill_manual(values = SITE_COLORS) +
   labs(
     x = paste0("PC1 (", number(pc1_pct, accuracy = 0.1), "%)"),
     y = paste0("PC2 (", number(pc2_pct, accuracy = 0.1), "%)")
   ) +
+  coord_cartesian(clip = "off") +
   theme_pub() +
   theme(
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1.5),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1.6),
-    legend.position = "none"
+    axis.text = element_text(size = axis_text_size),
+    axis.title = element_text(size = axis_title_size),
+    legend.position = "none",
+    plot.margin = margin(5.5, 18, 5.5, 5.5)
   )
 
-# complete-case conceptual panel
-# require chs and isotope metrics so mobile axis is fully supported
-complete_mobile_sites <- master_site %>%
-  mutate(
-    has_mtt = is.finite(MTT1) | is.finite(MTT2),
-    complete_mobile = is.finite(CHS_mean) & is.finite(DR) & is.finite(Fyw) & has_mtt
+required_mobile_dynamic_cols <- c(
+  "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean",
+  "CHS_mean", "DR", "Fyw", "MTT1", "MTT2"
+)
+missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
+if (length(missing_required_cols) > 0) {
+  stop(
+    "master_site is missing required columns for panel b filter: ",
+    paste(missing_required_cols, collapse = ", ")
+  )
+}
+
+eligible_sites_panel_b <- master_site %>%
+  transmute(
+    site = as.character(site),
+    eligible = if_all(
+      all_of(c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean", "DR", "Fyw")),
+      ~ is.finite(.x)
+    ) & (is.finite(MTT1) | is.finite(MTT2))
   ) %>%
-  transmute(site, complete_mobile)
+  filter(eligible) %>%
+  pull(site)
 
 plot_b <- axes %>%
   mutate(site = as.character(site)) %>%
-  left_join(complete_mobile_sites, by = "site") %>%
   transmute(
     site,
     dynamic = as.numeric(dynamic_storage_strength_z),
     mobile = as.numeric(mobile_mixing_with_chs_z),
     pc1 = as.numeric(geology_pc1),
-    pc2 = as.numeric(geology_pc2),
-    complete_mobile = ifelse(is.na(complete_mobile), FALSE, complete_mobile)
+    pc2 = as.numeric(geology_pc2)
   ) %>%
-  filter(complete_mobile, is.finite(dynamic), is.finite(mobile), is.finite(pc1), is.finite(pc2))
+  filter(
+    site %in% eligible_sites_panel_b,
+    is.finite(dynamic),
+    is.finite(mobile),
+    is.finite(pc1),
+    is.finite(pc2)
+  )
 
 if (nrow(plot_b) < 3) {
   stop("Not enough complete-case sites for panel b")
@@ -179,10 +287,18 @@ ann_stats <- sprintf("R² = %.3f\np = %.3f\nb = %.3f", r2, p_val, slope)
 
 x_rng <- range(plot_b$dynamic, na.rm = TRUE)
 y_rng <- range(plot_b$mobile, na.rm = TRUE)
+x_span <- diff(x_rng)
+y_span <- diff(y_rng)
+if (!is.finite(x_span) || x_span <= 0) x_span <- 1
+if (!is.finite(y_span) || y_span <= 0) y_span <- 1
+x_pad <- 0.40 * x_span
+y_pad <- 0.40 * y_span
+x_lim <- c(x_rng[1] - x_pad, x_rng[2] + x_pad)
+y_lim <- c(y_rng[1] - y_pad, y_rng[2] + y_pad)
 
 quad_df <- tibble(
-  x = c(x_rng[1], x_rng[2], x_rng[1], x_rng[2]),
-  y = c(y_rng[2], y_rng[2], y_rng[1], y_rng[1]),
+  x = c(x_lim[1], x_lim[2], x_lim[1], x_lim[2]),
+  y = c(y_lim[2], y_lim[2], y_lim[1], y_lim[1]),
   hjust = c(0, 1, 0, 1),
   vjust = c(1, 1, 0, 0),
   label = c(
@@ -216,20 +332,23 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     data = quad_df,
     aes(x = x, y = y, label = label, hjust = hjust, vjust = vjust),
     inherit.aes = FALSE,
-    size = FIG_ANNOT_TEXT_SIZE + 0.8,
+    size = quad_label_size,
     color = "grey25",
     fill = alpha("grey95", 0.92),
-    label.size = 0,
+    linewidth = 0,
     label.padding = unit(0.25, "lines")
   ) +
   annotate(
-    "text",
-    x = x_rng[2] - 0.04 * diff(x_rng),
-    y = y_rng[2] - 0.10 * diff(y_rng),
+    "label",
+    x = Inf,
+    y = Inf,
     label = ann_stats,
-    hjust = 1,
-    vjust = 1,
-    size = FIG_ANNOT_TEXT_SIZE + 1.1
+    hjust = -0.04,
+    vjust = 1.08,
+    size = stats_label_size,
+    linewidth = 0,
+    fill = alpha("white", 0.9),
+    color = "grey20"
   ) +
   scale_fill_gradient2(
     low = "#1b9e77",
@@ -247,40 +366,41 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     x = "Dynamic Storage",
     y = "Mobile Storage"
   ) +
+  coord_cartesian(xlim = x_lim, ylim = y_lim, clip = "off") +
   theme_pub() +
   theme(
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1.5),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1.6),
-    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1.3),
-    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1.1),
-    legend.position = "right"
+    axis.text = element_text(size = axis_text_size),
+    axis.title = element_text(size = axis_title_size),
+    legend.title = element_text(size = legend_title_size),
+    legend.text = element_text(size = legend_text_size),
+    legend.position = "right",
+    plot.margin = margin(5.5, 95, 5.5, 5.5)
   ) +
   guides(fill = guide_colorbar(order = 1), size = guide_legend(order = 2))
 
 fig9 <- p_geo / p_state +
   plot_layout(heights = c(1.15, 1)) +
   plot_annotation(tag_levels = "a") &
-  theme(plot.tag = element_text(face = "plain", size = FIG_AXIS_TITLE_SIZE + 1))
+  theme(plot.tag = element_text(face = "plain", size = tag_label_size))
 
-for (nm in c("Fig9_conceptual_diagram", "geo_landslide_pca_dynamic_mobile_storage_geology_pcsize_all_sites_stacked")) {
-  ggsave(
-    file.path(main_dir, paste0(nm, ".png")),
-    fig9,
-    width = 10.2 * FIG_WIDTH_SCALE,
-    height = 13.2 * FIG_HEIGHT_SCALE,
-    dpi = 300
-  )
-  ggsave(
-    file.path(main_pdf_dir, paste0(nm, ".pdf")),
-    fig9,
-    width = 10.2 * FIG_WIDTH_SCALE,
-    height = 13.2 * FIG_HEIGHT_SCALE
-  )
-  ggsave(
-    file.path(explore_dir, paste0(nm, ".png")),
-    fig9,
-    width = 10.2 * FIG_WIDTH_SCALE,
-    height = 13.2 * FIG_HEIGHT_SCALE,
-    dpi = 300
-  )
-}
+nm <- "Fig9_conceptual_diagram"
+invisible(safe_ggsave(
+  file.path(main_dir, paste0(nm, ".png")),
+  fig9,
+  width = 10.2 * FIG_WIDTH_SCALE,
+  height = 13.2 * FIG_HEIGHT_SCALE,
+  dpi = 300
+))
+invisible(safe_ggsave(
+  file.path(main_pdf_dir, paste0(nm, ".pdf")),
+  fig9,
+  width = 10.2 * FIG_WIDTH_SCALE,
+  height = 13.2 * FIG_HEIGHT_SCALE
+))
+invisible(safe_ggsave(
+  file.path(explore_dir, paste0(nm, ".png")),
+  fig9,
+  width = 10.2 * FIG_WIDTH_SCALE,
+  height = 13.2 * FIG_HEIGHT_SCALE,
+  dpi = 300
+))
