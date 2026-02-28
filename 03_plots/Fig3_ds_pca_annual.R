@@ -153,17 +153,20 @@ p_scree <- vexp %>%
   )
 
 invisible(safe_ggsave(
-  file.path(supp_dir, "pca_scree.png"),
+  file.path(supp_dir, "FigSX_pca_scree.png"),
   p_scree,
   width = 7 * FIG_WIDTH_SCALE,
   height = 4.5 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))
 invisible(safe_ggsave(
-  file.path(supp_pdf_dir, "pca_scree.pdf"),
+  file.path(supp_pdf_dir, "FigSX_pca_scree.pdf"),
   p_scree,
   width = 7 * FIG_WIDTH_SCALE,
   height = 4.5 * FIG_HEIGHT_SCALE
 ))
+
+unlink(file.path(supp_dir, "pca_scree.png"))
+unlink(file.path(supp_pdf_dir, "pca_scree.pdf"))
 
 # catchment-characteristics and eco-model pca companion plots removed by design.

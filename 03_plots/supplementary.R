@@ -28,7 +28,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   )
 }
 
-build_corr_triangle_plot <- function(data_df, metric_map, legend_title = "Corr") {
+build_corr_triangle_plot <- function(data_df, metric_map, legend_title = "Pearson's r") {
   metric_map <- metric_map[metric_map %in% names(data_df)]
   if (length(metric_map) < 2) {
     return(NULL)
@@ -124,13 +124,12 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     filter(Response %in% c("Q7Q5", "T7DMax"), is.finite(Observed), is.finite(Predicted))
 
   response_labels <- c("Q7Q5" = "a) Q7Q5", "T7DMax" = "b) T7DMax")
+  pred_point_alpha <- 0.65
 
   r2_df <- pred_df %>%
     group_by(Response) %>%
     summarise(
       r2 = suppressWarnings(cor(Observed, Predicted, use = "complete.obs")^2),
-      x = min(Observed, na.rm = TRUE) + 0.05 * diff(range(Observed, na.rm = TRUE)),
-      y = max(Predicted, na.rm = TRUE) - 0.08 * diff(range(Predicted, na.rm = TRUE)),
       .groups = "drop"
     )
 
@@ -143,7 +142,7 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     )
 
   p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
-    geom_point(aes(color = site), size = FIG_POINT_SIZE_MED, alpha = 0.85) +
+    geom_point(aes(color = site), size = FIG_POINT_SIZE_LARGE + 1, alpha = pred_point_alpha) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey45", linewidth = 0.5) +
     geom_text(
       data = one_to_one_df,
@@ -154,15 +153,23 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     ) +
     geom_text(
       data = r2_df,
-      aes(x = x, y = y, label = paste0("R² = ", sprintf("%.2f", r2))),
+      aes(label = paste0("R² = ", sprintf("%.2f", r2))),
       inherit.aes = FALSE,
+      x = -Inf,
+      y = Inf,
       size = FIG_ANNOT_TEXT_SIZE + 1.2,
-      hjust = 0,
-      vjust = 1
+      hjust = -0.1,
+      vjust = 1.1
     ) +
     facet_wrap(~ Response, scales = "free", ncol = 1, labeller = as_labeller(response_labels)) +
     scale_color_manual(values = SITE_COLORS, drop = FALSE) +
-    labs(x = "Observed", y = "Predicted", color = "Site") +
+    guides(
+      color = guide_legend(
+        title = NULL,
+        override.aes = list(size = FIG_POINT_SIZE_LARGE + 1, alpha = pred_point_alpha)
+      )
+    ) +
+    labs(x = "Observed", y = "Predicted", color = NULL) +
     theme_pub() +
     theme(
       axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
@@ -350,37 +357,41 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     MTT2 = "MTT2"
   )
 
-  p_dynamic_corr <- build_corr_triangle_plot(annual_corr, dynamic_map, legend_title = "Corr")
+  p_dynamic_corr <- build_corr_triangle_plot(annual_corr, dynamic_map, legend_title = "Pearson's r")
   if (!is.null(p_dynamic_corr)) {
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSx_dynamic_metrics_corr.png"),
+      file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"),
       p_dynamic_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSx_dynamic_metrics_corr.pdf"),
+      file.path(supp_pdf_dir, "FigSX_dynamic_metrics_corr.pdf"),
       p_dynamic_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
+    unlink(file.path(supp_dir, "FigSx_dynamic_metrics_corr.png"))
+    unlink(file.path(supp_pdf_dir, "FigSx_dynamic_metrics_corr.pdf"))
   }
 
-  p_mobile_corr <- build_corr_triangle_plot(site_df, mobile_map, legend_title = "Corr")
+  p_mobile_corr <- build_corr_triangle_plot(site_df, mobile_map, legend_title = "Pearson's r")
   if (!is.null(p_mobile_corr)) {
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSx_mobile_metrics_corr.png"),
+      file.path(supp_dir, "FigSX_mobile_metrics_corr.png"),
       p_mobile_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSx_mobile_metrics_corr.pdf"),
+      file.path(supp_pdf_dir, "FigSX_mobile_metrics_corr.pdf"),
       p_mobile_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
+    unlink(file.path(supp_dir, "FigSx_mobile_metrics_corr.png"))
+    unlink(file.path(supp_pdf_dir, "FigSx_mobile_metrics_corr.pdf"))
   }
 }

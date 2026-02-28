@@ -228,8 +228,24 @@ write_csv(ws_summary_table, file.path(ws_dir, "catchment_char_storage_mlr_model_
 dir.create(MS_TABLES_MAIN_DIR, recursive = TRUE, showWarnings = FALSE)
 write_csv(
   ws_summary_table,
-  file.path(MS_TABLES_MAIN_DIR, "table4_catchment_char_storage_mlr_model_stats.csv")
+  file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv")
 )
+old_table4 <- file.path(MS_TABLES_MAIN_DIR, "table4_catchment_char_storage_mlr_model_stats.csv")
+if (file.exists(old_table4)) file.remove(old_table4)
+
+# ---- table 5: eco-response summary in same format as table 4 ----
+eco_summary_table <- eco_models %>%
+  transmute(
+    `Response Variable` = factor(response_variable, levels = ECO_ORDER),
+    `Selected Predictor(s)` = clean_predictor_labels(selected_predictors),
+    `R2` = r2,
+    `Adj R2` = adj_r2_marked,
+    `RMSE` = rmse,
+    `LOOCV RMSE` = rmse_loocv,
+    `AICc` = aicc
+  ) %>%
+  arrange(`Response Variable`) %>%
+  mutate(`Response Variable` = as.character(`Response Variable`))
 
 # ---- single all-models csv (eco + catchment) ----
 dir.create(OUT_STATS_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -260,9 +276,11 @@ all_models <- bind_rows(eco_models, ws_models) %>%
 write_csv(all_models, file.path(OUT_STATS_DIR, "mlr_all_models_listed.csv"))
 dir.create(MS_TABLES_MAIN_DIR, recursive = TRUE, showWarnings = FALSE)
 write_csv(
-  all_models,
-  file.path(MS_TABLES_MAIN_DIR, "table5_mlr_all_models_listed.csv")
+  eco_summary_table,
+  file.path(MS_TABLES_MAIN_DIR, "Table5_mlr_all_models_listed.csv")
 )
+old_table5 <- file.path(MS_TABLES_MAIN_DIR, "table5_mlr_all_models_listed.csv")
+if (file.exists(old_table5)) file.remove(old_table5)
 
 old_supp_all_models <- file.path(MS_TABLES_SUPP_DIR, "tableSX_mlr_all_models_listed.csv")
 if (file.exists(old_supp_all_models)) file.remove(old_supp_all_models)

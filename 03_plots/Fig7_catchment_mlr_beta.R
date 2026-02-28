@@ -154,9 +154,16 @@ beta_plot_df <- beta_plot_df %>%
     Outcome_label = factor(Outcome_label, levels = outcome_order)
   )
 
+FIG7_TEXT_SCALE <- 1.25
+fig7_tile_text <- FIG_TILE_TEXT_SIZE * FIG7_TEXT_SCALE
+fig7_axis_text <- (FIG_AXIS_TEXT_SIZE + 1) * FIG7_TEXT_SCALE
+fig7_axis_title <- (FIG_AXIS_TITLE_SIZE + 1) * FIG7_TEXT_SCALE
+fig7_legend_title <- (FIG_AXIS_TITLE_SIZE + 1) * FIG7_TEXT_SCALE
+fig7_legend_text <- (FIG_AXIS_TEXT_SIZE + 1) * FIG7_TEXT_SCALE
+
 p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
   geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
+  geom_text(aes(label = beta_label), size = fig7_tile_text) +
   scale_fill_gradient2(
     low = "firebrick3",
     mid = "white",
@@ -170,10 +177,10 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   theme_pub() +
   theme(
     axis.text.x = element_text(angle = 0, hjust = 0.5),
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+    axis.text = element_text(size = fig7_axis_text),
+    axis.title = element_text(size = fig7_axis_title),
+    legend.title = element_text(size = fig7_legend_title),
+    legend.text = element_text(size = fig7_legend_text),
     legend.position = "right",
     plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
   ) +
