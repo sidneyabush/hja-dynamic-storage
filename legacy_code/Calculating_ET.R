@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: input_dir/watersheds_met_data_q.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: input_dir/watersheds_met_data_q.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 library(readr)
 library(dplyr)
@@ -11,17 +11,17 @@ library(ggplot2)
 
 rm(list = ls())
 
-# Set data directories
+# set data directories
 input_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/MET/data"
 output_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/ET"
 plot_dir <- file.path(output_dir, "plots")
 
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Import all_watersheds_data
+# import all_watersheds_data
 all_watersheds_data <- read_csv(file.path(input_dir, "watersheds_met_data_q.csv"))
 
-# THEORETICAL ALPHA FUNCTIONS (Zhang et al. 2024): 
+# theoretical alpha functions (zhang et al. 2024): 
 # https://hess.copernicus.org/articles/28/4349/2024/hess-28-4349-2024.html 
 
 calculate_specific_humidity <- function(temp_celsius, rh_percent, pressure_kpa = 101.325) {
@@ -31,14 +31,14 @@ calculate_specific_humidity <- function(temp_celsius, rh_percent, pressure_kpa =
   return(q)
 }
 
-#  Equation 17 
+#  equation 17 
 calculate_delta <- function(temp_celsius) {
   es <- 0.6108 * exp(17.27 * temp_celsius / (temp_celsius + 237.3))
   delta <- 4098 * es / ((temp_celsius + 237.3)^2)
   return(delta)
 }
 
-# Equation 9
+# equation 9
 calculate_bowen_ratio_simplified <- function(temp_celsius, q_specific) {
   cp <- 1005  # J/kg/K
   lambda_v <- (2.501 - 0.002361 * temp_celsius) * 1e6  # J/kg
@@ -50,7 +50,7 @@ calculate_bowen_ratio_simplified <- function(temp_celsius, q_specific) {
   return(Bo)
 }
 
-# Equation 12
+# equation 12
 calculate_alpha_theoretical <- function(temp_celsius, rh_percent, pressure_kpa = 101.325) {
   q_specific <- calculate_specific_humidity(temp_celsius, rh_percent, pressure_kpa)
   delta <- calculate_delta(temp_celsius)
@@ -61,8 +61,8 @@ calculate_alpha_theoretical <- function(temp_celsius, rh_percent, pressure_kpa =
   return(alpha)
 }
 
-# This is a formula I tried, but am no longer using. Using Zhang method.
-# SZILAGYI et al. (2014) alpha(T) FUNCTION
+# this is a formula i tried, but am no longer using. using zhang method.
+# szilagyi et al. (2014) alpha(t) function
 calculate_alpha_szilagyi <- function(temp_celsius) {
   alpha <- -3.89e-6 * temp_celsius^3 +
     4.78e-4 * temp_celsius^2 -
@@ -71,7 +71,7 @@ calculate_alpha_szilagyi <- function(temp_celsius) {
   return(alpha)
 }
 
-# PRIESTLEY-TAYLOR ET
+# priestley-taylor et
 calculate_et_pt <- function(alpha, net_radiation_wm2, temp_celsius, rh_percent) {
   G <- 0
   net_radiation_mjm2d <- net_radiation_wm2 * 0.0864
@@ -85,7 +85,7 @@ calculate_et_pt <- function(alpha, net_radiation_wm2, temp_celsius, rh_percent) 
   return(pmax(0, et_pt))
 }
 
-# WEEKLY AVERAGING FOR THEORETICAL ALPHA (ZHANG)
+# weekly averaging for theoretical alpha (zhang)
 calculate_weekly_theoretical_alpha <- function(data) {
   data$DATE <- as.Date(data$DATE)
   data$week_start <- floor_date(data$DATE, "week")
@@ -112,7 +112,7 @@ calculate_weekly_theoretical_alpha <- function(data) {
   return(data)
 }
 
-# MAIN WORKFLOW
+# main workflow
 results <- all_watersheds_data
 results <- calculate_weekly_theoretical_alpha(results)
 results$alpha_szilagyi <- sapply(results$T_C, calculate_alpha_szilagyi)
@@ -160,7 +160,7 @@ et_long <- results_complete %>%
                          labels = c("Fixed 1.26", "Fixed 0.9", "Zhang et al. (2024) α(T_RH)", "Szilagyi et al. (2014) α(T)")
   ))
 
-# Add the alpha values (for plotting)
+# add the alpha values (for plotting)
 results_complete <- results_complete %>%
   mutate(
     alpha_fixed_1.26 = 1.26,
@@ -169,7 +169,7 @@ results_complete <- results_complete %>%
     alpha_szilagyi = alpha_szilagyi
   )
 
-# Pivot to long format for alpha
+# pivot to long format for alpha
 alpha_long <- results_complete %>%
   select(DATE, SITECODE, alpha_fixed_1.26, alpha_fixed_0.9, alpha_zhang, alpha_szilagyi) %>%
   pivot_longer(
@@ -183,7 +183,7 @@ alpha_long <- results_complete %>%
   ))
 
 
-# Export one plot per SITECODE 
+# export one plot per sitecode 
 site_list <- unique(et_long$SITECODE)
 for (site in site_list) {
   p <- ggplot(filter(et_long, SITECODE == site),
@@ -206,7 +206,7 @@ for (site in site_list) {
 }
 
 
-# Export one alpha plot per SITECODE
+# export one alpha plot per sitecode
 for (site in unique(alpha_long$SITECODE)) {
   p <- ggplot(filter(alpha_long, SITECODE == site),
               aes(x = DATE, y = Alpha, color = Method)) +
@@ -228,14 +228,14 @@ for (site in unique(alpha_long$SITECODE)) {
 }
 
 
-# Add year and month columns for grouping
+# add year and month columns for grouping
 et_long <- et_long %>%
   mutate(
     year = year(DATE),
     month = month(DATE, label = TRUE, abbr = TRUE)
   )
 
-# Summarize mean daily ET by month, method, and site to compare to HJA values
+# summarize mean daily et by month, method, and site to compare to hja values
 et_monthly_summary <- et_long %>%
   group_by(SITECODE, Method, month) %>%
   summarise(
@@ -245,9 +245,9 @@ et_monthly_summary <- et_long %>%
     .groups = "drop"
   )
 
-# Preview result
+# preview result
 
-# Final dataset: Only Zhang method, all variables retained
+# final dataset: only zhang method, all variables retained
 zhang_export <- results_complete %>%
   mutate(
     zhang_alpha = alpha_theoretical_weekly,      
@@ -255,10 +255,10 @@ zhang_export <- results_complete %>%
   ) %>%
   select(DATE, SITECODE, everything())
 
-# Export to CSV
+# export to csv
 write_csv(zhang_export, file.path(output_dir, "daily_ET_watersheds_zhang_alpha.csv"))
 
-# ---- Export daily water balance file: Date, SITECODE, P, Q, ET ----
+# ---- export daily water balance file: date, sitecode, p, q, et ----
 water_balance_export <- results_complete %>%
   transmute(
     DATE,

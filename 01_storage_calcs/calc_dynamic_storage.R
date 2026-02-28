@@ -1,7 +1,7 @@
-# Calculate hydrometric dynamic-storage metrics (RBI/RCS + SD/FDC) by site and water year.
-# Inputs: DISCHARGE_DIR/HF00402_v14.csv; CATCHMENT_CHARACTERISTICS_DIR/drainage_area.csv; OUT_MET_SUPPORT_DIR/daily_water_balance_et_hamon_zhang_coeff_interp.csv.
-# Author: Sidney Bush
-# Date: 2026-02-14
+# calculate hydrometric dynamic-storage metrics (rbi/rcs + sd/fdc) by site and water year.
+# inputs: discharge_dir/hf00402_v14.csv; catchment_characteristics_dir/drainage_area.csv; out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv.
+# author: sidney bush
+# date: 2026-02-14
 
 library(dplyr)
 library(lubridate)
@@ -13,7 +13,7 @@ library(tibble)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 output_dir <- OUT_MET_DYNAMIC_DIR
@@ -21,14 +21,10 @@ output_dir_ed <- OUT_MET_EXTENDED_DIR
 discharge_dir <- DISCHARGE_DIR
 sites_keep <- SITE_ORDER_HYDROMETRIC
 
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir, recursive = TRUE)
-}
-if (!dir.exists(output_dir_ed)) {
-  dir.create(output_dir_ed, recursive = TRUE)
-}
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir_ed, recursive = TRUE, showWarnings = FALSE)
 
-# ---- PART 1: RBI and recession slope (RCS) from discharge ----
+# ---- part 1: rbi and recession slope (rcs) from discharge ----
 
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = standardize_site_code(SITECODE))
@@ -87,7 +83,7 @@ rbi_rcs_annual <- discharge %>%
 
 write_csv(rbi_rcs_annual, file.path(output_dir, "rbi_rcs_annual.csv"))
 
-# ---- PART 2: Storage-discharge and FDC metrics from water balance ----
+# ---- part 2: storage-discharge and fdc metrics from water balance ----
 
 wb_daily_file <- resolve_water_balance_daily_file()
 stopifnot(file.exists(wb_daily_file))
@@ -298,7 +294,7 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
-# Site-level full-period FDC slope used in downstream analyses.
+# site-level full-period fdc slope used in downstream analyses.
 fdc_slopes_site <- fdc_slopes %>%
   transmute(
     site = site,
@@ -357,7 +353,7 @@ write.csv(
   row.names = FALSE
 )
 
-# Canonical annual dynamic-storage output consumed by aggregation script
+# default annual dynamic-storage output consumed by aggregation script
 write.csv(
   annual %>%
     rename(SD = S_annual_mm, FDC = fdc_slope) %>%
@@ -366,7 +362,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- PART 3: Extended dynamic storage (WB drawdown) ----
+# ---- part 3: extended dynamic storage (wb depletion) ----
 
 discharge_wb <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
@@ -432,7 +428,7 @@ last_peak <- discharge_wb %>%
 
 write.csv(
   last_peak,
-  file.path(output_dir_ed, "ds_drawdown_date.csv"),
+  file.path(output_dir_ed, "ds_depletion_date.csv"),
   row.names = FALSE
 )
 
@@ -454,7 +450,7 @@ wb_cropped <- wb_daily %>%
   group_by(SITECODE, waterYear) %>%
   filter(DATE >= last_peak_date)
 
-wb_drawdown <- wb_cropped %>%
+wb_depletion <- wb_cropped %>%
   group_by(SITECODE, waterYear) %>%
   mutate(
     DS_daily = P_mm_d - Q_mm_d - ET_mm_d,
@@ -462,7 +458,7 @@ wb_drawdown <- wb_cropped %>%
   ) %>%
   ungroup()
 
-ds_max <- wb_drawdown %>%
+ds_max <- wb_depletion %>%
   group_by(SITECODE, waterYear) %>%
   slice_min(WB, n = 1) %>%
   select(SITECODE, waterYear, WB) %>%
@@ -470,6 +466,6 @@ ds_max <- wb_drawdown %>%
 
 write.csv(
   ds_max,
-  file.path(output_dir_ed, "ds_drawdown_annual.csv"),
+  file.path(output_dir_ed, "ds_depletion_annual.csv"),
   row.names = FALSE
 )

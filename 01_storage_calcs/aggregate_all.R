@@ -1,7 +1,7 @@
-# Assemble all annual/site-level metrics into master analysis tables.
-# Inputs: dynamic_dir/RBI_RecessionCurve_Annual.csv; dynamic_dir/StorageDischarge_FDC_Annual.csv; mobile_dir/Annual_GW_Prop.csv; extended_dir/DS_drawdown_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; isotope_dir/MTT_FYW.csv; +1 more CSV files.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# assemble all annual/site-level metrics into master analysis tables.
+# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; isotope_dir/mtt_fyw.csv; +1 more csv files.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -10,17 +10,17 @@ library(ggplot2)
 library(GGally)
 library(ggcorrplot)
 
-# Start clean
+# start clean
 rm(list = ls())
 
-# Load config (works from Rscript or source)
-# Load project config
+# load config (works from rscript or source)
+# load project config
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# Key input/output directories
+# key input/output directories
 
 base_dir    <- BASE_DATA_DIR
 dynamic_dir <- OUT_MET_DYNAMIC_DIR
@@ -31,10 +31,10 @@ master_dir <- file.path(OUTPUT_DIR, "master")
 isotope_dir <- ISOTOPE_DIR
 catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
-# Make sure output directory exists
-if (!dir.exists(master_dir)) dir.create(master_dir, recursive = TRUE)
+# make sure output directory exists
+dir.create(master_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Helper to fail fast if a join key is not unique
+# helper to fail fast if a join key is not unique
 
 assert_unique_keys <- function(df, keys, df_name) {
   dupes <- df %>%
@@ -50,9 +50,9 @@ assert_unique_keys <- function(df, keys, df_name) {
   }
 }
 
-# Dynamic storage metrics (annual)
+# dynamic storage metrics (annual)
 
-# RBI and recession slope
+# rbi and recession slope
 rbi_path <- file.path(dynamic_dir, "rbi_rcs_annual.csv")
 rbi_recession <- read_csv(
   rbi_path,
@@ -63,7 +63,7 @@ rbi_recession <- read_csv(
   select(site, year, RCS, RBI)
 assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
 
-# Storage-discharge, FDC, and supporting flow quantiles
+# storage-discharge, fdc, and supporting flow quantiles
 fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
 storage_fdc <- read_csv(
   fdc_path,
@@ -74,9 +74,9 @@ storage_fdc <- read_csv(
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
 
-# Mobile storage metric (annual CHS)
+# mobile storage metric (annual chs)
 
-# CHS = annual mean baseflow fraction
+# chs = annual mean baseflow fraction
 chs_path <- file.path(mobile_dir, "annual_gw_prop.csv")
 baseflow <- read_csv(
   chs_path,
@@ -93,10 +93,10 @@ baseflow <- read_csv(
   select(site, year, CHS)
 assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
-# Extended dynamic storage metric (annual WB)
+# extended dynamic storage metric (annual wb)
 
-# Water-balance drawdown
-wb_path <- file.path(extended_dir, "ds_drawdown_annual.csv")
+# water-balance depletion
+wb_path <- file.path(extended_dir, "ds_depletion_annual.csv")
 wb_storage <- read_csv(
   wb_path,
   show_col_types = FALSE
@@ -109,9 +109,9 @@ wb_storage <- read_csv(
   select(site, year, WB)
 assert_unique_keys(wb_storage, c("site", "year"), "wb_storage")
 
-# Ecological response variables (annual)
+# ecological response variables (annual)
 
-# Thermal and low-flow response metrics
+# thermal and low-flow response metrics
 thermal_lowflow <- read_csv(
   file.path(eco_dir, "stream_thermal_lowflow_metrics_annual.csv"),
   show_col_types = FALSE
@@ -127,18 +127,18 @@ thermal_lowflow <- read_csv(
   filter(year >= WY_START, year <= WY_END)
 
 thermal_cols_required <- c(
-  "T_7DMax", "Q_7Q5", "T_at_Q7Q5", "T_Q7Q5",
+  "T_7DMax", "Q_7Q5", "T_at_Q7Q5",
   "max_temp_7d_C",
-  "q5_7d_mm_d", "temp_at_q5_7d_C", "temp_during_q5_7d_C",
-  "min_Q_7d_mm_d", "temp_at_min_Q_7d_C", "temp_during_min_Q_7d_C",
-  "P_WetSeason", "precip_nov_may_mm", "P_NovJan", "precip_nov_jan_mm", "Q5_CV"
+  "q5_7d_mm_d", "temp_at_q5_7d_C",
+  "min_Q_7d_mm_d", "temp_at_min_Q_7d_C",
+  "Pws", "P_WetSeason", "precip_nov_may_mm", "P_NovJan", "precip_nov_jan_mm", "Q5_CV"
 )
 thermal_cols_output <- c(
-  "T_7DMax", "Q_7Q5", "T_at_Q7Q5", "T_Q7Q5",
+  "T_7DMax", "Q_7Q5", "T_at_Q7Q5",
   "max_temp_7d_C",
-  "q5_7d_mm_d", "temp_at_q5_7d_C", "temp_during_q5_7d_C",
-  "min_Q_7d_mm_d", "temp_at_min_Q_7d_C", "temp_during_min_Q_7d_C",
-  "P_WetSeason", "precip_nov_may_mm", "Q5_CV"
+  "q5_7d_mm_d", "temp_at_q5_7d_C",
+  "min_Q_7d_mm_d", "temp_at_min_Q_7d_C",
+  "Pws", "precip_nov_may_mm", "Q5_CV"
 )
 for (nm in thermal_cols_required) {
   if (!(nm %in% names(thermal_lowflow))) {
@@ -154,35 +154,34 @@ thermal_lowflow <- thermal_lowflow %>%
     T_7DMax = ifelse(is.na(T_7DMax), max_temp_7d_C, T_7DMax),
     Q_7Q5 = ifelse(is.na(Q_7Q5), q5_7d_mm_d, Q_7Q5),
     T_at_Q7Q5 = ifelse(is.na(T_at_Q7Q5), temp_at_q5_7d_C, T_at_Q7Q5),
-    T_Q7Q5 = ifelse(is.na(T_Q7Q5), temp_during_q5_7d_C, T_Q7Q5),
-    P_WetSeason = dplyr::coalesce(P_WetSeason, precip_nov_may_mm, P_NovJan, precip_nov_jan_mm),
-    precip_nov_may_mm = dplyr::coalesce(precip_nov_may_mm, P_WetSeason)
+    Pws = dplyr::coalesce(Pws, P_WetSeason, precip_nov_may_mm, P_NovJan, precip_nov_jan_mm),
+    precip_nov_may_mm = dplyr::coalesce(precip_nov_may_mm, Pws)
   ) %>%
   select(
     site, year, all_of(thermal_cols_output)
   )
 assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
-# Merge annual tables into one site-year master table
+# merge annual tables into one site-year master table
 
 HJA_annual <- rbi_recession %>%
   full_join(storage_fdc, by = c("site", "year")) %>%
   full_join(baseflow, by = c("site", "year")) %>%
   full_join(wb_storage, by = c("site", "year")) %>%
   full_join(thermal_lowflow, by = c("site", "year")) %>%
-  # Keep only hydrometric sites used in analysis
+  # keep only hydrometric sites used in analysis
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-  # Keep site order consistent across outputs/plots
+  # keep site order consistent across outputs/plots
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site, year)
 assert_unique_keys(HJA_annual, c("site", "year"), "HJA_annual")
 
-# Save annual site-year master table
+# save annual site-year master table
 write.csv(HJA_annual,
           file.path(master_dir, MASTER_ANNUAL_FILE),
           row.names = FALSE)
 
-# Calculate site-level means across available years
+# calculate site-level means across available years
 
 HJA_avg <- HJA_annual %>%
   group_by(site) %>%
@@ -196,9 +195,9 @@ HJA_avg <- HJA_annual %>%
     .groups = "drop"
   )
 
-# Add isotope-based site-level metrics (not annual)
+# add isotope-based site-level metrics (not annual)
 
-# MTT1, MTT2, and Fyw
+# mtt1, mtt2, and fyw
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),
   show_col_types = FALSE
@@ -219,7 +218,7 @@ mtt_fyw <- read_csv(
   select(site, MTT1, MTT2, Fyw) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
-# Damping ratio
+# damping ratio
 damping_ratios <- read_csv(
   file.path(isotope_dir, "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
@@ -228,16 +227,16 @@ damping_ratios <- read_csv(
   select(site, DR = DR_Overall, DR_err = DR__err) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
-# Combine isotope metrics into one site-level table
+# combine isotope metrics into one site-level table
 isotope_metrics <- mtt_fyw %>%
   full_join(damping_ratios, by = "site")
 assert_unique_keys(isotope_metrics, c("site"), "isotope_metrics")
 
-# Join isotope metrics into site-average table
+# join isotope metrics into site-average table
 HJA_avg <- HJA_avg %>%
   left_join(isotope_metrics, by = "site")
 
-# Add static catchment characteristics
+# add static catchment characteristics
 
 catchment_chars <- read_csv(
   resolve_catchment_characteristics_file(),
@@ -251,20 +250,20 @@ assert_unique_keys(catchment_chars, c("site"), "catchment_chars")
 HJA_avg <- HJA_avg %>%
   left_join(catchment_chars, by = "site")
 
-# Save final site-level master table
+# save final site-level master table
 write.csv(HJA_avg,
           file.path(master_dir, MASTER_SITE_FILE),
           row.names = FALSE)
 
-# Track sample sizes by metric/site
-# Storage and response metric names used below
+# track sample sizes by metric/site
+# storage and response metric names used below
 dynamic_metrics <- DYNAMIC_METRICS
 mobile_metrics_annual <- MOBILE_METRICS_ANNUAL
 mobile_metrics_site <- MOBILE_METRICS_SITE
 extended_metrics <- EXTENDED_DYNAMIC_METRICS
-response_metrics <- c("T_7DMax", "Q_7Q5", "T_Q7Q5", "P_WetSeason")
+response_metrics <- c("T_7DMax", "Q_7Q5", "Pws")
 
-# Count available annual observations per site
+# count available annual observations per site
 annual_sample_sizes <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
   group_by(site) %>%
@@ -278,11 +277,11 @@ annual_sample_sizes <- HJA_annual %>%
     n_WB = sum(!is.na(WB)),
     n_t_7dmax = sum(!is.na(T_7DMax)),
     n_q_7q5 = sum(!is.na(Q_7Q5)),
-    n_p_wetseason = sum(!is.na(P_WetSeason)),
+    n_p_wetseason = sum(!is.na(Pws)),
     .groups = "drop"
   )
 
-# Add isotope availability flags
+# add isotope availability flags
 site_isotope <- HJA_avg %>%
   select(site, MTT1, MTT2, Fyw, DR) %>%
   mutate(
@@ -296,7 +295,7 @@ site_isotope <- HJA_avg %>%
 sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
 
-# Save sample-size summary table (optional auxiliary output)
+# save sample-size summary table (optional auxiliary output)
 if (isTRUE(WRITE_AUX_OUTPUTS)) {
   write.csv(
     sample_sizes,
@@ -305,7 +304,7 @@ if (isTRUE(WRITE_AUX_OUTPUTS)) {
   )
 }
 
-# Build per-site summary statistics for all metrics
+# build per-site summary statistics for all metrics
 storage_metric_cols <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c(dynamic_metrics, mobile_metrics_annual, extended_metrics)
 ]
@@ -362,12 +361,10 @@ if (isTRUE(WRITE_AUX_OUTPUTS)) {
   )
 }
 
-# ---- Data availability summary tables (moved from stats into metrics) ----
+# ---- data availability summary tables (moved from stats into metrics) ----
 
 support_dir <- OUT_MET_SUPPORT_DIR
-if (!dir.exists(support_dir)) {
-  dir.create(support_dir, recursive = TRUE)
-}
+dir.create(support_dir, recursive = TRUE, showWarnings = FALSE)
 
 isotope_sites <- c(
   "WS09", "WS10", "WS01", "Look", "WS02", "WS03", "WS07", "WS08", "Mack"
@@ -497,7 +494,7 @@ date_ranges <- site_info %>%
   left_join(chem_ranges, by = "site") %>%
   left_join(wb_ranges, by = "site")
 
-met_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
+met_file <- file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv")
 if (file.exists(met_file)) {
   met_data <- read_csv(met_file, show_col_types = FALSE)
   exclude_cols <- c("DATE", "Date", "date", "SITECODE", "site", "WATERYEAR", "wateryear")
@@ -540,8 +537,7 @@ eco_response_availability <- HJA_annual %>%
     n_wy_total = n_distinct(year),
     n_wy_T_7DMax = sum(is.finite(T_7DMax)),
     n_wy_Q_7Q5 = sum(is.finite(Q_7Q5)),
-    n_wy_T_Q7Q5 = sum(is.finite(T_Q7Q5)),
-    n_wy_P_WetSeason = sum(is.finite(P_WetSeason)),
+    n_wy_Pws = sum(is.finite(Pws)),
     .groups = "drop"
   ) %>%
   right_join(tibble(site = SITE_ORDER_HYDROMETRIC), by = "site") %>%
@@ -549,8 +545,7 @@ eco_response_availability <- HJA_annual %>%
     n_wy_total = ifelse(is.na(n_wy_total), 0L, n_wy_total),
     n_wy_T_7DMax = ifelse(is.na(n_wy_T_7DMax), 0L, n_wy_T_7DMax),
     n_wy_Q_7Q5 = ifelse(is.na(n_wy_Q_7Q5), 0L, n_wy_Q_7Q5),
-    n_wy_T_Q7Q5 = ifelse(is.na(n_wy_T_Q7Q5), 0L, n_wy_T_Q7Q5),
-    n_wy_P_WetSeason = ifelse(is.na(n_wy_P_WetSeason), 0L, n_wy_P_WetSeason),
+    n_wy_Pws = ifelse(is.na(n_wy_Pws), 0L, n_wy_Pws),
     missing_reason = case_when(
       site == "WS09" & n_wy_T_7DMax == 0 ~ "No WS09 stream-temperature records in HT00451_v10.txt",
       n_wy_T_7DMax == 0 ~ "No stream-temperature WY records",
@@ -561,9 +556,9 @@ eco_response_availability <- HJA_annual %>%
 
 eco_response_wy_coverage <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
-  select(site, year, T_7DMax, Q_7Q5, T_Q7Q5, P_WetSeason) %>%
+  select(site, year, T_7DMax, Q_7Q5, Pws) %>%
   pivot_longer(
-    cols = c(T_7DMax, Q_7Q5, T_Q7Q5, P_WetSeason),
+    cols = c(T_7DMax, Q_7Q5, Pws),
     names_to = "response",
     values_to = "value"
   ) %>%

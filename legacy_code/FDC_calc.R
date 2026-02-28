@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: HF00402_v14.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: hf00402_v14.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 setwd("/Users/keirajohnson/Box Sync/05_Storage_Manuscript/03_Data/Q")
 
@@ -20,10 +20,10 @@ calculate_water_year_fdc_slopes <- function(
   library(dplyr)
   library(ggplot2)
   
-  # Input check
+  # input check
   if (length(dates) != length(flows)) stop("dates and flows must be the same length")
   
-  # Build main data frame
+  # build main data frame
   df <- data.frame(Date = as.Date(dates), Flow = as.numeric(flows)) %>%
     filter(!is.na(Flow)) %>%
     mutate(
@@ -32,7 +32,7 @@ calculate_water_year_fdc_slopes <- function(
       WaterYear = ifelse(Month >= 10, Year + 1, Year)
     )
   
-  # Filter complete years
+  # filter complete years
   complete_years <- df %>%
     group_by(WaterYear) %>%
     summarise(DaysAvailable = n(), .groups = "drop") %>%
@@ -41,7 +41,7 @@ calculate_water_year_fdc_slopes <- function(
   
   df <- df %>% filter(WaterYear %in% complete_years)
   
-  # Compute FDC and slopes
+  # compute fdc and slopes
   fdc_df <- df %>%
     group_by(WaterYear) %>%
     arrange(desc(Flow), .by_group = TRUE) %>%
@@ -54,7 +54,7 @@ calculate_water_year_fdc_slopes <- function(
            ExceedanceProbability <= prob_range[2]) %>%
     ungroup()
   
-  # Compute slope for each year using log(flow) ~ exceedance
+  # compute slope for each year using log(flow) ~ exceedance
   slopes_df <- fdc_df %>%
     group_by(WaterYear) %>%
     summarise(
@@ -62,7 +62,7 @@ calculate_water_year_fdc_slopes <- function(
       .groups = "drop"
     )
   
-  # Plot FDC
+  # plot fdc
   p <- ggplot(fdc_df, aes(x = ExceedanceProbability, y = Flow, color = factor(WaterYear))) +
     geom_line() +
     labs(
@@ -91,10 +91,10 @@ calculate_total_fdc_slopes <- function(
   library(dplyr)
   library(ggplot2)
   
-  # Input check
+  # input check
   if (length(dates) != length(flows)) stop("dates and flows must be the same length")
   
-  # Build main data frame
+  # build main data frame
   df <- data.frame(Date = as.Date(dates), Flow = as.numeric(flows)) %>%
     filter(!is.na(Flow)) %>%
     mutate(
@@ -103,7 +103,7 @@ calculate_total_fdc_slopes <- function(
       WaterYear = ifelse(Month >= 10, Year + 1, Year)
     )
   
-  # Filter complete years
+  # filter complete years
   complete_years <- df %>%
     group_by(WaterYear) %>%
     summarise(DaysAvailable = n(), .groups = "drop") %>%
@@ -112,7 +112,7 @@ calculate_total_fdc_slopes <- function(
   
   df <- df %>% filter(WaterYear %in% complete_years)
   
-  # Compute FDC and slopes
+  # compute fdc and slopes
   fdc_df <- df %>%
     arrange(desc(Flow), .by_group = TRUE) %>%
     mutate(
@@ -124,14 +124,14 @@ calculate_total_fdc_slopes <- function(
            ExceedanceProbability <= prob_range[2]) %>%
     ungroup()
   
-  # Compute slope for each year using log(flow) ~ exceedance
+  # compute slope for each year using log(flow) ~ exceedance
   slopes_df <- fdc_df %>%
     summarise(
       Slope = coef(lm(log10(Flow) ~ ExceedanceProbability))[2],
       .groups = "drop"
     )
   
-  # Plot FDC
+  # plot fdc
   p <- ggplot(fdc_df, aes(x = ExceedanceProbability, y = Flow)) +
     geom_line() +
     labs(

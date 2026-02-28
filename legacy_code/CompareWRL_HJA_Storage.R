@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: /Users/keirajohnson/Box Sync/Hydrology_Lab/Projects/Low Flow/AllDataHarmonized_Simple_05252025.csv; /Users/keirajohnson/Box Sync/Hydrology_Lab/Projects/Low Flow/RBFI.csv; /Users/keirajohnson/Box Sync/05_Storage_Manuscript/03_Data/StorageMetrics/HJA_StorageMetrics_Annual.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: /users/keirajohnson/box sync/hydrology_lab/projects/low flow/alldataharmonized_simple_05252025.csv; /users/keirajohnson/box sync/hydrology_lab/projects/low flow/rbfi.csv; /users/keirajohnson/box sync/05_storage_manuscript/03_data/storagemetrics/hja_storagemetrics_annual.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 require(ggplot2)
 require(dplyr)

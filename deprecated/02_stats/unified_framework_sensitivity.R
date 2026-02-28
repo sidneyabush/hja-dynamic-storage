@@ -1,7 +1,7 @@
-# Sensitivity checks for the unified subsurface storage framework.
-# Inputs: OUTPUT_DIR/master/master_site.csv; unified_framework site axes output.
-# Author: Sidney Bush
-# Date: 2026-02-21
+# sensitivity checks for the unified subsurface storage framework.
+# inputs: output_dir/master/master_site.csv; unified_framework site axes output.
+# author: sidney bush
+# date: 2026-02-21
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 find_read_root <- function() {
@@ -65,9 +65,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   dir_targets <- c(dir_targets, table_out_dir)
 }
 for (d in dir_targets) {
-  if (!dir.exists(d)) {
-    dir.create(d, recursive = TRUE, showWarnings = FALSE)
-  }
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 safe_z <- function(x) {
@@ -317,7 +315,7 @@ for (nm in names(scenario_list)) {
   scoring_df[[nm]] <- sc$unified_state_index
 }
 
-# Alternative aggregation: equal-weight component score (no axis grouping).
+# alternative aggregation: equal-weight component score (no axis grouping).
 mtt_combined <- row_mean_min(z_full[, c("MTT1_z", "MTT2_z"), drop = FALSE], 1L)$mean
 component_score <- row_mean_min(
   tibble(
@@ -349,7 +347,7 @@ ranking_table <- scoring_df %>%
   ungroup() %>%
   arrange(scenario, rank_desc)
 
-# Leave-one-site-out stability for baseline configuration.
+# leave-one-site-out stability for baseline configuration.
 loo_records <- lapply(ori$site, function(site_holdout) {
   train_raw <- ori %>% filter(site != site_holdout)
   test_raw <- ori %>% filter(site == site_holdout)

@@ -1,16 +1,15 @@
-# !/usr/bin/env Rscript.
-# Validate unit consistency across core workflow outputs.
-# Inputs:
-# - OUT_MET_SUPPORT_DIR/watersheds_met_q.csv
+# validate unit consistency across core workflow outputs.
+# inputs:
+# - out_met_support_dir/catchments_met_q.csv
 # - resolve_water_balance_daily_file()
-# - DISCHARGE_DIR/HF00402_v14.csv
+# - discharge_dir/hf00402_v14.csv
 # - resolve_drainage_area_file()
-# - OUT_MET_DYNAMIC_DIR/storage_discharge_fdc_annual.csv
-# - OUTPUT_DIR/master/master_annual.csv
-# - OUTPUT_DIR/master/master_site.csv
-# - OUT_MET_MOBILE_DIR/isotope_metrics_site.csv
-# Output (best effort):
-# - OUT_MET_SUPPORT_DIR/unit_consistency_report.csv
+# - out_met_dynamic_dir/storage_discharge_fdc_annual.csv
+# - output_dir/master/master_annual.csv
+# - output_dir/master/master_site.csv
+# - out_met_mobile_dir/isotope_metrics_site.csv
+# output (best effort):
+# - out_met_support_dir/unit_consistency_report.csv
 
 suppressPackageStartupMessages({
   library(readr)
@@ -21,7 +20,7 @@ find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
     has_config <- file.exists(file.path(cur, "config.R"))
-    has_metrics <- dir.exists(file.path(cur, "01_metrics"))
+    has_metrics <- dir.exists(file.path(cur, "01_storage_calcs"))
     if (has_config && has_metrics) return(cur)
     parent <- dirname(cur)
     if (identical(parent, cur)) break
@@ -236,7 +235,7 @@ master_dir <- file.path(OUTPUT_DIR, "master")
 wb_daily_file <- tryCatch(resolve_water_balance_daily_file(), error = function(e) NA_character_)
 
 required_paths <- c(
-  met_q = file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv"),
+  met_q = file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv"),
   wb_daily = wb_daily_file,
   discharge = file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
   drainage_area = resolve_drainage_area_file(),
@@ -325,11 +324,11 @@ if (is.na(isotope_site_col)) {
   isotope_site <- isotope_site %>% mutate(site = standardize_site_code(.data[[isotope_site_col]]))
 }
 
-# Required schema checks.
+# required schema checks.
 check_required_columns(
   met_q,
   c("DATE", "SITECODE", "site", "T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d", "VPD_kPa", "Q_mm_d"),
-  "watersheds_met_q"
+  "catchments_met_q"
 )
 check_required_columns(
   wb_daily,
@@ -357,21 +356,21 @@ check_required_columns(
   "isotope_metrics_site"
 )
 
-# Uniqueness checks.
-check_unique_key(met_q, c("DATE", "site"), "watersheds_met_q")
+# uniqueness checks.
+check_unique_key(met_q, c("DATE", "site"), "catchments_met_q")
 check_unique_key(wb_daily, c("DATE", "site"), "daily_water_balance")
 check_unique_key(dynamic_annual, c("site", "year"), "storage_discharge_fdc_annual")
 check_unique_key(master_annual, c("site", "year"), "master_annual")
 check_unique_key(master_site, c("site"), "master_site")
 check_unique_key(isotope_site, c("site"), "isotope_metrics_site")
 
-# Core range checks.
-check_nonnegative(met_q, "P_mm_d", "watersheds_met_q")
-check_nonnegative(met_q, "Q_mm_d", "watersheds_met_q")
-check_range(met_q, "RH_d_pct", low = 0, high = 100, table_name = "watersheds_met_q", fatal = TRUE)
-check_range(met_q, "T_C", low = -40, high = 60, table_name = "watersheds_met_q", fatal = TRUE)
-check_range(met_q, "NR_Wm2_d", low = -300, high = 1000, table_name = "watersheds_met_q", fatal = FALSE)
-check_nonnegative(met_q, "VPD_kPa", "watersheds_met_q")
+# core range checks.
+check_nonnegative(met_q, "P_mm_d", "catchments_met_q")
+check_nonnegative(met_q, "Q_mm_d", "catchments_met_q")
+check_range(met_q, "RH_d_pct", low = 0, high = 100, table_name = "catchments_met_q", fatal = TRUE)
+check_range(met_q, "T_C", low = -40, high = 60, table_name = "catchments_met_q", fatal = TRUE)
+check_range(met_q, "NR_Wm2_d", low = -300, high = 1000, table_name = "catchments_met_q", fatal = FALSE)
+check_nonnegative(met_q, "VPD_kPa", "catchments_met_q")
 
 check_nonnegative(wb_daily, "P_mm_d", "daily_water_balance")
 check_nonnegative(wb_daily, "Q_mm_d", "daily_water_balance")
@@ -382,7 +381,7 @@ check_range(master_site, "CHS_mean", low = 0, high = 1, table_name = "master_sit
 check_range(master_site, "Fyw", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
 check_nonnegative(master_site, "RBI_mean", "master_site")
 
-# Compare shared columns between met support and water-balance daily.
+# compare shared columns between met support and water-balance daily.
 common_cols <- intersect(c("T_C", "P_mm_d", "Q_mm_d"), intersect(names(met_q), names(wb_daily)))
 met_wb_cmp <- met_q %>%
   select(DATE, site, all_of(common_cols)) %>%
@@ -410,7 +409,7 @@ for (col in common_cols) {
   record_check(paste0("met_vs_wb_", col), ok, detail, fatal = TRUE)
 }
 
-# Independent Q_mm_d formula check against discharge + drainage area.
+# independent q_mm_d formula check against discharge + drainage area.
 q_expected <- discharge %>%
   left_join(da_df %>% select(site, DA_M2), by = "site") %>%
   filter(is.finite(DA_M2), DA_M2 > 0) %>%
@@ -470,12 +469,12 @@ record_check(
   fatal = TRUE
 )
 
-# Potential cross-site unit mismatch checks for mm/day variables.
-check_site_median_ratio(met_q, "P_mm_d", "watersheds_met_q", ratio_threshold = 500)
-check_site_median_ratio(met_q, "Q_mm_d", "watersheds_met_q", ratio_threshold = 500)
+# potential cross-site unit mismatch checks for mm/day variables.
+check_site_median_ratio(met_q, "P_mm_d", "catchments_met_q", ratio_threshold = 500)
+check_site_median_ratio(met_q, "Q_mm_d", "catchments_met_q", ratio_threshold = 500)
 check_site_median_ratio(wb_daily, "ET_mm_d", "daily_water_balance", ratio_threshold = 500)
 
-# Dynamic annual table should match master_annual for shared fields.
+# dynamic annual table should match master_annual for shared fields.
 dyn_cmp <- dynamic_annual %>%
   select(site, year, SD, FDC, Q99, Q50, Q01) %>%
   inner_join(
@@ -543,7 +542,7 @@ if (nrow(mean_pairs) == 0) {
   }
 }
 
-# Isotope site metrics should pass through to master_site unchanged.
+# isotope site metrics should pass through to master_site unchanged.
 iso_cmp <- isotope_site %>%
   select(site, MTT1, MTT2, Fyw, DR) %>%
   inner_join(master_site %>% select(site, MTT1, MTT2, Fyw, DR), by = "site", suffix = c("_iso", "_site"))
@@ -566,7 +565,7 @@ for (col in c("MTT1", "MTT2", "Fyw", "DR")) {
   record_check(paste0("isotope_vs_master_site_", col), ok, detail, fatal = TRUE)
 }
 
-# Write detailed report when possible.
+# write detailed report when possible.
 report_path <- file.path(OUT_MET_SUPPORT_DIR, "unit_consistency_report.csv")
 tryCatch(
   write_csv(check_log, report_path),

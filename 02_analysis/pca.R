@@ -1,7 +1,7 @@
-# Perform PCA on annual storage metrics to identify dominant.
-# Inputs: No direct CSV file reads in this script.
-# Author: Pamela Sullivan (original), Sidney Bush (adapted)
-# Date: 2026-01-23
+# perform pca on annual storage metrics to identify dominant.
+# inputs: no direct csv file reads in this script.
+# author: pamela sullivan (original), sidney bush (adapted)
+# date: 2026-01-23
 
 library(dplyr)
 library(readr)
@@ -9,35 +9,28 @@ library(tidyr)
 library(ggplot2)
 library(scales)
 
-# Clear environment
+# clear environment
 rm(list = ls())
 
-# Source configuration (paths, site definitions, water year range)
-# Get script directory (works with source() and Rscript)
-# Load project config
+# source configuration (paths, site definitions, water year range)
+# get script directory (works with source() and rscript)
+# load project config
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# Use configuration values
+# use configuration values
 site_order <- SITE_ORDER_HYDROMETRIC
 base_dir   <- BASE_DATA_DIR
 output_dir <- OUTPUT_DIR
 output_dir <- OUT_STATS_PCA_DIR
 
-# Create output directory if needed
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+# create output directory if needed
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Remove older catchment-characteristics PCA outputs.
-unlink(file.path(output_dir, c(
-  "watershed_char_storage_mlr_pca_loadings.csv",
-  "watershed_char_storage_mlr_pca_variance_explained.csv",
-  "watershed_char_storage_mlr_pca_scores_pc1_pc2.csv"
-)))
-
-# LOAD ANNUAL STORAGE METRICS
-# This file was created by 06_Aggregate_All_Metrics.R and contains all annual
+# load annual storage metrics
+# this file was created by 06_aggregate_all_metrics.r and contains all annual
 # storage metrics, temperature metrics, and catchment characteristics
 
 master_dir <- file.path(OUTPUT_DIR, "master")
@@ -50,11 +43,11 @@ HJA_Yr <- read_csv(
   mutate(site = standardize_site_code(site)) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
-# SELECT FEATURES FOR PCA
+# select features for pca
 
-# Core streamflow storage metrics (annual values)
-# Using method abbreviations: RBI, RCS, FDC, SD, WB
-# Q5norm is an ecological response, so we do not include it in storage-metric PCA.
+# core streamflow storage metrics (annual values)
+# using method abbreviations: rbi, rcs, fdc, sd, wb
+# q5norm is an ecological response, so we do not include it in storage-metric pca.
 features <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
 ]
@@ -62,12 +55,12 @@ features <- STORAGE_METRIC_ORDER[
 site_column <- "site"
 year_column <- "year"
 
-# Select features - keep all sites even with partial data
+# select features - keep all sites even with partial data
 HJA_selected <- HJA_Yr %>%
   select(all_of(c(site_column, year_column)), all_of(features))
 
-# OUTLIER REMOVAL (Z-SCORE > 3)
-# Remove outliers only from non-missing values
+# outlier removal (z-score > 3)
+# remove outliers only from non-missing values
 
 HJA_clean <- HJA_selected %>%
   filter(if_all(all_of(features), ~ {
@@ -79,8 +72,8 @@ HJA_clean <- HJA_selected %>%
     }
   }))
 
-# IMPUTE MISSING VALUES & NORMALIZE FEATURES
-# Impute missing values with column means so all sites can be included
+# impute missing values & normalize features
+# impute missing values with column means so all sites can be included
 
 scaled_features <- HJA_clean %>%
   select(all_of(c(site_column, year_column)), all_of(features)) %>%
@@ -92,7 +85,7 @@ scaled_features <- HJA_clean %>%
     }
   }))
 
-# Drop constant/all-NA columns that cannot be scaled by PCA.
+# drop constant/all-na columns that cannot be scaled by pca.
 feature_sds <- scaled_features %>%
   summarise(across(all_of(features), ~ sd(.x, na.rm = TRUE)))
 feature_sds_vec <- as.numeric(feature_sds[1, ])
@@ -103,7 +96,7 @@ if (length(features_kept) == 0) {
   stop("PCA failed: all candidate features are constant or missing after cleaning.")
 }
 
-# RUN PCA
+# run pca
 
 pca_result <- prcomp(
   scaled_features %>% select(all_of(features_kept)),
@@ -111,30 +104,23 @@ pca_result <- prcomp(
   scale. = TRUE
 )
 
-# EXTRACT PCA SCORES AND LOADINGS
+# extract pca scores and loadings
 
-# PCA scores (PC1 and PC2)
+# pca scores (pc1 and pc2)
 pca_df <- as.data.frame(pca_result$x[, 1:2])
 pca_df$site <- factor(scaled_features$site, levels = site_order)
 pca_df$year <- scaled_features$year
 
-# Loadings (rotation matrix)
+# loadings (rotation matrix)
 loadings <- as.data.frame(pca_result$rotation[, 1:2])
 loadings$feature <- rownames(loadings)
 
-# Scale loadings for visualization (multiply by 5 for visibility)
-loadings_scaled <- loadings %>%
-  mutate(
-    PC1 = PC1 * 5,
-    PC2 = PC2 * 5
-  )
+# variance explained by each pc
 
-# VARIANCE EXPLAINED BY EACH PC
-
-# Calculate variance explained
+# calculate variance explained
 explained_var <- pca_result$sdev^2 / sum(pca_result$sdev^2)
 
-# Create data frame (all PCs)
+# create data frame (all pcs)
 explained_df <- data.frame(
   PC = paste0("PC", 1:length(explained_var)),
   Variance_Explained = explained_var
@@ -150,13 +136,6 @@ write.csv(pca_df %>% select(site, year, PC1, PC2),
           file.path(output_dir, "pca_scores_pc1_pc2.csv"),
           row.names = FALSE)
 
-# Remove older eco-MLR PCA outputs (eco models no longer use PCA screening).
-unlink(file.path(output_dir, c(
-  "storage_ecovar_mlr_pca_loadings.csv",
-  "storage_ecovar_mlr_pca_variance_explained.csv",
-  "storage_ecovar_mlr_pca_scores_pc1_pc2.csv"
-)))
-
-# Catchment-characteristics PCA removed by design.
-# Catchment characteristics are screened directly in MLR using
-# constrained predictor sets plus iterative VIF filtering.
+# catchment-characteristics pca removed by design.
+# catchment characteristics are screened directly in mlr using
+# constrained predictor sets plus iterative vif filtering.

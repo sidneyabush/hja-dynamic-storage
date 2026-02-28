@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: HJA_Ave_StorageMetrics_CatCharacter.csv; HJA_Stor_Temp_Yr.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: hja_ave_storagemetrics_catcharacter.csv; hja_stor_temp_yr.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 require(GGally)
 

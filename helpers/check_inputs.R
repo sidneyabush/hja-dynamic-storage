@@ -1,7 +1,6 @@
-# !/usr/bin/env Rscript.
-# Inputs: No direct CSV file reads in this script.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# inputs: no direct csv file reads in this script.
+# author: sidney bush
+# date: 2026-02-13
 
 suppressPackageStartupMessages({
   library(readr)
@@ -11,7 +10,7 @@ find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
     has_config <- file.exists(file.path(cur, "config.R"))
-    has_metrics <- dir.exists(file.path(cur, "01_metrics"))
+    has_metrics <- dir.exists(file.path(cur, "01_storage_calcs"))
     if (has_config && has_metrics) {
       return(cur)
     }
@@ -73,13 +72,13 @@ if (length(missing_files) > 0) {
   )
 }
 
-# EC file used by the current workflow.
+# ec file used by the current workflow.
 ec_file <- file.path(EC_DIR, "CF01201_v4.txt")
 if (!file.exists(ec_file)) {
   stop("Missing required EC input file: ", ec_file)
 }
 
-# Minimal schema checks on key files.
+# minimal schema checks on key files.
 check_columns <- function(path, required_cols) {
   cols <- names(suppressMessages(read_csv(
     path,

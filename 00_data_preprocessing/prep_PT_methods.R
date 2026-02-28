@@ -1,7 +1,6 @@
-#!/usr/bin/env Rscript
-# Calculate Priestley-Taylor ET methods from daily watershed met+Q support data.
-# Inputs: OUT_MET_SUPPORT_DIR/watersheds_met_q.csv
-# Outputs: OUT_MET_SUPPORT_DIR/PT_ET_methods_timeseries.csv and alpha plots.
+# calculate priestley-taylor et methods from daily catchment met+q support data.
+# inputs: out_met_support_dir/catchments_met_q.csv
+# outputs: out_met_support_dir/pt_et_methods_timeseries.csv and alpha plots.
 
 library(readr)
 library(dplyr)
@@ -11,7 +10,7 @@ library(ggplot2)
 
 source("config.R")
 
-input_file <- file.path(OUT_MET_SUPPORT_DIR, "watersheds_met_q.csv")
+input_file <- file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv")
 output_dir <- OUT_MET_SUPPORT_DIR
 plot_dir <- EXPLORATORY_ET_METHODS_DIR
 alpha_plot_dir <- file.path(plot_dir, "PT_alpha")
@@ -26,22 +25,22 @@ if (!file.exists(input_file)) {
   stop("Missing required input file: ", input_file)
 }
 
-# Import watershed meteorological data
-all_watersheds_data <- read_csv(input_file, show_col_types = FALSE) %>%
+# import catchment meteorological data
+all_catchments_data <- read_csv(input_file, show_col_types = FALSE) %>%
   mutate(DATE = as.Date(DATE))
 
 required_cols <- c("DATE", "SITECODE", "T_C", "RH_d_pct", "NR_Wm2_d")
-missing_cols <- setdiff(required_cols, names(all_watersheds_data))
+missing_cols <- setdiff(required_cols, names(all_catchments_data))
 if (length(missing_cols) > 0) {
   stop(
-    "Missing required columns in watersheds met file: ",
+    "Missing required columns in catchments met file: ",
     paste(missing_cols, collapse = ", ")
   )
 }
 
 wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
-input_min_date <- suppressWarnings(min(all_watersheds_data$DATE, na.rm = TRUE))
+input_min_date <- suppressWarnings(min(all_catchments_data$DATE, na.rm = TRUE))
 
 if (is.finite(input_min_date) && input_min_date > wy_start_date) {
   stop(
@@ -51,14 +50,14 @@ if (is.finite(input_min_date) && input_min_date > wy_start_date) {
     WY_START,
     " requires data from ",
     as.character(wy_start_date),
-    ". Rebuild watersheds_met_q.csv first."
+    ". Rebuild catchments_met_q.csv first."
   )
 }
 
-all_watersheds_data <- all_watersheds_data %>%
+all_catchments_data <- all_catchments_data %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date)
 
-# PT alpha calculation functions
+# pt alpha calculation functions
 calculate_alpha_zhang <- function(temp_celsius, rh_percent, pressure_kpa = 101.325) {
   q_specific <- 0.622 * 0.6108 * exp(17.27 * temp_celsius / (temp_celsius + 237.3)) * (rh_percent/100) / (pressure_kpa - 0.378 * 0.6108 * exp(17.27 * temp_celsius / (temp_celsius + 237.3)) * (rh_percent/100))
   delta <- 4098 * (0.6108 * exp(17.27 * temp_celsius / (temp_celsius + 237.3))) / ((temp_celsius + 237.3)^2)
@@ -80,33 +79,33 @@ calculate_et_pt <- function(alpha, net_radiation_wm2, temp_celsius, rh_percent) 
   pmax(0, et_pt)
 }
 
-# Calculate alphas
-all_watersheds_data$alpha_zhang <- mapply(
+# calculate alphas
+all_catchments_data$alpha_zhang <- mapply(
   calculate_alpha_zhang,
-  temp_celsius = all_watersheds_data$T_C,
-  rh_percent = all_watersheds_data$RH_d_pct
+  temp_celsius = all_catchments_data$T_C,
+  rh_percent = all_catchments_data$RH_d_pct
 )
-all_watersheds_data$alpha_szilagyi <- sapply(all_watersheds_data$T_C, calculate_alpha_szilagyi)
+all_catchments_data$alpha_szilagyi <- sapply(all_catchments_data$T_C, calculate_alpha_szilagyi)
 
-# Calculate ET PT
-all_watersheds_data$ET_PT_zhang <- calculate_et_pt(
-  alpha = all_watersheds_data$alpha_zhang,
-  net_radiation_wm2 = all_watersheds_data$NR_Wm2_d,
-  temp_celsius = all_watersheds_data$T_C,
-  rh_percent = all_watersheds_data$RH_d_pct
+# calculate et pt
+all_catchments_data$ET_PT_zhang <- calculate_et_pt(
+  alpha = all_catchments_data$alpha_zhang,
+  net_radiation_wm2 = all_catchments_data$NR_Wm2_d,
+  temp_celsius = all_catchments_data$T_C,
+  rh_percent = all_catchments_data$RH_d_pct
 )
-all_watersheds_data$ET_PT_szilagyi <- calculate_et_pt(
-  alpha = all_watersheds_data$alpha_szilagyi,
-  net_radiation_wm2 = all_watersheds_data$NR_Wm2_d,
-  temp_celsius = all_watersheds_data$T_C,
-  rh_percent = all_watersheds_data$RH_d_pct
+all_catchments_data$ET_PT_szilagyi <- calculate_et_pt(
+  alpha = all_catchments_data$alpha_szilagyi,
+  net_radiation_wm2 = all_catchments_data$NR_Wm2_d,
+  temp_celsius = all_catchments_data$T_C,
+  rh_percent = all_catchments_data$RH_d_pct
 )
 
-# Export for next step
-write_csv(all_watersheds_data, file.path(output_dir, "PT_ET_methods_timeseries.csv"))
+# export for next step
+write_csv(all_catchments_data, file.path(output_dir, "PT_ET_methods_timeseries.csv"))
 
-# --- Alpha plots: long format ---
-alpha_long <- all_watersheds_data %>%
+# --- alpha plots: long format ---
+alpha_long <- all_catchments_data %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   select(DATE, SITECODE, alpha_zhang, alpha_szilagyi) %>%
   pivot_longer(
@@ -119,10 +118,10 @@ alpha_long <- all_watersheds_data %>%
                          labels = c("Zhang et al. (2024)", "Szilagyi et al. (2014)"))
   )
 
-# Colors for alpha methods
+# colors for alpha methods
 alpha_colors <- c("Zhang et al. (2024)" = "#0173B2", "Szilagyi et al. (2014)" = "#DE8F05")
 
-# Plot alpha through time for each site
+# plot alpha through time for each site
 for (site in unique(alpha_long$SITECODE)) {
   p <- ggplot(filter(alpha_long, SITECODE == site), aes(x = DATE, y = Alpha, color = Method)) +
     geom_line(linewidth = 0.8, alpha = 0.98) +
@@ -135,7 +134,7 @@ for (site in unique(alpha_long$SITECODE)) {
   ggsave(file.path(alpha_plot_dir, paste0("Alpha_time_series_", site, ".png")), p, width = 10, height = 5)
 }
 
-# Grid plot for each method (all sites)
+# grid plot for each method (all sites)
 for (method in unique(alpha_long$Method)) {
   df <- alpha_long %>% filter(Method == method)
   method_name <- as.character(method)

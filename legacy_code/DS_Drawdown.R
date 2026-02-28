@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: HF00402_v14.csv; daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: hf00402_v14.csv; daily_water_balance_et_hamon-zhang_coeff_interp.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 require(pracma)
 require(dplyr)
@@ -40,18 +40,18 @@ discharge <- discharge %>%
 
 discharge$wyd<-get_waterYearDay(discharge$date)
 
-# Define percentage threshold (e.g., 20% = 0.2)
+# define percentage threshold (e.g., 20% = 0.2)
 threshold_pct <- 0.08
 
 find_last_peak <- function(data, threshold_pct) {
-  # Extract the time series for the current group
+  # extract the time series for the current group
   time_series <- data$MEAN_Q
   
-  # Define the threshold (percentage of maximum peak discharge)
+  # define the threshold (percentage of maximum peak discharge)
   max_peak_discharge <- max(time_series, na.rm = TRUE)
   threshold_value <- max_peak_discharge * threshold_pct
   
-  # Use `findpeaks` to identify peaks
+  # use `findpeaks` to identify peaks
   peaks <- tryCatch({
     findpeaks(time_series)
   }, error = function(e) {
@@ -59,7 +59,7 @@ find_last_peak <- function(data, threshold_pct) {
     return(NULL)
   })
   
-  # If peaks are found, process them
+  # if peaks are found, process them
   if (!is.null(peaks)) {
     peaks_df <- as_tibble(peaks) %>%
       rename(peak_height = V1, peak_index = V2) %>%
@@ -71,7 +71,7 @@ find_last_peak <- function(data, threshold_pct) {
       filter(wyd < 300) %>%
       arrange(peak_index)  # Ensure peaks are sorted by index
     
-    # Get the last peak that satisfies the threshold condition
+    # get the last peak that satisfies the threshold condition
     last_valid_peak <- peaks_df %>%
       slice_tail(n = 1)  # Get the last row, which is the last peak
     

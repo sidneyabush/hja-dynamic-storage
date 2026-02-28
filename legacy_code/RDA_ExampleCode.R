@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: RDA_data_080422.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: rda_data_080422.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 require(vegan)
 require(ggplot2)
@@ -10,7 +10,7 @@ require(dplyr)
 require(tibble)
 require(reshape2)
 
-##rda for SiSyn Data - updated with new data on 1/18/22
+##rda for sisyn data - updated with new data on 1/18/22
 setwd("/Users/keirajohnson/Box Sync/Keira_Johnson/SiSyn")
 
 new_RDA<-read.csv("RDA_data_080422.csv")
@@ -18,7 +18,7 @@ new_RDA<-read.csv("RDA_data_080422.csv")
 #assign to "trends tot"
 trends_tot<-new_RDA
 
-##select conc, yield, and Q - will change for percent vs absolute
+##select conc, yield, and q - will change for percent vs absolute
 trends_tot<-trends_tot[,c(1,2,3,4,6,8)]
 
 #set up dataframe for centered and scaled data
@@ -29,10 +29,10 @@ site_chars<-new_RDA[,c(1:3,9:27)]
 #scale data - this will change if including yield (2:6 vs 2:8)
 final_center[c(4:6)]<-data.frame(sapply(final_center[c(4:6)], scale))
 
-#keep only columns to run in RDA
+#keep only columns to run in rda
 final_trends<-final_center
 
-#unique column for later PCA formatting
+#unique column for later pca formatting
 site_chars$unique<-paste0(site_chars$LTER, "_", site_chars$site)
 
 #remove rows with missing data
@@ -49,7 +49,7 @@ final_chars<-final_center
 #run rda - this will change with yield data
 my.rda<-rda(final_trends[,c(4:6)], final_chars[,c(4:22)]) #trends = storage metrics, chars = watershed charactericts
 
-#summarize RDA
+#summarize rda
 rda_sum<-summary(my.rda)
 
 #extract data from rda summary - from example code from kjo
@@ -65,7 +65,7 @@ rda_loadings<-rda_loadings[rownames(rda_loadings) %in% rownames(yz),]
 #melt
 rda_loadings_melt<-melt(rda_loadings)
 names(rda_loadings_melt)<-c("Variable", "RDA_axis", "Eigenvalue")
-#only keep RDA 1 and 2
+#only keep rda 1 and 2
 rda_loadings_melt<-subset(rda_loadings_melt, rda_loadings_melt$RDA_axis=="RDA1"|rda_loadings_melt$RDA_axis=="RDA2")
 
 ggplot() +

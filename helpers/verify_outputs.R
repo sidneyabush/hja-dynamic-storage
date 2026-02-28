@@ -1,7 +1,6 @@
-# !/usr/bin/env Rscript.
-# Inputs: OUT_STATS_ANOVA_DIR/tukey_group_letters.csv.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# inputs: out_stats_anova_dir/tukey_group_letters.csv.
+# author: sidney bush
+# date: 2026-02-13
 
 suppressPackageStartupMessages({
   library(readr)
@@ -12,7 +11,7 @@ find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
     has_config <- file.exists(file.path(cur, "config.R"))
-    has_metrics <- dir.exists(file.path(cur, "01_metrics"))
+    has_metrics <- dir.exists(file.path(cur, "01_storage_calcs"))
     if (has_config && has_metrics) return(cur)
     parent <- dirname(cur)
     if (identical(parent, cur)) break
@@ -42,8 +41,8 @@ required_outputs <- c(
   file.path(OUT_STATS_ANOVA_DIR, "storage_metrics_summary_stats_by_site.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
-  file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_summary.csv"),
-  file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_summary.csv")
+  file.path(OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR, "catchment_char_storage_mlr_summary.csv"),
+  file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv")
 )
 
 missing_outputs <- required_outputs[!file.exists(required_outputs)]
@@ -66,7 +65,10 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
 }
 
 required_output_alternatives <- list(
-  pca_biplot_png = c(file.path(FIGURES_DIR, "main", "pca_biplot.png"))
+  pca_biplot_png = c(
+    file.path(MS_FIG_MAIN_DIR, "Fig3_ds_pca_annual.png"),
+    file.path(MS_FIG_MAIN_DIR, "pca_biplot.png")
+  )
 )
 missing_alternatives <- names(required_output_alternatives)[
   !vapply(
@@ -113,14 +115,14 @@ if (!all(c("site", "year") %in% names(annual))) {
 if (nrow(annual) == 0) stop("master_annual has zero rows")
 if (any(!is.finite(annual$year))) stop("master_annual has non-finite years")
 
-# Site checks.
+# site checks.
 annual_sites <- unique(as.character(annual$site))
 unknown_sites <- setdiff(annual_sites, SITE_ORDER_ALL)
 if (length(unknown_sites) > 0) {
   stop(paste0("Unknown site code(s) in master_annual: ", paste(unknown_sites, collapse = ", ")))
 }
 
-# Enforce configured site order in Tukey group letters.
+# enforce configured site order in tukey group letters.
 letters_path <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
 letters_df <- read_csv(letters_path, show_col_types = FALSE)
 if (!all(c("metric", "site") %in% names(letters_df))) {

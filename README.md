@@ -1,6 +1,6 @@
 # hja_dynamic_storage
 
-Dynamic, mobile, and extended dynamic storage workflow for H.J. Andrews watersheds.
+Dynamic, mobile, and extended dynamic storage workflow for H.J. Andrews catchments.
 
 Eco-response variable notes:
 - `WS09` has no stream-temperature records in `HT00451_v10.txt`, so `T_7DMax` and `T_Q7Q5` are unavailable (`NA`) for `WS09`.
@@ -12,8 +12,9 @@ CHS (EC baseflow) notes:
 
 ## scripts
 
-- `01_metrics`: build master datasets and metric calculations
-- `02_stats`: ANOVA/Tukey, PCA, MLR
+- `00_data_preprocessing`: hydromet and ET preprocessing
+- `01_storage_calcs`: master datasets and metric calculations
+- `02_analysis`: ANOVA/Tukey, PCA, MLR, and manuscript table assembly
 - `03_plots`: manuscript and supplemental figures
 
 Main output subfolders:
@@ -21,5 +22,9 @@ Main output subfolders:
 - `master`
 - `metrics`
 - `models`
-- `tables`
-- `figs`
+- `exploratory_plots`
+
+Manuscript-ready exports:
+
+- `ms_materials/main`
+- `ms_materials/supp`

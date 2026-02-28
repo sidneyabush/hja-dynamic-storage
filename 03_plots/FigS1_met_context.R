@@ -1,7 +1,7 @@
-# Create figure showing monthly climatology (median with IQR; Jan–Dec).
-# Inputs: MET_DIR/Temperature_original_&_filled_1979_2023_v2.csv; MET_DIR/Precipitation_original_&_filled_1979_2023.csv; MET_DIR/SWE_original_&_filled_1997_2023_v5.csv.
-# Author: Sidney Bush
-# Date: 2026-01-30
+# create figure showing monthly climatology (median with iqr; jan–dec).
+# inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv.
+# author: sidney bush
+# date: 2026-01-30
 
 library(dplyr)
 library(readr)
@@ -12,30 +12,28 @@ library(patchwork)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
-# SETUP
+# setup
 
 met_dir <- MET_DIR
-output_dir <- file.path(FIGURES_DIR, "supp")
-pdf_dir <- file.path(output_dir, "pdf")
+output_dir <- MS_FIG_SUPP_DIR
+pdf_dir <- MS_FIG_SUPP_PDF_DIR
 for (d in c(output_dir, pdf_dir)) {
-  if (!dir.exists(d)) {
-    dir.create(d, recursive = TRUE)
-  }
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 wy_start <- 1997
 wy_end <- 2020
 wy_breaks <- seq(2000, wy_end, by = 5)
 
-# GREYSCALE PALETTE (print-safe, manuscript-ready)
+# greyscale palette (print-safe, manuscript-ready)
 col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray
 
-# THEME
+# theme
 
 theme_pub_base <- theme_pub() +
   theme(
@@ -48,7 +46,7 @@ theme_pub_base <- theme_pub() +
 
 theme_set(theme_pub_base)
 
-# LOAD DATA
+# load data
 
 temp_data <- read_csv(
   file.path(met_dir, "Temperature_original_&_filled_1979_2023_v2.csv"),
@@ -91,7 +89,7 @@ swe_data <- read_csv(
   filter(water_year >= wy_start & water_year <= wy_end) %>%
   select(month, water_year, SWE_mm = CENMET)
 
-# MONTHLY CLIMATOLOGY (median + IQR), ORDERED BY CALENDAR MONTH
+# monthly climatology (median + iqr), ordered by calendar month
 
 temp_monthly <- temp_data %>%
   group_by(month) %>%
@@ -151,7 +149,7 @@ swe_monthly$month <- factor(
   labels = month_labels
 )
 
-# ANNUAL ANOMALIES (WY aggregates)
+# annual anomalies (wy aggregates)
 
 temp_annual <- temp_data %>%
   group_by(water_year) %>%
@@ -168,9 +166,9 @@ swe_annual <- swe_data %>%
   summarise(val = max(SWE_mm, na.rm = TRUE), .groups = "drop") %>%
   mutate(anom = val - mean(val, na.rm = TRUE))
 
-# PLOTS
+# plots
 
-# Top row: Monthly climatology (median + IQR)
+# top row: monthly climatology (median + iqr)
 p1 <- ggplot(precip_monthly, aes(month, med)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
@@ -191,7 +189,7 @@ p3 <- ggplot(swe_monthly, aes(month, med)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Bottom row: Anomalies (no titles; no legends)
+# bottom row: anomalies (no titles; no legends)
 p4 <- ggplot(precip_annual, aes(water_year, anom)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
@@ -216,7 +214,7 @@ p6 <- ggplot(swe_annual, aes(water_year, anom)) +
   coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# COMBINE AND SAVE (no overall title; no caption; panel labels a)–f))
+# combine and save (no overall title; no caption; panel labels a)–f))
 
 fig_combined <- (p1 | p2 | p3) /
   (p4 | p5 | p6) +
@@ -230,7 +228,7 @@ fig_combined <- (p1 | p2 | p3) /
   )
 
 ggsave(
-  file.path(output_dir, "met_context.png"),
+  file.path(output_dir, "FigS1_met_context.png"),
   fig_combined,
   width = 13 * FIG_WIDTH_SCALE,
   height = 8.5 * FIG_HEIGHT_SCALE,
@@ -238,7 +236,7 @@ ggsave(
 )
 
 ggsave(
-  file.path(pdf_dir, "met_context.pdf"),
+  file.path(pdf_dir, "FigS1_met_context.pdf"),
   fig_combined,
   width = 13 * FIG_WIDTH_SCALE,
   height = 8.5 * FIG_HEIGHT_SCALE

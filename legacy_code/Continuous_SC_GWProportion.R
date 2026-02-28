@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: HF00402_v14.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: hf00402_v14.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 require(EflowStats)
 

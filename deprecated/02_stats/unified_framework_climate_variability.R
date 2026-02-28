@@ -1,7 +1,7 @@
-# Quantify interannual climate variability around unified storage state.
-# Inputs: OUTPUT_DIR/master/master_annual.csv; unified framework site axes.
-# Author: Sidney Bush
-# Date: 2026-02-21
+# quantify interannual climate variability around unified storage state.
+# inputs: output_dir/master/master_annual.csv; unified framework site axes.
+# author: sidney bush
+# date: 2026-02-21
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 find_read_root <- function() {
@@ -166,9 +166,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   dir_targets <- c(dir_targets, table_out_dir)
 }
 for (d in dir_targets) {
-  if (!dir.exists(d)) {
-    dir.create(d, recursive = TRUE, showWarnings = FALSE)
-  }
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 annual_file <- file.path(read_root, "master", MASTER_ANNUAL_FILE)
@@ -187,7 +185,7 @@ annual2 <- annual %>%
     RBI_inv = -RBI
   )
 
-# Annual dynamic strength from annual hydrometric metrics.
+# annual dynamic strength from annual hydrometric metrics.
 annual_dyn <- annual2 %>%
   select(site, year, RBI_inv, RCS, FDC, SD, WB_drawdown)
 
@@ -208,7 +206,7 @@ dyn_strength_vals <- row_mean_min(
 annual2 <- annual2 %>%
   mutate(dynamic_storage_strength_annual = dyn_strength_vals$mean)
 
-# Annual dynamic-storage PCA (site-year space) for trajectory visualization.
+# annual dynamic-storage pca (site-year space) for trajectory visualization.
 pca_df <- annual_dyn_z %>%
   select(site, year, RBI_inv_z, RCS_z, FDC_z, SD_z, WB_drawdown_z) %>%
   mutate(
@@ -242,7 +240,7 @@ pca_var <- tibble(
 annual2 <- annual2 %>%
   left_join(pca_scores, by = c("site", "year"))
 
-# Per-site annual anomalies around local climatology/state.
+# per-site annual anomalies around local climatology/state.
 annual_anom <- annual2 %>%
   group_by(site) %>%
   mutate(
@@ -256,10 +254,10 @@ annual_anom <- annual2 %>%
   ) %>%
   ungroup()
 
-# Main vs supplementary interaction models.
+# main vs supplementary interaction models.
 responses <- c("Q_7Q5_anom", "T_Q7Q5_anom", "T_7DMax_anom")
 
-# Main model set: annual dynamic storage anomaly + winter input anomaly.
+# main model set: annual dynamic storage anomaly + winter input anomaly.
 main_formula_by_response <- setNames(
   paste0(
     responses,
@@ -268,7 +266,7 @@ main_formula_by_response <- setNames(
   responses
 )
 
-# Supplementary model set: WB-based annual depletion anomaly substitution.
+# supplementary model set: wb-based annual depletion anomaly substitution.
 supp_formula_by_response <- setNames(
   paste0(
     responses,
@@ -339,8 +337,8 @@ main_coefs <- interaction_coefs %>% filter(model_set == "main")
 supp_models <- interaction_models %>% filter(model_set == "supplementary")
 supp_coefs <- interaction_coefs %>% filter(model_set == "supplementary")
 
-# Site-level slope extraction and relation to unified state.
-# Keep both primary and supplementary predictor choices.
+# site-level slope extraction and relation to unified state.
+# keep both primary and supplementary predictor choices.
 slope_rows <- list()
 s_idx <- 1L
 predictors <- c("dynamic_storage_strength_annual_anom", "P_NovJan_anom", "WB_drawdown_anom")
@@ -456,7 +454,7 @@ slope_method_comparison <- site_slopes %>%
     .groups = "drop"
   )
 
-# Save outputs
+# save outputs
 write_csv(
   annual_anom,
   file.path(model_out_dir, "unified_framework_annual_anomalies.csv")

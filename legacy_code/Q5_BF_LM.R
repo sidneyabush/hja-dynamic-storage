@@ -1,7 +1,7 @@
-# 2 EMMA baseflow correlation with peak swe.
-# Inputs: output_dir/HJA_Ave_StorageMetrics_CatCharacter.csv.
-# Author: Keira Johnson
-# Date: 2026-02-13 (imported)
+# 2 emma baseflow correlation with peak swe.
+# inputs: output_dir/hja_ave_storagemetrics_catcharacter.csv.
+# author: keira johnson
+# date: 2026-02-13 (imported)
 
 require(ggpmisc)
 require(EflowStats)
@@ -14,7 +14,7 @@ require(QuantPsyc)
 require(plot.matrix)
 require(tibble)
 require(raster)
-#install.packages("QuantPsyc")
+#install.packages("quantpsyc")
 
 #define wds
 base_dir <- "/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/03_Data"
@@ -22,9 +22,9 @@ base_dir <- "/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Stor
 output_dir <- "/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/05_Outputs/Hydrometric"
 
 
-#BF_files<-c("CoalCreekBaseflow.csv", "HJABaseflow.csv", "SagehenBaseflow.csv")
+#bf_files<-c("coalcreekbaseflow.csv", "hjabaseflow.csv", "sagehenbaseflow.csv")
 
-#Loadfiles
+#loadfiles
 HJA_Ave <- read_csv(
   file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
   show_col_types = FALSE
@@ -44,11 +44,11 @@ outcome_vars <- c(
   "JST_AT_mean"
 )
 
-# Create a named list of data frames
+# create a named list of data frames
 
-#"Slope_mean",  "Harvest", "Landslide_Young",  "Landslide_Total", "Lava1_per", "Lava2_per","Ash_Per","Pyro_per"
+#"slope_mean",  "harvest", "landslide_young",  "landslide_total", "lava1_per", "lava2_per","ash_per","pyro_per"
 
-# Loop through each metric and create a separate data frame
+# loop through each metric and create a separate data frame
 for (col in metric_columns) {
   df <- HJA_Ave[, c(
     col,
@@ -85,18 +85,18 @@ r2_df_list <- list()
 
 #cycle through outcome variables
 for (k in 1:length(HJA_list)) {
-  #create model forumla for AIC
+  #create model forumla for aic
   lm_mod_vars <- formula(paste(outcome_vars[k], "~."))
 
   #put into model
   lm_mod <- lm(lm_mod_vars, na.omit(site_data[[k]]))
 
-  #lm_ols<-stepAIC(lm_mod, direction = "backward")
+  #lm_ols<-stepaic(lm_mod, direction = "backward")
 
-  #run stepwise AIC
+  #run stepwise aic
   lm_AIC <- stepAIC(lm_mod, direction = "backward")
 
-  #extract AIC coefficients
+  #extract aic coefficients
   AIC_coef <- as.data.frame(lm_AIC$coefficients)
 
   #turn the rows to columns
@@ -105,13 +105,13 @@ for (k in 1:length(HJA_list)) {
   #remove the intercept
   remove_int <- c("(Intercept)")
 
-  #remove intercept column, cannot be inclded to check VIF
+  #remove intercept column, cannot be inclded to check vif
   AIC_coef <- AIC_coef[!AIC_coef$rowname %in% "(Intercept)", ]
 
-  #AIC_coef$lm_input<-ifelse(AIC_coef$rowname=="(Intercept)", paste0(AIC_coef$`lm_AIC$coefficients`),
-  #paste0(AIC_coef$rowname, "*", AIC_coef$`lm_AIC$coefficients`))
+  #aic_coef$lm_input<-ifelse(aic_coef$rowname=="(intercept)", paste0(aic_coef$`lm_aic$coefficients`),
+  #paste0(aic_coef$rowname, "*", aic_coef$`lm_aic$coefficients`))
 
-  #create new model imput from rownames of retained variables from AIC
+  #create new model imput from rownames of retained variables from aic
   new_lm_input <- paste(AIC_coef$rowname, collapse = "+")
 
   #create new model input
@@ -126,9 +126,9 @@ for (k in 1:length(HJA_list)) {
   #get coefficients (mostly just interested in p value here)
   coefs <- as.data.frame(lm_sum$coefficients)
 
-  #get VIF of retained variables
+  #get vif of retained variables
   vif_df <- if (length(AIC_coef$rowname) > 1) {
-    #get VIF of retained variables
+    #get vif of retained variables
     as.data.frame(vif(lm_post_AIC))
   } else {
     as.data.frame(NA)
@@ -141,7 +141,7 @@ for (k in 1:length(HJA_list)) {
   beta_df <- rownames_to_column(beta_df)
   names(beta_df)[1] <- "Row.names"
 
-  #append coefficients and VIF together
+  #append coefficients and vif together
   df_master <- merge(coefs, vif_df, by = "row.names", all.x = TRUE)
 
   df_master <- merge(df_master, beta_df, by = "Row.names", all.x = TRUE)
@@ -151,7 +151,7 @@ for (k in 1:length(HJA_list)) {
     remove_rownames %>%
     column_to_rownames(var = "Row.names")
 
-  #extract p value and VIF columns
+  #extract p value and vif columns
   df_master <- df_master[, c(
     "Pr(>|t|)",
     "vif(lm_post_AIC)",
@@ -180,7 +180,7 @@ for (k in 1:length(HJA_list)) {
 }
 
 
-# Initialize an empty data frame to store results
+# initialize an empty data frame to store results
 final_df <- data.frame(
   Prefix = character(),
   Variable = character(),
@@ -189,30 +189,30 @@ final_df <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# Loop through each dataframe in the list
+# loop through each dataframe in the list
 for (df in coef_df_list) {
-  # Find columns that end with "_VIF"
+  # find columns that end with "_vif"
   vif_cols <- grep("_VIF$", names(df), value = TRUE)
 
   for (vif_col in vif_cols) {
-    # Extract the prefix before "_VIF"
+    # extract the prefix before "_vif"
     prefix <- sub("_VIF$", "", vif_col)
 
-    # Construct corresponding beta and pvalue column names
+    # construct corresponding beta and pvalue column names
     beta_col <- paste0(prefix, "_beta")
     pval_col <- paste0(prefix, "_pvalue")
 
-    # Check if beta and pvalue columns exist
+    # check if beta and pvalue columns exist
     if (beta_col %in% names(df) && pval_col %in% names(df)) {
-      # Filter rows where VIF value is 10 or less
+      # filter rows where vif value is 10 or less
       valid_indices <- which(df[[vif_col]] <= 10)
 
-      # Extract row names and corresponding beta and pvalue values
+      # extract row names and corresponding beta and pvalue values
       valid_rows <- rownames(df)[valid_indices]
       beta_vals <- df[[beta_col]][valid_indices]
       pval_vals <- df[[pval_col]][valid_indices]
 
-      # Create a temporary data frame
+      # create a temporary data frame
       temp_df <- data.frame(
         Prefix = prefix,
         Variable = valid_rows,
@@ -221,7 +221,7 @@ for (df in coef_df_list) {
         stringsAsFactors = FALSE
       )
 
-      # Append to the final data frame
+      # append to the final data frame
       final_df <- rbind(final_df, temp_df)
     }
   }
@@ -270,7 +270,7 @@ betas <- betas[rowSums(is.na(betas)) != ncol(betas), ]
 
 vifs <- vifs[rowSums(is.na(vifs)) != ncol(vifs), ]
 
-##rename second "Coal Creek" column to HJA
+##rename second "coal creek" column to hja
 
 colnames(betas) <- c(
   colnames(betas)[1],
@@ -299,7 +299,7 @@ ii <- cut(
   breaks = seq(min(values), max(values), len = 45),
   include.lowest = TRUE
 )
-## Use bin indices, ii, to select color from vector of n-1 equally spaced colors
+## use bin indices, ii, to select color from vector of n-1 equally spaced colors
 colors <- colorRampPalette(c(
   "firebrick4",
   "indianred",
@@ -313,19 +313,19 @@ Min = -3
 Max = 2
 Thresh = 0
 
-## Make vector of colors for values below threshold
+## make vector of colors for values below threshold
 rc1 = colorRampPalette(
   colors = c("firebrick4", "indianred", "white"),
   space = "Lab"
 )(nHalf)
-## Make vector of colors for values above threshold
+## make vector of colors for values above threshold
 rc2 = colorRampPalette(
   colors = c("white", "skyblue2", "dodgerblue3"),
   space = "Lab"
 )(nHalf)
 rampcols = c(rc1, rc2)
 
-## In your example, this line sets the color for values between 49 and 51.
+## in your example, this line sets the color for values between 49 and 51.
 rampcols[c(nHalf)] = rgb(t(col2rgb("white")), maxColorValue = 256)
 
 rb1 = seq(Min, Thresh, length.out = nHalf)
@@ -366,7 +366,7 @@ plot(
 dev.off()
 
 
-##for predicting Q5 using only SSGW
+##for predicting q5 using only ssgw
 coef_df_list_BF <- list()
 r2_df_list_BF <- list()
 
@@ -384,7 +384,7 @@ for (i in 1:length(df_list)) {
   #get beta coefficiencts for retained variables
   beta_df <- as.data.frame(lm.beta(lm_mod))
 
-  #append coefficients and VIF together
+  #append coefficients and vif together
   df_master <- merge(lm_coeff, beta_df, by = "row.names", all.x = TRUE)
 
   #turn rownames column back into rownames
@@ -392,7 +392,7 @@ for (i in 1:length(df_list)) {
     remove_rownames %>%
     column_to_rownames(var = "Row.names")
 
-  #extract p value and VIF columns
+  #extract p value and vif columns
   df_master <- df_master[, c("Pr(>|t|)", "lm.beta(lm_mod)")]
 
   #rename columns based on site and outcome variable
@@ -442,11 +442,11 @@ betas_BF <- master_data_frame_coefs_BF[, c(beta_cols_BF)]
 betas_BF <- betas_BF[rowSums(is.na(betas_BF)) != ncol(betas_BF), ]
 
 
-# ##for predicting Q5 using BFPer and snow parameters
-# coef_df_list_Q5<-list()
-# r2_df_list_Q5<-list()
+# ##for predicting q5 using bfper and snow parameters
+# coef_df_list_q5<-list()
+# r2_df_list_q5<-list()
 #
-# sites<-c("Coal", "Lookout", "Sagehen")
+# sites<-c("coal", "lookout", "sagehen")
 #
 # for (i in 1:length(df_list)) {
 #
@@ -458,14 +458,14 @@ betas_BF <- betas_BF[rowSums(is.na(betas_BF)) != ncol(betas_BF), ]
 #   retained_vars<-grep(paste(sites[i]), colnames(betas))
 #
 #   site_betas<-as.data.frame(betas[,retained_vars])
-#   colnames(site_betas)[1]<-"BFPer"
+#   colnames(site_betas)[1]<-"bfper"
 #
-#   Q5_beta<-as.numeric(grep("BFPer", colnames(site_betas)))
+#   q5_beta<-as.numeric(grep("bfper", colnames(site_betas)))
 #
-#   Q5_beta_df<-as.data.frame(site_betas[,Q5_beta])
-#   rownames(Q5_beta_df)<-rownames(betas)
+#   q5_beta_df<-as.data.frame(site_betas[,q5_beta])
+#   rownames(q5_beta_df)<-rownames(betas)
 #
-#   all_names<-rownames(Q5_beta_df)
+#   all_names<-rownames(q5_beta_df)
 #
 #   lag_vars<-grep("lag", all_names)
 #
@@ -491,89 +491,89 @@ betas_BF <- betas_BF[rowSums(is.na(betas_BF)) != ncol(betas_BF), ]
 #
 #
 #
-#   Q5_retained_vars<-which(!is.na(Q5_beta_df$`site_betas[, Q5_beta]`))
+#   q5_retained_vars<-which(!is.na(q5_beta_df$`site_betas[, q5_beta]`))
 #
-#   Q5_names<-rownames(Q5_beta_df)[Q5_retained_vars]
+#   q5_names<-rownames(q5_beta_df)[q5_retained_vars]
 #
-#   use_these_vars<-setdiff(all_names, Q5_names)
+#   use_these_vars<-setdiff(all_names, q5_names)
 #
 #   use_collapse<-paste(use_these_vars, collapse = "+")
 #
-#   use_final<-paste0("BFPer", "+", use_collapse)
+#   use_final<-paste0("bfper", "+", use_collapse)
 #
-#   Q5_lm_vars<-formula(paste("Q5", "~", use_final))
+#   q5_lm_vars<-formula(paste("q5", "~", use_final))
 #
 #   #put into model
-#   lm_mod<-lm(Q5_lm_vars, site_data)
+#   lm_mod<-lm(q5_lm_vars, site_data)
 #
-#   lm_AIC<-stepAIC(lm_mod, direction = "backward")
+#   lm_aic<-stepaic(lm_mod, direction = "backward")
 #
-#   #run stepwise AIC
-#   #lm_AIC<-stepAIC(lm_mod, direction = "both")
+#   #run stepwise aic
+#   #lm_aic<-stepaic(lm_mod, direction = "both")
 #
-#   #extract AIC coefficients
-#   AIC_coef<-as.data.frame(lm_AIC$coefficients)
+#   #extract aic coefficients
+#   aic_coef<-as.data.frame(lm_aic$coefficients)
 #
 #   #turn the rows to columns
-#   AIC_coef<-rownames_to_column(AIC_coef)
+#   aic_coef<-rownames_to_column(aic_coef)
 #
 #   #remove the intercept
-#   remove_int<-c("(Intercept)")
+#   remove_int<-c("(intercept)")
 #
-#   #remove intercept column, cannot be inclded to check VIF
-#   AIC_coef<-AIC_coef[!AIC_coef$rowname %in% "(Intercept)",]
+#   #remove intercept column, cannot be inclded to check vif
+#   aic_coef<-aic_coef[!aic_coef$rowname %in% "(intercept)",]
 #
-#   #AIC_coef$lm_input<-ifelse(AIC_coef$rowname=="(Intercept)", paste0(AIC_coef$`lm_AIC$coefficients`),
-#   #paste0(AIC_coef$rowname, "*", AIC_coef$`lm_AIC$coefficients`))
+#   #aic_coef$lm_input<-ifelse(aic_coef$rowname=="(intercept)", paste0(aic_coef$`lm_aic$coefficients`),
+#   #paste0(aic_coef$rowname, "*", aic_coef$`lm_aic$coefficients`))
 #
-#   #create new model imput from rownames of retained variables from AIC
-#   new_lm_input<-paste(AIC_coef$rowname, collapse = "+")
+#   #create new model imput from rownames of retained variables from aic
+#   new_lm_input<-paste(aic_coef$rowname, collapse = "+")
 #
 #   #create new model input
-#   new_lm_vars<-formula(paste("Q5", "~", new_lm_input))
+#   new_lm_vars<-formula(paste("q5", "~", new_lm_input))
 #
 #   #put inot model structure
-#   lm_post_AIC<-lm(new_lm_vars, site_data)
+#   lm_post_aic<-lm(new_lm_vars, site_data)
 #
 #   #model summary
-#   lm_sum<-summary(lm_post_AIC)
+#   lm_sum<-summary(lm_post_aic)
 #
 #   #get coefficients (mostly just interested in p value here)
 #   coefs<-as.data.frame(lm_sum$coefficients)
 #
-#   vif_df<-if(length(AIC_coef$rowname) > 1){
+#   vif_df<-if(length(aic_coef$rowname) > 1){
 #
-#     #get VIF of retained variables
-#     as.data.frame(vif(lm_post_AIC))
+#     #get vif of retained variables
+#     as.data.frame(vif(lm_post_aic))
 #
 #   }else{
 #
-#     as.data.frame(NA)
+#     as.data.frame(na)
 #
 #   }
 #
-#   colnames(vif_df)<-"vif(lm_post_AIC)"
+#   colnames(vif_df)<-"vif(lm_post_aic)"
 #
 #   #get beta coefficiencts for retained variables
-#   beta_df<-as.data.frame(lm.beta(lm_post_AIC))
+#   beta_df<-as.data.frame(lm.beta(lm_post_aic))
 #   beta_df<-rownames_to_column(beta_df)
-#   names(beta_df)[1]<-"Row.names"
+#   names(beta_df)[1]<-"row.names"
 #
-#   #append coefficients and VIF together
-#   df_master<-merge(coefs, vif_df, by="row.names", all.x = TRUE)
+#   #append coefficients and vif together
+#   df_master<-merge(coefs, vif_df, by="row.names", all.x = true)
 #
-#   df_master<-merge(df_master, beta_df, by="Row.names", all.x = TRUE)
+#   df_master<-merge(df_master, beta_df, by="row.names", all.x = true)
 #
 #   #turn rownames column back into rownames
-#   df_master<-df_master %>% remove_rownames %>% column_to_rownames(var="Row.names")
+#   df_master<-df_master %>% remove_rownames %>% column_to_rownames(var="row.names")
 #
-#   #extract p value and VIF columns
-#   df_master<-df_master[,c("Pr(>|t|)", "vif(lm_post_AIC)", "lm.beta(lm_post_AIC)")]
+#   #extract p value and vif columns
+#   df_master<-df_master[,c("pr(>|t|)", "vif(lm_post_aic)", "lm.beta(lm_post_aic)")]
 #
 #   #rename columns based on site and outcome variable
-#   colnames(df_master)<-c(paste0(sites[i], "_Q5BFPer", "_pvalue"),
-#                          paste0(sites[i], "_Q5BFPer", "_VIF"),
-#                          paste0(sites[i], "_Q5BFPer", "_beta"))
+#   colnames(df_master)<-c(paste0(sites[i], "_q5bfper", "_pvalue"),
+#                          paste0(sites[i], "_q5bfper", "_vif"),
+#                          paste0(sites[i], "_q5bfper", "_beta"))
 #
 #   #get r2 and adjusted r2
 #   r2<-lm_sum$r.squared
@@ -582,11 +582,11 @@ betas_BF <- betas_BF[rowSums(is.na(betas_BF)) != ncol(betas_BF), ]
 #   #bind together
 #   r2_tot<-rbind(r2, adj_r2)
 #
-#   colnames(r2_tot)<-paste0(sites[i], "_Q5BFPer")
+#   colnames(r2_tot)<-paste0(sites[i], "_q5bfper")
 #
-#   coef_df_list_Q5[[i]]<-df_master
+#   coef_df_list_q5[[i]]<-df_master
 #
-#   r2_df_list_Q5[[i]]<-r2_tot
+#   r2_df_list_q5[[i]]<-r2_tot
 #
 # }
 
@@ -679,7 +679,7 @@ ii <- cut(
   breaks = seq(min(values), max(values), len = 45),
   include.lowest = TRUE
 )
-## Use bin indices, ii, to select color from vector of n-1 equally spaced colors
+## use bin indices, ii, to select color from vector of n-1 equally spaced colors
 colors <- colorRampPalette(c(
   "firebrick4",
   "indianred",
@@ -723,29 +723,29 @@ plot(
 
 dev.off()
 
-# #Sagehen
+# #sagehen
 #
 # shoulder_agg<-df_list[[3]]
 #
-# v1<-lm(formula = Q5 ~ PeakSWE + MeltRate + TotPrecip + LiquidPrecip + SWElag +
-#    SnowFrac + Q5lag, data = shoulder_agg)
+# v1<-lm(formula = q5 ~ peakswe + meltrate + totprecip + liquidprecip + swelag +
+#    snowfrac + q5lag, data = shoulder_agg)
 #
-# summary(lm(formula = Q5 ~ PeakSWE + SnowFrac+
-#          Q5lag, data = shoulder_agg))
+# summary(lm(formula = q5 ~ peakswe + snowfrac+
+#          q5lag, data = shoulder_agg))
 #
-# stepAIC(v1, direction = "backward")
+# stepaic(v1, direction = "backward")
 #
-# v2<-lm(formula = BFPerROminBF99 ~ PeakSWE + MeltRate + TotPrecip + SWElag +
-#          PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag + Q5lag, data = shoulder_agg)
+# v2<-lm(formula = bfperrominbf99 ~ peakswe + meltrate + totprecip + swelag +
+#          peakswewyday + zerowyday + snowfrac + bflag + q5lag, data = shoulder_agg)
 #
-# v3<-lm(formula = BFPerROminBF99 ~ PeakSWE + MeltRate + TotPrecip + SWElag +
-#           ZeroWYDay + SnowFrac + BFlag + Q5lag, data = shoulder_agg)
+# v3<-lm(formula = bfperrominbf99 ~ peakswe + meltrate + totprecip + swelag +
+#           zerowyday + snowfrac + bflag + q5lag, data = shoulder_agg)
 #
-# v4<-lm(formula = BFPerROminBF99 ~ PeakSWE + MeltRate + TotPrecip +
-#          ZeroWYDay + SnowFrac + BFlag + Q5lag, data = shoulder_agg)
+# v4<-lm(formula = bfperrominbf99 ~ peakswe + meltrate + totprecip +
+#          zerowyday + snowfrac + bflag + q5lag, data = shoulder_agg)
 #
-# v5<-lm(formula = BFPer ~  TotPrecip +
-#           SnowFrac + Q5lag, data = shoulder_agg)
+# v5<-lm(formula = bfper ~  totprecip +
+#           snowfrac + q5lag, data = shoulder_agg)
 #
 # summary(v5)
 #
@@ -753,19 +753,19 @@ dev.off()
 #
 # lm.beta(v5)
 #
-# shoulder_agg$lm<-v5$coefficients[1]+v5$coefficients[2]*shoulder_agg$TotPrecip+
-#   v5$coefficients[3]*shoulder_agg$SnowFrac+v5$coefficients[4]*shoulder_agg$Q5lag
+# shoulder_agg$lm<-v5$coefficients[1]+v5$coefficients[2]*shoulder_agg$totprecip+
+#   v5$coefficients[3]*shoulder_agg$snowfrac+v5$coefficients[4]*shoulder_agg$q5lag
 #
-# BFQ5<-lm(Q5~BFPerROminBF99, data = shoulder_agg)
+# bfq5<-lm(q5~bfperrominbf99, data = shoulder_agg)
 #
-# lm.beta(BFQ5)
+# lm.beta(bfq5)
 #
-# summary(BFQ5)
+# summary(bfq5)
 #
-# k1<-lm(formula = Q5 ~ MeltRate +
-#          ZeroWYDay + SnowFrac + Q5lag, data = shoulder_agg)
+# k1<-lm(formula = q5 ~ meltrate +
+#          zerowyday + snowfrac + q5lag, data = shoulder_agg)
 #
-# x1<-lm(formula = Q5 ~ BFPerROminBF99 +BFlag,
+# x1<-lm(formula = q5 ~ bfperrominbf99 +bflag,
 #        data = shoulder_agg)
 #
 # summary(k1)
@@ -774,75 +774,75 @@ dev.off()
 #
 # lm.beta(x1)
 #
-# shoulder_agg$BFQ5<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$MeltRate+
-#   k1$coefficients[3]*shoulder_agg$ZeroWYDay+k1$coefficients[4]*shoulder_agg$SnowFrac+
-#   k1$coefficients[5]*shoulder_agg$Q5lag
+# shoulder_agg$bfq5<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$meltrate+
+#   k1$coefficients[3]*shoulder_agg$zerowyday+k1$coefficients[4]*shoulder_agg$snowfrac+
+#   k1$coefficients[5]*shoulder_agg$q5lag
 #
-# shoulder_agg$totlm<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$BFPerROminBF99+
-#   x1$coefficients[3]*shoulder_agg$BFlag
+# shoulder_agg$totlm<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$bfperrominbf99+
+#   x1$coefficients[3]*shoulder_agg$bflag
 #
 # #use these plots
-# p1<-ggplot(shoulder_agg, aes(lm, BFPerROminBF99))+geom_point(col="black")+
-#   labs(y="Shoulder Season GW Proportion", x="Predicted GW Proportion")+
-#   #geom_text(x=0.13, y=0.73, label="Model A \n R2adj=0.95", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p1<-ggplot(shoulder_agg, aes(lm, bfperrominbf99))+geom_point(col="black")+
+#   labs(y="shoulder season gw proportion", x="predicted gw proportion")+
+#   #geom_text(x=0.13, y=0.73, label="model a \n r2adj=0.95", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 # p1
-# p2<-ggplot(shoulder_agg, aes(BFPerROminBF99, Q5))+geom_point(col="black")+
-#   labs(x="Shoulder Season GW Proportion", y="5th Percentile Q Volume")+
-#   #geom_text(x=0.16, y=0.06, label="Model B \n R2adj=0.44", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p2<-ggplot(shoulder_agg, aes(bfperrominbf99, q5))+geom_point(col="black")+
+#   labs(x="shoulder season gw proportion", y="5th percentile q volume")+
+#   #geom_text(x=0.16, y=0.06, label="model b \n r2adj=0.44", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p3<-ggplot(shoulder_agg, aes(BFQ5, Q5))+geom_point(col="black")+
-#   labs(x="Modeled 5th Percetile Q Volume - No GW Prop.", y="")+
-#   #geom_text(x=0.034, y=0.059, label="Model C \n R2adj=0.73", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p3<-ggplot(shoulder_agg, aes(bfq5, q5))+geom_point(col="black")+
+#   labs(x="modeled 5th percetile q volume - no gw prop.", y="")+
+#   #geom_text(x=0.034, y=0.059, label="model c \n r2adj=0.73", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p4<-ggplot(shoulder_agg, aes(totlm, Q5))+geom_point(col="black")+
-#   #geom_text(x=0.033, y=0.059, label="Model D \n R2adj=0.64", cex=6)+
-#   labs(x="Modeled 5th Percetile Q Volume - Including GW Prop.", y="")+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p4<-ggplot(shoulder_agg, aes(totlm, q5))+geom_point(col="black")+
+#   #geom_text(x=0.033, y=0.059, label="model d \n r2adj=0.64", cex=6)+
+#   labs(x="modeled 5th percetile q volume - including gw prop.", y="")+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 # p4
 #
 #
-# jpeg("SageLFMPlot.jpeg", width = 530, height = 500)
+# jpeg("sagelfmplot.jpeg", width = 530, height = 500)
 #
 # p1
 #
 # dev.off()
 #
-# jpeg("SageSSGWPlots.jpeg", width = 1500, height = 450)
+# jpeg("sagessgwplots.jpeg", width = 1500, height = 450)
 #
 # ggarrange(p2,p3,p4, nrow = 1)
 #
 # dev.off()
 #
-# #Lookout
+# #lookout
 #
 # shoulder_agg<-df_list[[2]]
 #
-# summary(lm(formula = BFPer ~ PeakSWE + MeltRate + TotPrecip + SWElag +
-#          PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag +Q5lag, data = shoulder_agg))
+# summary(lm(formula = bfper ~ peakswe + meltrate + totprecip + swelag +
+#          peakswewyday + zerowyday + snowfrac + bflag +q5lag, data = shoulder_agg))
 #
-# v1<-lm(formula = BFPer ~ PeakSWE+
-#              Q5lag, data = shoulder_agg)
+# v1<-lm(formula = bfper ~ peakswe+
+#              q5lag, data = shoulder_agg)
 #
 # summary(v1)
 # lm.beta(v1)
 #
-# stepAIC(object = v1, direction = "both", trace = TRUE)
+# stepaic(object = v1, direction = "both", trace = true)
 #
-# lm_best<-lm(formula = Q5 ~ BFPer + SnowFrac,
+# lm_best<-lm(formula = q5 ~ bfper + snowfrac,
 #            data = shoulder_agg)
 # #get stats
 # summary(lm_best)
@@ -855,48 +855,48 @@ dev.off()
 # vif_df<-as.data.frame(vif(lm_best))
 # vif_df$name<-rownames(vif_df)
 #
-# shoulder_agg$lm<-lm_best$coefficients[1]+lm_best$coefficients[2]*shoulder_agg$BFPer+
-#   lm_best$coefficients[3]*shoulder_agg$SnowFrac
+# shoulder_agg$lm<-lm_best$coefficients[1]+lm_best$coefficients[2]*shoulder_agg$bfper+
+#   lm_best$coefficients[3]*shoulder_agg$snowfrac
 #
-# ggplot(shoulder_agg, aes(lm, Q5))+geom_point()+geom_smooth(method = "lm", se=FALSE, col="black")+
-#   theme_classic()+labs(x="SSGW + Snow Fraction", y="Q5")+theme(text = element_text(size = 20))
+# ggplot(shoulder_agg, aes(lm, q5))+geom_point()+geom_smooth(method = "lm", se=false, col="black")+
+#   theme_classic()+labs(x="ssgw + snow fraction", y="q5")+theme(text = element_text(size = 20))
 #
 #
 # #
-# # v1<-lm(formula = BFPerRO01BF99 ~ PeakSWE + MeltRate + TotPrecip + LiquidPrecip + SWElag +
-# #           PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag +Q5lag, data = shoulder_agg)
+# # v1<-lm(formula = bfperro01bf99 ~ peakswe + meltrate + totprecip + liquidprecip + swelag +
+# #           peakswewyday + zerowyday + snowfrac + bflag +q5lag, data = shoulder_agg)
 # #
-# # v2<-lm(formula = BFPerRO01BF99 ~ PeakSWE + MeltRate + TotPrecip + SWElag +
-# #          PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag +Q5lag, data = shoulder_agg)
+# # v2<-lm(formula = bfperro01bf99 ~ peakswe + meltrate + totprecip + swelag +
+# #          peakswewyday + zerowyday + snowfrac + bflag +q5lag, data = shoulder_agg)
 # #
-# # v3<-lm(formula = BFPerRO01BF99 ~ PeakSWE + MeltRate + SWElag +
-# #          PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag +Q5lag, data = shoulder_agg)
+# # v3<-lm(formula = bfperro01bf99 ~ peakswe + meltrate + swelag +
+# #          peakswewyday + zerowyday + snowfrac + bflag +q5lag, data = shoulder_agg)
 # #
-# # v4<-lm(formula = BFPerRO01BF99 ~ PeakSWE + MeltRate + SWElag +
-# #          PeakSWEWYDay + ZeroWYDay + BFlag +Q5lag, data = shoulder_agg)
+# # v4<-lm(formula = bfperro01bf99 ~ peakswe + meltrate + swelag +
+# #          peakswewyday + zerowyday + bflag +q5lag, data = shoulder_agg)
 # #
-# # v5<-lm(formula = BFPerRO01BF99 ~ PeakSWE+MeltRate + SWElag +
-# #          PeakSWEWYDay+Q5lag, data = shoulder_agg)
+# # v5<-lm(formula = bfperro01bf99 ~ peakswe+meltrate + swelag +
+# #          peakswewyday+q5lag, data = shoulder_agg)
 #
-# shoulder_agg$lm<-v5$coefficients[1]+v5$coefficients[2]*shoulder_agg$PeakSWE+
-#   v5$coefficients[3]*shoulder_agg$MeltRate+v5$coefficients[4]*shoulder_agg$SWElag+
-#   v5$coefficients[5]*shoulder_agg$PeakSWEWYDay+v5$coefficients[6]*shoulder_agg$Q5lag
+# shoulder_agg$lm<-v5$coefficients[1]+v5$coefficients[2]*shoulder_agg$peakswe+
+#   v5$coefficients[3]*shoulder_agg$meltrate+v5$coefficients[4]*shoulder_agg$swelag+
+#   v5$coefficients[5]*shoulder_agg$peakswewyday+v5$coefficients[6]*shoulder_agg$q5lag
 #
-# BFq5<-lm(Q5~BFPerRO01BF99, data = shoulder_agg)
+# bfq5<-lm(q5~bfperro01bf99, data = shoulder_agg)
 #
-# summary(BFq5)
-# lm.beta(BFq5)
+# summary(bfq5)
+# lm.beta(bfq5)
 #
-# k1<-lm(formula = Q5 ~ PeakSWE + MeltRate + TotPrecip + LiquidPrecip + SWElag +
-#          PeakSWEWYDay + ZeroWYDay + SnowFrac + BFlag +Q5lag, data = shoulder_agg)
+# k1<-lm(formula = q5 ~ peakswe + meltrate + totprecip + liquidprecip + swelag +
+#          peakswewyday + zerowyday + snowfrac + bflag +q5lag, data = shoulder_agg)
 #
-# stepAIC(object = k1, direction = "both", trace = TRUE)
+# stepaic(object = k1, direction = "both", trace = true)
 #
-# k1<-lm(formula = Q5 ~ SnowFrac+SWElag+
-#         Q5lag, data = shoulder_agg)
+# k1<-lm(formula = q5 ~ snowfrac+swelag+
+#         q5lag, data = shoulder_agg)
 #
-# k_best<-lm(formula = Q5 ~ MeltRate + TotPrecip + SWElag +
-#              PeakSWEWYDay + ZeroWYDay +Q5lag, data = shoulder_agg)
+# k_best<-lm(formula = q5 ~ meltrate + totprecip + swelag +
+#              peakswewyday + zerowyday +q5lag, data = shoulder_agg)
 #
 # #get stats
 # sum<-summary(k_best)
@@ -909,80 +909,80 @@ dev.off()
 # vif_df<-as.data.frame(vif(k_best))
 # vif_df$name<-rownames(vif_df)
 #
-# #k1<-lm(formula = Q5 ~ PeakSWE+LiquidPrecip + SWElag +
-#          #PeakSWEWYDay + ZeroWYDay +Q5lag, data = shoulder_agg)
+# #k1<-lm(formula = q5 ~ peakswe+liquidprecip + swelag +
+#          #peakswewyday + zerowyday +q5lag, data = shoulder_agg)
 #
-# shoulder_agg$BFQ5<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$SnowFrac+
-#   k1$coefficients[3]*shoulder_agg$SWElag+k1$coefficients[4]*shoulder_agg$Q5lag
+# shoulder_agg$bfq5<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$snowfrac+
+#   k1$coefficients[3]*shoulder_agg$swelag+k1$coefficients[4]*shoulder_agg$q5lag
 #
-# x1<-lm(formula = Q5 ~ BFPerRO01BF99 +
-#          SnowFrac, data = shoulder_agg)
+# x1<-lm(formula = q5 ~ bfperro01bf99 +
+#          snowfrac, data = shoulder_agg)
 #
-# x1<-lm(formula = Q5 ~ BFPerRO01BF99 + TotPrecip + LiquidPrecip +
-#           ZeroWYDay + SnowFrac + BFlag, data = shoulder_agg)
+# x1<-lm(formula = q5 ~ bfperro01bf99 + totprecip + liquidprecip +
+#           zerowyday + snowfrac + bflag, data = shoulder_agg)
 #
-# stepAIC(object=x1, direction = "both", trace = TRUE)
+# stepaic(object=x1, direction = "both", trace = true)
 #
-# shoulder_agg$lmtot<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$BFPerRO01BF99+
-#   x1$coefficients[3]*shoulder_agg$SnowFrac
+# shoulder_agg$lmtot<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$bfperro01bf99+
+#   x1$coefficients[3]*shoulder_agg$snowfrac
 #
 #
-# p1<-ggplot(shoulder_agg, aes(lm, BFPerRO01BF99))+geom_point(col="black")+
-#   labs(y="Shoulder Season GW Proportion", x="Predicted GW Proportion")+
-#   #geom_text(x=0.37, y=0.59, label="Model A \n R2adj=0.74", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p1<-ggplot(shoulder_agg, aes(lm, bfperro01bf99))+geom_point(col="black")+
+#   labs(y="shoulder season gw proportion", x="predicted gw proportion")+
+#   #geom_text(x=0.37, y=0.59, label="model a \n r2adj=0.74", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p2<-ggplot(shoulder_agg, aes(BFPerRO01BF99, Q5))+geom_point(col="black")+
-#   labs(x="Shoulder Season GW Proportion", y="5th Percentile Q Volume")+
-#   #geom_text(x=0.39, y=0.39, label="Model B \n R2adj=0.70", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p2<-ggplot(shoulder_agg, aes(bfperro01bf99, q5))+geom_point(col="black")+
+#   labs(x="shoulder season gw proportion", y="5th percentile q volume")+
+#   #geom_text(x=0.39, y=0.39, label="model b \n r2adj=0.70", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p3<-ggplot(shoulder_agg, aes(BFQ5, Q5))+geom_point(col="black")+
-#   labs(x="Modeled 5th Percetile Q Volume - No GW Prop.", y="")+
-#   #geom_text(x=0.2, y=0.385, label="Model C \n R2adj=0.64", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p3<-ggplot(shoulder_agg, aes(bfq5, q5))+geom_point(col="black")+
+#   labs(x="modeled 5th percetile q volume - no gw prop.", y="")+
+#   #geom_text(x=0.2, y=0.385, label="model c \n r2adj=0.64", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p4<-ggplot(shoulder_agg, aes(lmtot, Q5))+geom_point(col="black")+
-#   #geom_text(x=0.17, y=0.385, label="Model D \n R2adj=0.76", cex=6)+
-#   labs(x="Modeled 5th Percetile Q Volume - Including GW Prop.", y="")+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p4<-ggplot(shoulder_agg, aes(lmtot, q5))+geom_point(col="black")+
+#   #geom_text(x=0.17, y=0.385, label="model d \n r2adj=0.76", cex=6)+
+#   labs(x="modeled 5th percetile q volume - including gw prop.", y="")+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 # p4
 #
-# jpeg("LookoutLFMPlot.jpeg", width = 530, height = 500)
+# jpeg("lookoutlfmplot.jpeg", width = 530, height = 500)
 #
 # p1
 #
 # dev.off()
 #
-# jpeg("LookoutLMPlots.jpeg", width = 1500, height = 450)
+# jpeg("lookoutlmplots.jpeg", width = 1500, height = 450)
 #
 # ggarrange(p2,p3,p4, nrow = 1)
 #
 # dev.off()
 #
-# #Coal
+# #coal
 #
-# v1<-lm(formula = BFPerRO01BF99 ~ MeltRate+LiquidPrecip,
+# v1<-lm(formula = bfperro01bf99 ~ meltrate+liquidprecip,
 #          data = shoulder_agg)
 #
-# x1<-lm(formula = Q5 ~ PeakSWE+LiquidPrecip,
+# x1<-lm(formula = q5 ~ peakswe+liquidprecip,
 #        data = shoulder_agg)
 #
-# k1<-lm(formula = Q5 ~ BFPerRO01BF99+PeakSWE,
+# k1<-lm(formula = q5 ~ bfperro01bf99+peakswe,
 #        data = shoulder_agg)
 #
-# q1<-lm(formula = Q5 ~ BFPerRO01BF99,
+# q1<-lm(formula = q5 ~ bfperro01bf99,
 #        data = shoulder_agg)
 #
 # summary(k1)
@@ -991,50 +991,50 @@ dev.off()
 #
 # vif(k1)
 #
-# shoulder_agg$lm<-v1$coefficients[1]+v1$coefficients[2]*shoulder_agg$MeltRate+
-#   v1$coefficients[3]*shoulder_agg$LiquidPrecip
+# shoulder_agg$lm<-v1$coefficients[1]+v1$coefficients[2]*shoulder_agg$meltrate+
+#   v1$coefficients[3]*shoulder_agg$liquidprecip
 #
-# shoulder_agg$BFQ5<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$PeakSWE+
-#   x1$coefficients[3]*shoulder_agg$LiquidPrecip
+# shoulder_agg$bfq5<-x1$coefficients[1]+x1$coefficients[2]*shoulder_agg$peakswe+
+#   x1$coefficients[3]*shoulder_agg$liquidprecip
 #
-# shoulder_agg$totlm<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$BFPerRO01BF99+
-#   k1$coefficients[3]*shoulder_agg$PeakSWE
+# shoulder_agg$totlm<-k1$coefficients[1]+k1$coefficients[2]*shoulder_agg$bfperro01bf99+
+#   k1$coefficients[3]*shoulder_agg$peakswe
 #
 #
-# p1<-ggplot(shoulder_agg, aes(lm, BFPerRO01BF99))+geom_point(col="black")+
-#   labs(y="Shoulder Season GW Proportion", x="Predicted GW Proportion")+
-#   #geom_text(x=0.25, y=0.63, label="Model A \n R2adj=0.98", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p1<-ggplot(shoulder_agg, aes(lm, bfperro01bf99))+geom_point(col="black")+
+#   labs(y="shoulder season gw proportion", x="predicted gw proportion")+
+#   #geom_text(x=0.25, y=0.63, label="model a \n r2adj=0.98", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 # p1
 #
-# p2<-ggplot(shoulder_agg, aes(BFPerRO01BF99, Q5))+geom_point(col="black")+
-#   labs(x="Shoulder Season GW Proportion", y="5th Percentile Q Volume")+
-#   #geom_text(x=0.25, y=0.06, label="Model B \n R2adj=0.14", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p2<-ggplot(shoulder_agg, aes(bfperro01bf99, q5))+geom_point(col="black")+
+#   labs(x="shoulder season gw proportion", y="5th percentile q volume")+
+#   #geom_text(x=0.25, y=0.06, label="model b \n r2adj=0.14", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p3<-ggplot(shoulder_agg, aes(BFQ5, Q5))+geom_point(col="black")+
-#   labs(x="Modeled 5th Percetile Q Volume - No GW Prop.", y="")+
-#   #geom_text(x=0.027, y=0.059, label="Model C \n R2adj=0.76", cex=6)+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p3<-ggplot(shoulder_agg, aes(bfq5, q5))+geom_point(col="black")+
+#   labs(x="modeled 5th percetile q volume - no gw prop.", y="")+
+#   #geom_text(x=0.027, y=0.059, label="model c \n r2adj=0.76", cex=6)+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 #
 #
-# p4<-ggplot(shoulder_agg, aes(totlm, Q5))+geom_point(col="black")+
-#   #geom_text(x=0.027, y=0.059, label="Model D \n R2adj=0.82", cex=6)+
-#   labs(x="Modeled 5th Percetile Q Volume - Including GW Prop.", y="")+
-#   geom_smooth(method = "lm", se=F, col="black")+
+# p4<-ggplot(shoulder_agg, aes(totlm, q5))+geom_point(col="black")+
+#   #geom_text(x=0.027, y=0.059, label="model d \n r2adj=0.82", cex=6)+
+#   labs(x="modeled 5th percetile q volume - including gw prop.", y="")+
+#   geom_smooth(method = "lm", se=f, col="black")+
 #   theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 #                    text = element_text(size=18))
 # p4
 #
 #
-# jpeg("CoalLFMPlot.jpeg", width = 530, height = 500)
+# jpeg("coallfmplot.jpeg", width = 530, height = 500)
 #
 # p1
 #
@@ -1042,6 +1042,6 @@ dev.off()
 #
 #
 #
-# jpeg("CoalSSGWPLots.jpeg", width = 1500, height = 450)
+# jpeg("coalssgwplots.jpeg", width = 1500, height = 450)
 # ggarrange(p2,p3, p4, nrow = 1)
 # dev.off()

@@ -1,35 +1,34 @@
-# !/usr/bin/env Rscript.
-# Inputs: No direct CSV file reads in this script.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# inputs: no direct csv file reads in this script.
+# author: sidney bush
+# date: 2026-02-13
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
   for (i in seq_len(10)) {
     has_config <- file.exists(file.path(cur, "config.R"))
-    has_metrics <- dir.exists(file.path(cur, "01_metrics"))
-    has_stats <- dir.exists(file.path(cur, "02_stats"))
+    has_metrics <- dir.exists(file.path(cur, "01_storage_calcs"))
+    has_stats <- dir.exists(file.path(cur, "02_analysis"))
     if (has_config && has_metrics && has_stats) {
       return(cur)
     }
     parent <- dirname(cur)
     if (identical(parent, cur)) {
-      break2
+      break
     }
     cur <- parent
   }
   return(normalizePath(start_dir, winslash = "/", mustWork = FALSE))
 }
 
-# Prefer explicit override when launched from IDE with unusual cwd.
+# prefer explicit override when launched from ide with unusual cwd.
 env_repo_root <- Sys.getenv("HJA_REPO_DIR", unset = "")
 if (nzchar(env_repo_root)) {
   repo_root <- normalizePath(env_repo_root, winslash = "/", mustWork = FALSE)
 } else {
-  # Try to discover this script path robustly across Rscript/source/IDE run modes.
+  # try to discover this script path robustly across rscript/source/ide run modes.
   script_path <- NA_character_
 
-  # Look through call frames for an ofile ending in run_all.R
+  # look through call frames for an ofile ending in run_all.r
   frame_ofiles <- unlist(lapply(sys.frames(), function(fr) {
     tryCatch(fr$ofile, error = function(e) NA_character_)
   }))
@@ -47,7 +46,7 @@ if (nzchar(env_repo_root)) {
     }
   }
 
-  # Fall back to --file if running via Rscript
+  # fall back to --file if running via rscript
   if (is.na(script_path) || script_path == "") {
     args <- commandArgs(trailingOnly = FALSE)
     file_arg <- grep("^--file=", args, value = TRUE)
@@ -90,62 +89,65 @@ run_script <- function(path) {
   }
 }
 
-# Preflight.
+# preflight.
 run_script("helpers/check_inputs.R")
 
-# Metrics preprocessing (daily met+Q and ET support tables).
+# metrics preprocessing (daily met+q and et support tables).
 metric_preprocess_scripts <- c(
-  "01_metrics/00_create_master_hydrometric_dataset.R",
-  "00_Data_Preprocessing/01_prep_PT_methods.R",
-  "00_Data_Preprocessing/02_prep_Hamon_methods.R"
+  "00_data_preprocessing/create_hydromet_master.R",
+  "00_data_preprocessing/prep_PT_methods.R",
+  "00_data_preprocessing/prep_Hamon_methods.R"
 )
 for (s in metric_preprocess_scripts) {
   run_script(s)
 }
 
-# Metrics.
+# metrics.
 metric_scripts <- c(
-  "01_metrics/calc_dS_all.R",
-  "01_metrics/calc_mS_all.R",
-  "01_metrics/calc_eco_vars.R",
-  "01_metrics/99_agg_all_metrics.R"
+  "01_storage_calcs/calc_dynamic_storage.R",
+  "01_storage_calcs/calc_mobile_storage.R",
+  "01_storage_calcs/calc_eco_response.R",
+  "01_storage_calcs/aggregate_all.R"
 )
 for (s in metric_scripts) {
   run_script(s)
 }
 
-# Strict unit-consistency gate (fail fast before stats/plots).
+# strict unit-consistency gate (fail fast before stats/plots).
 run_script("helpers/check_units_consistency.R")
 
-# Stats.
-# Deprecated unified-framework climate/sensitivity scripts are kept under
-# 02_stats/deprecated and are intentionally excluded from the core run.
+# stats.
+# deprecated unified-framework climate/sensitivity scripts are kept under
+# deprecated/02_analysis and are intentionally excluded from the core run.
 stats_scripts <- c(
-  "02_stats/storage_sum_stats.R",
-  "02_stats/pca.R",
-  "02_stats/unified_framework.R",
-  "02_stats/mlr_catch_char.R",
-  "02_stats/mlr_eco_vars.R"
+  "02_analysis/storage_sum_stats.R",
+  "02_analysis/pca.R",
+  "02_analysis/conceptual_diagram_calc.R",
+  "02_analysis/mlr_catchment_char.R",
+  "02_analysis/mlr_eco_response.R",
+  "02_analysis/mlr_tables.R"
 )
 for (s in stats_scripts) {
   run_script(s)
 }
 
-# Plots: core manuscript set.
-# Deprecated unified-framework climate-variability plotting is kept under
-# 03_plots/deprecated and is intentionally excluded from the core run.
+# plots: core manuscript set.
+# deprecated unified-framework climate-variability plotting is kept under
+# deprecated/03_plots and is intentionally excluded from the core run.
 plot_scripts_core <- c(
-  "03_plots/pca.R",
-  "03_plots/corr_matrices.R",
-  "03_plots/unified_framework.R",
-  "03_plots/mlr_catch_char.R",
-  "03_plots/mlr_eco_vars.R",
-  "03_plots/met_context.R",
-  "03_plots/storage_figs.R"
+  "03_plots/Fig3_ds_pca_annual.R",
+  "03_plots/Fig6_dynamic_mobile_corr.R",
+  "03_plots/Fig9_conceptual_diagram.R",
+  "03_plots/Fig7_catchment_mlr_beta.R",
+  "03_plots/Fig8_eco_mlr_beta.R",
+  "03_plots/Fig2_4_5_storage.R"
 )
 for (s in plot_scripts_core) {
   run_script(s)
 }
 
-# Post-run checks.
+# supplementary figures are managed in one script for easier triage.
+run_script("03_plots/supplementary.R")
+
+# post-run checks.
 run_script("helpers/verify_outputs.R")

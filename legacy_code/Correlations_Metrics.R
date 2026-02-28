@@ -1,7 +1,7 @@
-# Goal is to develop correlations and relatinships among storage metrics and with catchement attributes.
-# Inputs: base_dir/Catchment_Charc.csv; base_dir/mean_july.temp.csv; base_dir/mean_july_airtemp.csv; base_dir/HJA_StorageMetrics_Annual_All.csv; base_dir/DampingRatios_2025-07-07.csv.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# goal is to develop correlations and relatinships among storage metrics and with catchement attributes.
+# inputs: base_dir/catchment_charc.csv; base_dir/mean_july.temp.csv; base_dir/mean_july_airtemp.csv; base_dir/hja_storagemetrics_annual_all.csv; base_dir/dampingratios_2025-07-07.csv.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -14,7 +14,7 @@ library(ggcorrplot)
 base_dir   <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/03_Data"
 output_dir <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/05_Outputs/Hydrometric"
 
-#reading in Catchment attributes from table that Zach made 
+#reading in catchment attributes from table that zach made 
 Catt<-read_csv(
   file.path(base_dir, "DynamicStorage", "Catchment_Charc.csv"),
   show_col_types = FALSE
@@ -23,8 +23,8 @@ Catt <- Catt %>%
   rename(
     site = Site
   )
-#read in temperature data (They don't have years i the files)
-#Mean stream water temp in July 
+#read in temperature data (they don't have years i the files)
+#mean stream water temp in july 
 WtempM<-read_csv(
   file.path(base_dir, "Stream_T/Output", "mean_july.temp.csv"),
   show_col_types = FALSE
@@ -40,7 +40,7 @@ WtempML<-pivot_longer(WtempM,
                       values_to = "JulyM_ST")
 WtempML$site[WtempML$site == "GSMACK"] <- "GSWSMC"
 
-#Mean air temp in July 
+#mean air temp in july 
 AtempM<-read_csv(
   file.path(base_dir, "Stream_T/Output", "mean_july_airtemp.csv"),
   show_col_types = FALSE
@@ -79,7 +79,7 @@ Damp_R<-read_csv(
 )
 Damp_R$site[Damp_R$site == "GSMACK"] <- "GSWSMC"
 
-# Creating an average of the annual data 
+# creating an average of the annual data 
 cols <- c("recession_curve_slope", "RBI","Q5norm" , "CV_Q5norm", "mean_bf", "fdc_slope", "S_annual_mm", "DS_sum","JulyM_ST", "JulyM_AT","JST_AT")
 
 HJA_storage_ave <- HJA_Stor_Temp_Yr %>%
@@ -93,12 +93,12 @@ HJA_storage_ave <- HJA_Stor_Temp_Yr %>%
 HJA_storage_ave<-left_join(HJA_storage_ave, Damp_R, by = "site")
 HJA_storage_ave<- left_join(HJA_storage_ave, Catt, by = "site")
 
-#Saving the all overall site based values 
+#saving the all overall site based values 
 write.csv(HJA_storage_ave,file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"))
 
 HJA_storage_ave<-HJA_Ave
 
-# List of attributes to include in the correlation
+# list of attributes to include in the correlation
 vars <- c(
   "recession_curve_slope_mean", "RBI_mean", "Q5norm_mean", "CV_Q5norm_mean", "mean_bf_mean",
   "fdc_slope_mean", "S_annual_mm_mean", "DS_sum_mean","DR_Overall","JST_AT_mean", "Area_km2", "Elevation_mean_m",

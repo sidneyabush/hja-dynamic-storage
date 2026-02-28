@@ -1,7 +1,7 @@
-# Calculate mobile-storage metrics (CHS + isotope metrics) by site and water year.
-# Inputs: DISCHARGE_DIR/HF00402_v14.csv; EC_DIR/CF01201_v4.txt; ISOTOPE_DIR/MTT_FYW.csv; ISOTOPE_DIR/DampingRatios_2025-07-07.csv.
-# Author: Keira Johnson (original CHS), Sidney Bush
-# Date: 2026-02-14
+# calculate mobile-storage metrics (chs + isotope metrics) by site and water year.
+# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv.
+# author: keira johnson (original chs), sidney bush
+# date: 2026-02-14
 
 library(dplyr)
 library(readr)
@@ -9,7 +9,7 @@ library(lubridate)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 output_dir <- OUT_MET_MOBILE_DIR
@@ -17,11 +17,9 @@ discharge_dir <- DISCHARGE_DIR
 ec_dir <- EC_DIR
 isotope_dir <- ISOTOPE_DIR
 
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir, recursive = TRUE)
-}
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# ---- PART 1: CHS from specific conductance and discharge ----
+# ---- part 1: chs from specific conductance and discharge ----
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
@@ -98,7 +96,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- PART 2: Isotope-derived site metrics (MTT/Fyw/DR) ----
+# ---- part 2: isotope-derived site metrics (mtt/fyw/dr) ----
 
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),

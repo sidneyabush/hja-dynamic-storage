@@ -1,7 +1,7 @@
-# Helper functions for processing meteorological and streamflow data.
-# Inputs: No direct CSV file reads in this script.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# helper functions for processing meteorological and streamflow data.
+# inputs: no direct csv file reads in this script.
+# author: sidney bush
+# date: 2026-02-13
 
 library(readr)
 library(dplyr)
@@ -9,7 +9,7 @@ library(lubridate)
 library(tidyr)
 library(ggplot2)
 
-# DATE PARSING
+# date parsing
 
 #' Parse dates robustly (handles Excel serials and various string formats)
 #' @param d Vector of dates (character, numeric, or Date)
@@ -19,7 +19,7 @@ parse_my_date <- function(d) {
   is_serial <- grepl("^[0-9]+$", dd)
   out <- rep(as.Date(NA), length(dd))
 
-  # Excel serials → Date
+  # excel serials → date
 
   if (any(is_serial)) {
     out[is_serial] <- as_date(
@@ -28,7 +28,7 @@ parse_my_date <- function(d) {
     )
   }
 
-  # String dates → lubridate
+  # string dates → lubridate
   if (any(!is_serial)) {
     out[!is_serial] <- parse_date_time(
       dd[!is_serial],
@@ -40,7 +40,7 @@ parse_my_date <- function(d) {
   return(out)
 }
 
-# DATA LOADING HELPERS
+# data loading helpers
 
 #' Read interpolated meteorological data and convert to long format
 #' @param fname Filename of CSV with *_inter columns
@@ -92,7 +92,7 @@ read_mack_precip <- function(fname, met_dir, recode_map = c("GSWSMC" = "GSMACK")
     rename(P_mm_d = PRECIP_TOT_DAY)
 }
 
-# METEOROLOGICAL CALCULATIONS
+# meteorological calculations
 
 #' Calculate vapor pressure deficit (VPD) from temperature and relative humidity
 #' @param temp_celsius Temperature in Celsius
@@ -105,7 +105,7 @@ calculate_vpd <- function(temp_celsius, rh_percent) {
   return(vpd)
 }
 
-# Legacy-style pairwise relationship plot for interpolation diagnostics
+# legacy-style pairwise relationship plot for interpolation diagnostics
 create_relationship_plot <- function(data, site1, site2, variable, r_squared, complete_count) {
   site1_col <- site1
   site2_col <- site2
@@ -136,7 +136,7 @@ create_relationship_plot <- function(data, site1, site2, variable, r_squared, co
     )
 }
 
-# Legacy-style model summary panel for triplet interpolation diagnostics
+# legacy-style model summary panel for triplet interpolation diagnostics
 create_multiple_regression_plot <- function(target_site, predictor_sites, variable, model_summary, complete_count) {
   title <- paste("Multiple Regression Model for", variable)
   subtitle <- paste(target_site, "predicted from", paste(predictor_sites, collapse = ", "))
@@ -188,10 +188,10 @@ create_multiple_regression_plot <- function(target_site, predictor_sites, variab
     labs(title = title, subtitle = subtitle)
 }
 
-# STATION INTERPOLATION
+# station interpolation
 
 #' Extract station pairs and triplets that need interpolation from site mapping
-#' @param site_mapping Named list of watershed -> station mappings
+#' @param site_mapping Named list of catchment -> station mappings
 #' @return List with $pairs and $triplets
 extract_station_groups <- function(site_mapping) {
   pairs <- list()
@@ -231,7 +231,7 @@ extract_station_groups <- function(site_mapping) {
 #' @param variable Variable name to interpolate
 #' @return Data frame with interpolated values added
 interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
-  # Check for duplicates
+  # check for duplicates
   check_dupes <- data %>%
     filter(SITECODE %in% c(site1, site2)) %>%
     group_by(DATE, SITECODE) %>%
@@ -259,7 +259,7 @@ interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
     return(data)
   }
 
-  # Fit linear model
+  # fit linear model
   model <- lm(formula = paste0("`", site2_col, "` ~ `", site1_col, "`"),
               data = pair_data[complete_rows, ])
 
@@ -281,7 +281,7 @@ interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
     }
   }
 
-  # Interpolate site2 from site1
+  # interpolate site2 from site1
   s1_has_data_s2_missing <- !is.na(pair_data[[site1_col]]) & is.na(pair_data[[site2_col]])
   if(any(s1_has_data_s2_missing)) {
     predictions <- intercept + slope * pair_data[[site1_col]][s1_has_data_s2_missing]
@@ -297,7 +297,7 @@ interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
       distinct(DATE, SITECODE, .keep_all = TRUE)
   }
 
-  # Interpolate site1 from site2 (inverse relationship)
+  # interpolate site1 from site2 (inverse relationship)
   s2_has_data_s1_missing <- is.na(pair_data[[site1_col]]) & !is.na(pair_data[[site2_col]])
   if(any(s2_has_data_s1_missing)) {
     inv_intercept <- -intercept/slope
@@ -326,7 +326,7 @@ interpolate_pair <- function(data, site1, site2, variable, plot_dir = NULL) {
 #' @param variable Variable name to interpolate
 #' @return Data frame with interpolated values added
 interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = NULL) {
-  # Check for duplicates
+  # check for duplicates
   check_dupes <- data %>%
     filter(SITECODE %in% c(site1, site2, site3)) %>%
     group_by(DATE, SITECODE) %>%
@@ -355,7 +355,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
     return(data)
   }
 
-  # Create three models (one for each site)
+  # create three models (one for each site)
   model1 <- lm(formula = paste0("`", site1_col, "` ~ `", site2_col, "` + `", site3_col, "`"),
                data = triplet_data[model1_rows, ])
   model2 <- lm(formula = paste0("`", site2_col, "` ~ `", site1_col, "` + `", site3_col, "`"),
@@ -364,9 +364,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
                data = triplet_data[model1_rows, ])
 
   if (!is.null(plot_dir) && nzchar(plot_dir)) {
-    if (!dir.exists(plot_dir)) {
-      dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
-    }
+    dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
     coef_value <- function(coef_tbl, pred_name, col_name) {
       idx <- which(rownames(coef_tbl) %in% c(pred_name, paste0("`", pred_name, "`")))
@@ -412,7 +410,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
     write_csv(diag_rows, diag_file)
   }
 
-  # Case 1: Only site1 is missing
+  # case 1: only site1 is missing
   case1 <- is.na(triplet_data[[site1_col]]) & !is.na(triplet_data[[site2_col]]) & !is.na(triplet_data[[site3_col]])
   if(any(case1)) {
     temp_df <- triplet_data[case1, c("DATE", site2_col, site3_col)]
@@ -430,7 +428,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
       distinct(DATE, SITECODE, .keep_all = TRUE)
   }
 
-  # Case 2: Only site2 is missing
+  # case 2: only site2 is missing
   case2 <- !is.na(triplet_data[[site1_col]]) & is.na(triplet_data[[site2_col]]) & !is.na(triplet_data[[site3_col]])
   if(any(case2)) {
     temp_df <- triplet_data[case2, c("DATE", site1_col, site3_col)]
@@ -448,7 +446,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
       distinct(DATE, SITECODE, .keep_all = TRUE)
   }
 
-  # Case 3: Only site3 is missing
+  # case 3: only site3 is missing
   case3 <- !is.na(triplet_data[[site1_col]]) & !is.na(triplet_data[[site2_col]]) & is.na(triplet_data[[site3_col]])
   if(any(case3)) {
     temp_df <- triplet_data[case3, c("DATE", site1_col, site2_col)]
@@ -473,7 +471,7 @@ interpolate_triplet <- function(data, site1, site2, site3, variable, plot_dir = 
 #' @param data Data frame with RH_d_pct and/or P_mm_d columns
 #' @return Data frame with constrained values
 constrain_interpolated_values <- function(data) {
-  # Cap RH at 100%
+  # cap rh at 100%
   if ("RH_d_pct" %in% names(data)) {
     over_100_count <- sum(data$RH_d_pct > 100, na.rm = TRUE)
     if (over_100_count > 0) {
@@ -481,7 +479,7 @@ constrain_interpolated_values <- function(data) {
     }
   }
 
-  # Cap precipitation at 0 (no negatives)
+  # cap precipitation at 0 (no negatives)
   if ("P_mm_d" %in% names(data)) {
     neg_precip_count <- sum(data$P_mm_d < 0, na.rm = TRUE)
     if (neg_precip_count > 0) {
@@ -492,7 +490,7 @@ constrain_interpolated_values <- function(data) {
   return(data)
 }
 
-# MAIN PROCESSING FUNCTIONS
+# main processing functions
 
 #' Process all station pairs and triplets, apply interpolation
 #' @param data Combined meteorological data
@@ -504,7 +502,7 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
   interpolated_pairs <- list()
   interpolated_triplets <- list()
 
-  # Process pairs
+  # process pairs
   for (pair_name in names(station_groups$pairs)) {
     pair <- station_groups$pairs[[pair_name]]
     site1 <- pair$site1
@@ -534,7 +532,7 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
     }
   }
 
-  # Process triplets
+  # process triplets
   for (triplet_name in names(station_groups$triplets)) {
     triplet <- station_groups$triplets[[triplet_name]]
     site1 <- triplet$site1
@@ -563,7 +561,7 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
       }
       interpolated_triplets[[triplet_name]] <- triplet
     } else {
-      # Fall back to pairwise interpolation
+      # fall back to pairwise interpolation
       fallback_pairs <- list(
         list(site1 = site1, site2 = site2),
         list(site1 = site1, site2 = site3),
@@ -578,7 +576,7 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
     }
   }
 
-  # Apply constraints and calculate VPD
+  # apply constraints and calculate vpd
   interpolated_data <- constrain_interpolated_values(interpolated_data)
 
   interpolated_data <- interpolated_data %>%
@@ -595,12 +593,12 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
   ))
 }
 
-#' Create watershed-level datasets from interpolated station data
+#' Create catchment-level datasets from interpolated station data
 #' @param interpolated_data Interpolated station data
-#' @param site_mapping Named list of watershed -> station mappings
+#' @param site_mapping Named list of catchment -> station mappings
 #' @param variables Character vector of variable names
-#' @return Named list of watershed datasets
-create_watershed_datasets <- function(interpolated_data, site_mapping, variables) {
+#' @return Named list of catchment datasets
+create_catchment_datasets <- function(interpolated_data, site_mapping, variables) {
   site_datasets <- list()
 
   for (site_name in names(site_mapping)) {
@@ -610,7 +608,7 @@ create_watershed_datasets <- function(interpolated_data, site_mapping, variables
     for (var_idx in seq_along(variables)) {
       var <- variables[var_idx]
 
-      # Handle VPD separately (uses temperature stations)
+      # handle vpd separately (uses temperature stations)
       if (var == "VPD_kPa") {
         var_name <- "temp"
       } else if (var_idx > length(names(site_info))) {
@@ -622,7 +620,7 @@ create_watershed_datasets <- function(interpolated_data, site_mapping, variables
       stations <- site_info[[var_name]]
 
       if (length(stations) == 1) {
-        # Single station
+        # single station
         single_data <- interpolated_data %>%
           filter(SITECODE == stations[1]) %>%
           select(DATE, !!sym(var))
@@ -633,7 +631,7 @@ create_watershed_datasets <- function(interpolated_data, site_mapping, variables
           site_data <- site_data %>% left_join(single_data, by = "DATE")
         }
       } else if (length(stations) >= 2) {
-        # Average multiple stations
+        # average multiple stations
         multi_data <- interpolated_data %>%
           filter(SITECODE %in% stations) %>%
           select(DATE, SITECODE, !!sym(var)) %>%
@@ -657,30 +655,30 @@ create_watershed_datasets <- function(interpolated_data, site_mapping, variables
   return(site_datasets)
 }
 
-#' Add discharge data to watershed datasets
-#' @param watershed_datasets Named list of watershed datasets
+#' Add discharge data to catchment datasets
+#' @param catchment_datasets Named list of catchment datasets
 #' @param discharge Discharge data frame with DATE, SITECODE, MEAN_Q
 #' @param da_df Drainage area data frame with SITECODE, DA_M2
-#' @return Updated watershed datasets with Q_mm_d column
-add_discharge_to_watersheds <- function(watershed_datasets, discharge, da_df) {
+#' @return Updated catchment datasets with Q_mm_d column
+add_discharge_to_catchments <- function(catchment_datasets, discharge, da_df) {
   discharge_processed <- discharge %>%
     left_join(da_df, by = "SITECODE") %>%
     filter(!is.na(DA_M2)) %>%
     mutate(Q_mm_d = MEAN_Q * 0.0283168 * 86400 / DA_M2 * 1000) %>%
     select(DATE, SITECODE, Q_mm_d)
 
-  for (site_name in names(watershed_datasets)) {
+  for (site_name in names(catchment_datasets)) {
     site_dis <- discharge_processed %>% filter(SITECODE == site_name)
     if (nrow(site_dis) > 0) {
-      watershed_datasets[[site_name]] <- watershed_datasets[[site_name]] %>%
+      catchment_datasets[[site_name]] <- catchment_datasets[[site_name]] %>%
         left_join(site_dis, by = "DATE")
     }
   }
 
-  return(watershed_datasets)
+  return(catchment_datasets)
 }
 
-# Legacy triplet RH diagnostics (WS7MET, VANMET, H15MET)
+# legacy triplet rh diagnostics (ws7met, vanmet, h15met)
 plot_triplet_station_comparisons <- function(interpolated_data, plot_dir) {
   triplet_stations <- c("WS7MET", "VANMET", "H15MET")
 

@@ -1,7 +1,7 @@
-# Plots: pooled eco-response predictor effects (all-sites model).
-# Inputs: output_dir/storage_ecovar_mlr_all_sites_results.csv.
-# Author: Sidney Bush
-# Date: 2026-02-24
+# plots: pooled eco-response predictor effects (all-sites model).
+# inputs: output_dir/storage_ecovar_mlr_all_sites_results.csv.
+# author: sidney bush
+# date: 2026-02-24
 
 library(dplyr)
 library(readr)
@@ -10,21 +10,21 @@ library(tidyr)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
 file_prefix <- "storage_ecovar_mlr_all_sites"
 ALPHA <- 0.05
 
-plot_dir <- file.path(FIGURES_DIR, "main")
-plot_pdf_dir <- file.path(plot_dir, "pdf")
-supp_plot_dir <- file.path(FIGURES_DIR, "supp")
-supp_plot_pdf_dir <- file.path(supp_plot_dir, "pdf")
+plot_dir <- MS_FIG_MAIN_DIR
+plot_pdf_dir <- plot_dir
+supp_plot_dir <- SUPP_LEGACY_DIR
+supp_plot_pdf_dir <- SUPP_LEGACY_PDF_DIR
 
 dir_targets <- c(plot_dir, plot_pdf_dir, supp_plot_dir, supp_plot_pdf_dir)
 for (d in dir_targets) {
-  if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 results_file <- file.path(output_dir, paste0(file_prefix, "_results.csv"))
@@ -40,7 +40,6 @@ if (!file.exists(summary_file)) {
 to_internal_response <- function(x) {
   out <- as.character(x)
   out[out == "Q7Q5"] <- "Q_7Q5"
-  out[out == "TQ7Q5"] <- "T_Q7Q5"
   out[out == "T7DMax"] <- "T_7DMax"
   out
 }
@@ -51,14 +50,13 @@ to_internal_predictor <- function(x) {
   out
 }
 
-response_order <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
+response_order <- c("Q_7Q5", "T_7DMax")
 predictor_order <- c(
   "P_WetSeason",
   STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "CHS")]
 )
 response_display <- c(
   "Q_7Q5" = "Q7Q5",
-  "T_Q7Q5" = "TQ7Q5",
   "T_7DMax" = "T7DMax"
 )
 predictor_display <- c(
@@ -127,28 +125,6 @@ response_meta <- model_summary %>%
     Response_facet = paste0(Response_label, " | adj R2 ", r2_label, " | model p ", model_p_label)
   )
 
-full_grid <- tidyr::expand_grid(
-  Response = response_order,
-  Predictor = predictor_order
-)
-
-beta_heat_df <- full_grid %>%
-  left_join(
-    model_coefs %>%
-      transmute(
-        Response = as.character(Response),
-        Predictor = as.character(Predictor),
-        Beta_Std = suppressWarnings(as.numeric(Beta_Std))
-      ),
-    by = c("Response", "Predictor")
-  ) %>%
-  left_join(response_meta, by = "Response") %>%
-  mutate(
-    Response = factor(Response, levels = response_order),
-    Predictor = factor(Predictor, levels = rev(predictor_order)),
-    beta_label = ifelse(is.finite(Beta_Std), sprintf("%.2f", Beta_Std), "-")
-)
-
 save_plot_safe <- function(path, plot_obj, width, height, dpi = NULL) {
   tryCatch(
     {
@@ -166,43 +142,8 @@ save_plot_safe <- function(path, plot_obj, width, height, dpi = NULL) {
   )
 }
 
-p_beta_heat <- ggplot(beta_heat_df, aes(x = Response, y = Predictor, fill = Beta_Std)) +
-  geom_tile(color = "white", linewidth = 0.35) +
-  geom_text(aes(label = beta_label), size = FIG_TILE_TEXT_SIZE) +
-  scale_fill_gradient2(
-    low = "firebrick4",
-    mid = "white",
-    high = "dodgerblue3",
-    midpoint = 0,
-    limits = c(-1.0, 1.0),
-    oob = scales::squish,
-    na.value = "grey95",
-    name = "Beta"
-  ) +
-  scale_x_discrete(labels = function(x) unname(response_display[as.character(x)])) +
-  scale_y_discrete(labels = function(x) parse(text = unname(predictor_display[as.character(x)]))) +
-  labs(x = NULL, y = NULL) +
-  theme_pub() +
-  theme(
-    axis.text.x = element_text(angle = 0, hjust = 0.5),
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
-    legend.position = "right"
-  )
-
-save_plot_safe(
-  file.path(plot_dir, paste0(file_prefix, "_beta_heatmap.png")),
-  p_beta_heat,
-  width = 8 * FIG_WIDTH_SCALE,
-  height = 4.5 * FIG_HEIGHT_SCALE,
-  dpi = 300
-)
-save_plot_safe(
-  file.path(plot_pdf_dir, paste0(file_prefix, "_beta_heatmap.pdf")),
-  p_beta_heat,
-  width = 8 * FIG_WIDTH_SCALE,
-  height = 4.5 * FIG_HEIGHT_SCALE
-)
+unlink(file.path(plot_dir, paste0(file_prefix, "_beta_heatmap.png")))
+unlink(file.path(plot_pdf_dir, paste0(file_prefix, "_beta_heatmap.pdf")))
 
 beta_bar_df <- model_coefs %>%
   transmute(

@@ -1,11 +1,11 @@
-# Export model-stats tables for eco all-sites and watershed MLR models.
-# Inputs:
-# - OUT_MODELS_STORAGE_ECOVAR_MLR_DIR/storage_ecovar_mlr_all_sites_results.csv
-# - OUT_MODELS_STORAGE_ECOVAR_MLR_DIR/storage_ecovar_mlr_all_sites_summary.csv
-# - OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR/watershed_char_storage_mlr_results.csv
-# - OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR/watershed_char_storage_mlr_summary.csv
-# Author: Sidney Bush
-# Date: 2026-02-24
+# export model-stats tables for pooled eco-response and catchment mlr models.
+# inputs:
+# - out_models_storage_eco_response_mlr_dir/storage_eco_response_mlr_results.csv
+# - out_models_storage_eco_response_mlr_dir/storage_eco_response_mlr_summary.csv
+# - out_models_catchment_char_storage_mlr_dir/catchment_char_storage_mlr_results.csv
+# - out_models_catchment_char_storage_mlr_dir/catchment_char_storage_mlr_summary.csv
+# author: sidney bush
+# date: 2026-02-24
 
 library(dplyr)
 library(readr)
@@ -15,7 +15,7 @@ rm(list = ls())
 source("config.R")
 
 ALPHA <- 0.05
-ECO_ORDER <- c("Q7Q5", "TQ7Q5", "T7DMax")
+ECO_ORDER <- c("Q7Q5", "T7DMax")
 WS_ORDER <- STORAGE_METRIC_ORDER
 WS_TABLE_ORDER <- STORAGE_METRIC_ORDER
 
@@ -37,8 +37,8 @@ clean_predictor_labels <- function(x) {
   out <- as.character(x)
   out <- gsub("Pyroclastic \\(%\\)", "Pyroclastic", out)
   out <- gsub("Ash \\(%\\)", "Ash", out)
-  out <- gsub("Lava 1 \\(%\\)", "Lava-1", out)
-  out <- gsub("Lava 2 \\(%\\)", "Lava-2", out)
+  out <- gsub("Lava 1 \\(%\\)", "Lava-1 (%)", out)
+  out <- gsub("Lava 2 \\(%\\)", "Lava-2 (%)", out)
   out <- gsub("Total Landslide", "Landslide Total", out)
   out <- gsub("Young Landslide", "Landslide Young", out)
   out
@@ -86,27 +86,23 @@ to_md_table <- function(df_in) {
   c(header, sep, rows)
 }
 
-# Remove stale beta-table exports; beta visuals are kept as plots.
-unlink(file.path(OUT_MODELS_STORAGE_ECOVAR_MLR_DIR, "storage_ecovar_mlr_all_sites_beta_table.csv"))
-unlink(file.path(OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR, "watershed_char_storage_mlr_beta_table.csv"))
+# ---- inputs ----
+eco_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
+eco_res_file <- file.path(eco_dir, "storage_eco_response_mlr_results.csv")
+eco_sum_file <- file.path(eco_dir, "storage_eco_response_mlr_summary.csv")
 
-# ---- INPUTS ----
-eco_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
-eco_res_file <- file.path(eco_dir, "storage_ecovar_mlr_all_sites_results.csv")
-eco_sum_file <- file.path(eco_dir, "storage_ecovar_mlr_all_sites_summary.csv")
-
-ws_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
-ws_res_file <- file.path(ws_dir, "watershed_char_storage_mlr_results.csv")
-ws_sum_file <- file.path(ws_dir, "watershed_char_storage_mlr_summary.csv")
+ws_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
+ws_res_file <- file.path(ws_dir, "catchment_char_storage_mlr_results.csv")
+ws_sum_file <- file.path(ws_dir, "catchment_char_storage_mlr_summary.csv")
 
 if (!file.exists(eco_res_file) || !file.exists(eco_sum_file)) {
-  stop("Missing eco model inputs: expected storage_ecovar_mlr_all_sites_results.csv and _summary.csv")
+  stop("Missing eco model inputs: expected storage_eco_response_mlr_results.csv and _summary.csv")
 }
 if (!file.exists(ws_res_file) || !file.exists(ws_sum_file)) {
-  stop("Missing watershed model inputs: expected watershed_char_storage_mlr_results.csv and _summary.csv")
+  stop("Missing catchment model inputs: expected catchment_char_storage_mlr_results.csv and _summary.csv")
 }
 
-# ---- ECO ALL-SITES MODELS ----
+# ---- pooled eco-response models ----
 eco_res <- read_csv(eco_res_file, show_col_types = FALSE) %>%
   transmute(model_id = as.character(Response), Beta_Std = suppressWarnings(as.numeric(Beta_Std)))
 eco_k <- eco_res %>%
@@ -125,7 +121,7 @@ eco_sum <- compute_model_p_if_missing(
 
 eco_models <- eco_sum %>%
   transmute(
-    model_group = "Eco all-sites",
+    model_group = "Eco response pooled",
     response_variable = as.character(model_id),
     selected_predictors = as.character(Predictors_Final),
     n = suppressWarnings(as.integer(n)),
@@ -150,7 +146,7 @@ eco_models <- eco_sum %>%
   arrange(response_variable) %>%
   mutate(response_variable = as.character(response_variable))
 
-# ---- WATERSHED MODELS ----
+# ---- catchment models ----
 ws_res <- read_csv(ws_res_file, show_col_types = FALSE) %>%
     transmute(
       model_id = gsub("_mean$", "", as.character(Outcome)),
@@ -172,7 +168,7 @@ ws_sum <- compute_model_p_if_missing(
 
 ws_models <- ws_sum %>%
   transmute(
-    model_group = "Watershed characteristics",
+    model_group = "Catchment characteristics",
     response_variable = as.character(model_id),
     selected_predictors = as.character(Predictors_Final),
     n = suppressWarnings(as.integer(N)),
@@ -197,7 +193,7 @@ ws_models <- ws_sum %>%
   arrange(response_variable) %>%
   mutate(response_variable = as.character(response_variable))
 
-# ---- MAIN-TEXT WATERSHED SUMMARY TABLE ----
+# ---- main-text catchment summary table ----
 ws_summary_table <- ws_models %>%
   transmute(
     `Response Variable` = factor(response_variable, levels = WS_TABLE_ORDER),
@@ -211,17 +207,22 @@ ws_summary_table <- ws_models %>%
   arrange(`Response Variable`) %>%
   mutate(`Response Variable` = as.character(`Response Variable`))
 
-write_csv(ws_summary_table, file.path(ws_dir, "watershed_char_storage_mlr_model_stats_table.csv"))
+write_csv(ws_summary_table, file.path(ws_dir, "catchment_char_storage_mlr_model_stats_table.csv"))
+dir.create(MS_TABLES_MAIN_DIR, recursive = TRUE, showWarnings = FALSE)
+write_csv(
+  ws_summary_table,
+  file.path(MS_TABLES_MAIN_DIR, "table4_catchment_char_storage_mlr_model_stats.csv")
+)
 
-# ---- SINGLE ALL-MODELS CSV (ECO + WATERSHED) ----
-if (!dir.exists(OUT_STATS_DIR)) dir.create(OUT_STATS_DIR, recursive = TRUE, showWarnings = FALSE)
+# ---- single all-models csv (eco + catchment) ----
+dir.create(OUT_STATS_DIR, recursive = TRUE, showWarnings = FALSE)
 
 all_models <- bind_rows(eco_models, ws_models) %>%
   mutate(
-    model_group = factor(model_group, levels = c("Watershed characteristics", "Eco all-sites")),
+    model_group = factor(model_group, levels = c("Catchment characteristics", "Eco response pooled")),
     row_rank = case_when(
-      model_group == "Watershed characteristics" ~ match(response_variable, WS_ORDER),
-      model_group == "Eco all-sites" ~ match(response_variable, ECO_ORDER),
+      model_group == "Catchment characteristics" ~ match(response_variable, WS_ORDER),
+      model_group == "Eco response pooled" ~ match(response_variable, ECO_ORDER),
       TRUE ~ 999L
     )
   ) %>%
@@ -240,8 +241,11 @@ all_models <- bind_rows(eco_models, ws_models) %>%
   )
 
 write_csv(all_models, file.path(OUT_STATS_DIR, "mlr_all_models_listed.csv"))
+dir.create(MS_TABLES_MAIN_DIR, recursive = TRUE, showWarnings = FALSE)
+write_csv(
+  all_models,
+  file.path(MS_TABLES_MAIN_DIR, "table5_mlr_all_models_listed.csv")
+)
 
-# Remove stale combined/legacy table exports.
-unlink(file.path(OUT_STATS_DIR, "mlr_model_stats_combined_table.csv"))
-unlink(file.path(OUT_STATS_DIR, "mlr_model_stats_combined_table.md"))
-unlink(file.path(eco_dir, "storage_ecovar_mlr_all_sites_model_stats_table.csv"))
+old_supp_all_models <- file.path(MS_TABLES_SUPP_DIR, "tableSX_mlr_all_models_listed.csv")
+if (file.exists(old_supp_all_models)) file.remove(old_supp_all_models)

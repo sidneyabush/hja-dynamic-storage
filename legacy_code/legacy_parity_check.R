@@ -1,7 +1,7 @@
-# Legacy Parity Check.
-# Inputs: No direct CSV file reads in this script.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# legacy parity check.
+# inputs: no direct csv file reads in this script.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -9,7 +9,7 @@ library(tidyr)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 

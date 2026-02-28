@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: drainage_area.csv; HF00402_v14.csv; Annual_GW_Prop.csv; HJA_aspect.csv; HJA_slope.csv; HJA_elevation.csv; +4 more CSV files.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: drainage_area.csv; hf00402_v14.csv; annual_gw_prop.csv; hja_aspect.csv; hja_slope.csv; hja_elevation.csv; +4 more csv files.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 avg_merequire(dplyr)
 require(lubridate)
@@ -44,16 +44,16 @@ for (i in 1:length(sites)) {
     dplyr::filter(!is.na(dQ_dt)) %>% # Remove NA values (first row)
     dplyr::filter(!change_dQ < 0.7) #remove anything where the relative difference is < 0.7, essentially where the change in discharge is small
   
-  # Calculate the recession slope (-dQ/dt)
+  # calculate the recession slope (-dq/dt)
   recession_data <- df %>%
     filter(dQ < 0) %>%  # Keep only recession periods
     mutate(recession_slope = -dQ_dt)  # Make it positive for the slope
   
-  # Fit a linear model to the recession data
+  # fit a linear model to the recession data
   lm_model <- lm(log(recession_slope) ~ log(Q), data = recession_data)
   model_summary <- summary(lm_model)
   
-  # Extract statistics
+  # extract statistics
   slope <- coef(lm_model)[2]
   p_value <- model_summary$coefficients[2, 4]
   r_squared <- model_summary$r.squared
@@ -67,11 +67,11 @@ for (i in 1:length(sites)) {
     recession_data_annual<-recession_data %>%
       filter(WATERYEAR==water_years[k])
     
-    # Fit a linear model to the recession data
+    # fit a linear model to the recession data
     lm_model <- lm(log(recession_slope) ~ log(Q), data = recession_data_annual)
     model_summary <- summary(lm_model)
     
-    # Extract statistics
+    # extract statistics
     slope <- coef(lm_model)[2]
     p_value <- model_summary$coefficients[2, 4]
     r_squared <- model_summary$r.squared
@@ -82,17 +82,17 @@ for (i in 1:length(sites)) {
   
   slope_list_annual[[i]]<-bind_rows(annual_slope)
   
-  # Calculate daily changes in discharge
+  # calculate daily changes in discharge
   df <- df %>%
     arrange(Date) %>%
     mutate(dQ = Q - lag(Q),  # Daily change in discharge
            abs_dQ = abs(dQ)) %>%              # Absolute change in discharge
     filter(!is.na(abs_dQ))  # Remove NA values (first row)
   
-  # Calculate the total discharge over the period
+  # calculate the total discharge over the period
   total_discharge <- sum(df$Q)
   
-  # Calculate the Richards-Baker Flashiness Index
+  # calculate the richards-baker flashiness index
   RBFI <- sum(df$abs_dQ) / total_discharge
   
   rbfi_list[[i]]<-data.frame(RBFI, sites[i])
@@ -104,10 +104,10 @@ for (i in 1:length(sites)) {
     df_annual<-df %>%
       filter(WATERYEAR==water_years[k])
     
-    # Calculate the total discharge over the period
+    # calculate the total discharge over the period
     total_discharge <- sum(df_annual$Q)
     
-    # Calculate the Richards-Baker Flashiness Index
+    # calculate the richards-baker flashiness index
     RBFI <- sum(df_annual$abs_dQ) / total_discharge
     
     annual_RBFI[[k]]<-data.frame(RBFI, water_years[k], sites[i])

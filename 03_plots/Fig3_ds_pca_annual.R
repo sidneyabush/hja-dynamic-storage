@@ -1,7 +1,7 @@
-# PCA Plots.
-# Inputs: OUT_STATS_PCA_DIR/pca_scores_pc1_pc2.csv; OUT_STATS_PCA_DIR/pca_loadings.csv; OUT_STATS_PCA_DIR/pca_variance_explained.csv.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# pca plots.
+# inputs: out_stats_pca_dir/pca_scores_pc1_pc2.csv; out_stats_pca_dir/pca_loadings.csv; out_stats_pca_dir/pca_variance_explained.csv.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -10,33 +10,17 @@ library(scales)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 
-main_dir <- file.path(FIGURES_DIR, "main")
-main_pdf_dir <- file.path(main_dir, "pdf")
-supp_dir <- file.path(FIGURES_DIR, "supp")
-supp_pdf_dir <- file.path(supp_dir, "pdf")
+main_dir <- MS_FIG_MAIN_DIR
+main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
+supp_dir <- SUPP_LEGACY_DIR
+supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
 for (d in c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)) {
-  if (!dir.exists(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
-
-# Remove older catchment-characteristics PCA outputs.
-unlink(file.path(supp_dir, c(
-  "watershed_char_storage_mlr_pca_biplot.png",
-  "watershed_char_storage_mlr_pca_biplot.pdf",
-  "watershed_char_storage_mlr_pca_scree.png",
-  "watershed_char_storage_mlr_pca_scree.pdf"
-)))
-unlink(file.path(supp_dir, c(
-  "storage_ecovar_mlr_pca_biplot.png",
-  "storage_ecovar_mlr_pca_biplot.pdf",
-  "storage_ecovar_mlr_pca_scree.png",
-  "storage_ecovar_mlr_pca_scree.pdf"
-)))
-unlink(file.path(supp_dir, c("pca_biplot.png", "pca_biplot.pdf")))
-unlink(file.path(supp_pdf_dir, "pca_biplot.pdf"))
 
 scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
 loads_file <- file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv")
@@ -53,7 +37,7 @@ vexp <- read_csv(var_file, show_col_types = FALSE)
 pc1_pct <- ifelse(nrow(vexp) >= 1, 100 * vexp$Variance_Explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(vexp) >= 2, 100 * vexp$Variance_Explained[2], NA_real_)
 
-# Scale loading arrows to score space.
+# scale loading arrows to score space.
 score_lim <- max(abs(c(scores$PC1, scores$PC2)), na.rm = TRUE)
 load_lim <- max(abs(c(loads$PC1, loads$PC2)), na.rm = TRUE)
 arrow_scale <- ifelse(is.finite(score_lim) && is.finite(load_lim) && load_lim > 0, 0.75 * score_lim / load_lim, 1)
@@ -107,8 +91,8 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
-ggsave(file.path(main_dir, "pca_biplot.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
-ggsave(file.path(main_pdf_dir, "pca_biplot.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
+ggsave(file.path(main_dir, "Fig3_ds_pca_annual.png"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE, dpi = 300)
+ggsave(file.path(main_pdf_dir, "Fig3_ds_pca_annual.pdf"), p_biplot, width = 8.5 * FIG_WIDTH_SCALE, height = 6.5 * FIG_HEIGHT_SCALE)
 
 p_scree <- vexp %>%
   mutate(PC = factor(PC, levels = PC)) %>%
@@ -129,4 +113,4 @@ p_scree <- vexp %>%
 ggsave(file.path(supp_dir, "pca_scree.png"), p_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE, dpi = 300)
 ggsave(file.path(supp_pdf_dir, "pca_scree.pdf"), p_scree, width = 7 * FIG_WIDTH_SCALE, height = 4.5 * FIG_HEIGHT_SCALE)
 
-# Catchment-characteristics and eco-model PCA companion plots removed by design.
+# catchment-characteristics and eco-model pca companion plots removed by design.

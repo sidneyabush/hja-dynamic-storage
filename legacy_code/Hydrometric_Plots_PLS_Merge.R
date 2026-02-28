@@ -1,7 +1,7 @@
-# Legacy analysis script retained for archival/reference use.
-# Inputs: base_dir/DS_drawdown_annual.csv; base_dir/storage_discharge_method_annual_vol_per_site_wateryear.csv; base_dir/HJA_StorageMetrics_Annual.csv; base_dir/drainage_area.csv; base_dir/HF00402_v14.csv.
-# Author: Legacy HJA storage team
-# Date: 2026-02-13
+# legacy analysis script retained for archival/reference use.
+# inputs: base_dir/ds_drawdown_annual.csv; base_dir/storage_discharge_method_annual_vol_per_site_wateryear.csv; base_dir/hja_storagemetrics_annual.csv; base_dir/drainage_area.csv; base_dir/hf00402_v14.csv.
+# author: legacy hja storage team
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -14,20 +14,20 @@ theme_set(theme_classic(base_size = 14))
 
 rm(list = ls())
 
-#base_dir   <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/03_Data"
-#output_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript/05_Outputs/Hydrometric"
+#base_dir   <- "/users/sidneybush/library/cloudstorage/box-box/05_storage_manuscript/03_data"
+#output_dir <- "/users/sidneybush/library/cloudstorage/box-box/05_storage_manuscript/05_outputs/hydrometric"
 
 base_dir   <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/03_Data"
 output_dir <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/05_Outputs/Hydrometric"
 
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 site_order <- c(
   "GSWS09","GSWS10","GSWS01","GSLOOK","GSWS02",
   "GSWS03","GSWSMC","GSWS06","GSWS07","GSWS08"
 )
 
-# Axis label mappings
+# axis label mappings
 axis_labels <- c(
   fdc_slope            = "Flow Duration Curve Slope",
   Q5norm               = "Normalized Q5",
@@ -45,13 +45,13 @@ DS_drawdown <- read_csv(
   show_col_types = FALSE
 )
 
-# SITECODE needs to be replaced with site and waterYear to year 
+# sitecode needs to be replaced with site and wateryear to year 
 DS_drawdown <- DS_drawdown %>%
   rename(
     site = SITECODE,
     year = waterYear
   )
-#Changing GSWSMA to GSWSMC is labeled as 
+#changing gswsma to gswsmc is labeled as 
 DS_drawdown$site[DS_drawdown$site == "GSWSMA"] <- "GSWSMC"
 
 DS_SQ <- read_csv(
@@ -63,14 +63,14 @@ DS_SQ <- DS_SQ %>%
   rename(
     year = wateryear
   )
-#Changing GSMACK to GSWSMC is labeled as 
+#changing gsmack to gswsmc is labeled as 
 DS_SQ$site[DS_SQ$site == "GSMACK"] <- "GSWSMC"
 DS_SQ$site[DS_SQ$site == "GSLOOK_FULL"] <- "GSLOOK"
 
 
 
 
-# Read in storage metrics 
+# read in storage metrics 
 storage <- read_csv(
   file.path(base_dir, "DynamicStorage", "HJA_StorageMetrics_Annual.csv"),
   show_col_types = FALSE
@@ -129,7 +129,7 @@ for (m in unique(storage_long$metric)) {
       .groups  = "drop"
     )
   
-  # ANOVA/ Tukey 
+  # anova/ tukey 
   aov_res <- aov(value ~ site, data = df)
   tuk      <- TukeyHSD(aov_res, "site")$site
   pvals    <- setNames(tuk[, "p adj"], rownames(tuk))
@@ -208,7 +208,7 @@ summary_sel <- storage_long %>%
 
 summary_sel$metric <- factor(summary_sel$metric, levels = c("fdc_slope", "Q5norm" ,"RBI", "recession_curve_slope", "S_annual_mm","DS_sum","mean_bf" ))
 
-# plot grid + letters + A–D labels
+# plot grid + letters + a–d labels
 p_grid <- ggplot(summary_sel, aes(x = site, y = mean_val, color = site)) +
   geom_point(size = 2) +
   geom_errorbar(aes(ymin = mean_val - sd_val, ymax = mean_val + sd_val),
@@ -239,13 +239,13 @@ ggsave(
   units    = "in", dpi = 300
 )
 
-# Create scatter plots of dQ/dT vs Q for supplement: 
+# create scatter plots of dq/dt vs q for supplement: 
 da_df <- read_csv(
   file.path(base_dir, "Q", "drainage_area.csv"),
   show_col_types = FALSE
 )
 
-# read in discharge, filter, compute Q in m3/s
+# read in discharge, filter, compute q in m3/s
 discharge <- read_csv(
   file.path(base_dir, "Q", "HF00402_v14.csv"),
   show_col_types = FALSE

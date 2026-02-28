@@ -1,8 +1,8 @@
-# Plot annual climate-variability diagnostics for unified framework.
-# Inputs: OUT_STATS_DIR/unified_framework/unified_framework_annual_anomalies.csv;
-#         OUT_STATS_DIR/unified_framework/unified_framework_site_sensitivity_slopes.csv.
-# Author: Sidney Bush
-# Date: 2026-02-21
+# plot annual climate-variability diagnostics for unified framework.
+# inputs: out_stats_dir/unified_framework/unified_framework_annual_anomalies.csv;
+#         out_stats_dir/unified_framework/unified_framework_site_sensitivity_slopes.csv.
+# author: sidney bush
+# date: 2026-02-21
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 find_write_root <- function() {
@@ -53,9 +53,7 @@ write_root <- find_write_root()
 main_fig_dir <- file.path(write_root, "figs", "main")
 main_pdf_dir <- file.path(main_fig_dir, "pdf")
 for (d in c(main_fig_dir, main_pdf_dir)) {
-  if (!dir.exists(d)) {
-    dir.create(d, recursive = TRUE, showWarnings = FALSE)
-  }
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 anom_file <- find_model_file(file.path("models", "unified_framework", "unified_framework_annual_anomalies.csv"))
@@ -85,7 +83,7 @@ pca_variance <- read_csv(pca_variance_file, show_col_types = FALSE)
 pc1_pct <- 100 * pca_variance$Variance_Explained[pca_variance$PC == "PC1"][1]
 pc2_pct <- 100 * pca_variance$Variance_Explained[pca_variance$PC == "PC2"][1]
 
-# Figure 1: annual dynamic-storage trajectories in PCA space.
+# figure 1: annual dynamic-storage trajectories in pca space.
 traj_base <- annual_anom %>%
   select(-any_of(c("dynamic_pc1", "dynamic_pc2"))) %>%
   left_join(main_pca_scores, by = c("site", "year")) %>%
@@ -224,7 +222,7 @@ make_traj_plot <- function(data_in, color_var, color_label, loadings_df = NULL) 
     )
 }
 
-# Main trajectory: color by winter-precipitation anomaly.
+# main trajectory: color by winter-precipitation anomaly.
 traj_main <- traj_base %>%
   filter(is.finite(P_NovJan_anom))
 p_traj_main <- make_traj_plot(
@@ -248,7 +246,7 @@ ggsave(
   height = 6.2 * FIG_HEIGHT_SCALE
 )
 
-# Supplementary trajectory: color by WB drawdown anomaly.
+# supplementary trajectory: color by wb drawdown anomaly.
 traj_supp <- traj_base %>%
   filter(is.finite(WB_drawdown_anom))
 p_traj_supp <- make_traj_plot(
@@ -272,7 +270,7 @@ ggsave(
   height = 6.2 * FIG_HEIGHT_SCALE
 )
 
-# Figure 2: site-level anomaly sensitivity slopes vs unified state index.
+# figure 2: site-level anomaly sensitivity slopes vs unified state index.
 slope_plot_base <- site_slopes %>%
   filter(response %in% c("Q_7Q5_anom", "T_Q7Q5_anom", "T_7DMax_anom")) %>%
   filter(is.finite(slope), is.finite(unified_state_index))
@@ -512,7 +510,7 @@ make_slope_plot_by_site <- function(data_in, predictor_name, predictor_display, 
     )
 }
 
-# Remove legacy combined slope figures (P + WB in same facets).
+# remove legacy combined slope figures (p + wb in same facets).
 unlink(file.path(main_fig_dir, c(
   "unified_framework_state_dependence_slopes.png",
   "unified_framework_state_dependence_slopes.pdf",
@@ -520,7 +518,7 @@ unlink(file.path(main_fig_dir, c(
   "unified_framework_state_dependence_slopes_supp_wb.pdf"
 )))
 
-# Supplementary split plots by predictor (site-colored points).
+# supplementary split plots by predictor (site-colored points).
 p_slope_supp_wb_site <- make_slope_plot_by_site(
   slope_plot_base,
   predictor_name = "WB_drawdown_anom",
@@ -561,7 +559,7 @@ ggsave(
   height = 4.8 * FIG_HEIGHT_SCALE
 )
 
-# Figure 3: site-mean ecological response vs unified structural state.
+# figure 3: site-mean ecological response vs unified structural state.
 eco_site_means <- annual_anom %>%
   group_by(site) %>%
   summarise(

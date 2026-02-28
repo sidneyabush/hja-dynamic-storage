@@ -1,35 +1,34 @@
-# Watershed Controls MLR Plots.
-# Inputs: output_dir/watershed_char_storage_mlr_results.csv; output_dir/watershed_char_storage_mlr_summary.csv.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# catchment controls mlr plots.
+# inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
 library(ggplot2)
-library(tidyr)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 
-output_dir <- OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR
+output_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
 ALPHA <- 0.05
-plot_dir <- file.path(FIGURES_DIR, "main")
-plot_pdf_dir <- file.path(plot_dir, "pdf")
-supp_plot_dir <- file.path(FIGURES_DIR, "supp")
-supp_plot_pdf_dir <- file.path(supp_plot_dir, "pdf")
-if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
-if (!dir.exists(plot_pdf_dir)) dir.create(plot_pdf_dir, recursive = TRUE)
-if (!dir.exists(supp_plot_dir)) dir.create(supp_plot_dir, recursive = TRUE)
-if (!dir.exists(supp_plot_pdf_dir)) dir.create(supp_plot_pdf_dir, recursive = TRUE)
+plot_dir <- MS_FIG_MAIN_DIR
+plot_pdf_dir <- MS_FIG_MAIN_PDF_DIR
+supp_plot_dir <- MS_FIG_SUPP_DIR
+supp_plot_pdf_dir <- MS_FIG_SUPP_PDF_DIR
+dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_pdf_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(supp_plot_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(supp_plot_pdf_dir, recursive = TRUE, showWarnings = FALSE)
 
-results_file <- file.path(output_dir, "watershed_char_storage_mlr_results.csv")
-summary_file <- file.path(output_dir, "watershed_char_storage_mlr_summary.csv")
+results_file <- file.path(output_dir, "catchment_char_storage_mlr_results.csv")
+summary_file <- file.path(output_dir, "catchment_char_storage_mlr_summary.csv")
 
-if (!file.exists(results_file)) stop("Missing file: watershed_char_storage_mlr_results.csv")
-if (!file.exists(summary_file)) stop("Missing file: watershed_char_storage_mlr_summary.csv")
+if (!file.exists(results_file)) stop("Missing file: catchment_char_storage_mlr_results.csv")
+if (!file.exists(summary_file)) stop("Missing file: catchment_char_storage_mlr_summary.csv")
 
 mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
@@ -135,110 +134,32 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
     midpoint = 0,
     limits = c(-3, 3),
     oob = scales::squish,
-    name = "Beta"
+    name = expression(italic(beta))
   ) +
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
     axis.text.x = element_text(angle = 0, hjust = 0.5),
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
     legend.position = "right",
     plot.margin = margin(FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT, FIG_LABEL_PLOT_MARGIN_PT)
   ) +
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
 ggsave(
-  file.path(plot_dir, "watershed_char_storage_mlr_beta.png"),
+  file.path(plot_dir, "Fig7_catch_char_mlr_beta.png"),
   p_beta,
-  width = 11 * FIG_WIDTH_SCALE,
-  height = 7 * FIG_HEIGHT_SCALE,
+  width = 10.2 * FIG_WIDTH_SCALE,
+  height = 6.8 * FIG_HEIGHT_SCALE,
   dpi = 300
 )
 
 ggsave(
-  file.path(plot_pdf_dir, "watershed_char_storage_mlr_beta.pdf"),
+  file.path(plot_pdf_dir, "Fig7_catch_char_mlr_beta.pdf"),
   p_beta,
-  width = 11 * FIG_WIDTH_SCALE,
-  height = 7 * FIG_HEIGHT_SCALE
+  width = 10.2 * FIG_WIDTH_SCALE,
+  height = 6.8 * FIG_HEIGHT_SCALE
 )
-
-# Companion diagnostics heatmap: p-values for residual checks.
-diagnostics_file <- file.path(output_dir, "watershed_char_storage_mlr_diagnostics.csv")
-if (file.exists(diagnostics_file)) {
-  outcome_levels <- outcome_order[outcome_order %in% gsub("_mean$", "", as.character(mlr_summary$Outcome))]
-
-  diag_df <- read_csv(diagnostics_file, show_col_types = FALSE) %>%
-    transmute(
-      Outcome = factor(
-        gsub("_mean$", "", as.character(Outcome)),
-        levels = outcome_levels
-      ),
-      shapiro_p = suppressWarnings(as.numeric(shapiro_p)),
-      ncv_p = suppressWarnings(as.numeric(ncv_p))
-    )
-
-  diag_long <- diag_df %>%
-    pivot_longer(
-      cols = c(shapiro_p, ncv_p),
-      names_to = "Diagnostic",
-      values_to = "p_value"
-    ) %>%
-    mutate(
-      Diagnostic = recode(
-        Diagnostic,
-        shapiro_p = "Normality (Shapiro p)",
-        ncv_p = "Homoscedasticity (NCV p)"
-      ),
-      p_label = case_when(
-        is.finite(p_value) ~ sprintf("%.3f", p_value),
-        TRUE ~ "-"
-      ),
-      fail = is.finite(p_value) & (p_value <= 0.05)
-    )
-
-  p_diag <- ggplot(diag_long, aes(x = Outcome, y = Diagnostic, fill = p_value)) +
-    geom_tile(color = "white", linewidth = 0.35) +
-    geom_text(aes(label = p_label), size = FIG_TILE_TEXT_SIZE) +
-    geom_point(
-      data = diag_long %>% filter(fail),
-      aes(x = Outcome, y = Diagnostic),
-      inherit.aes = FALSE,
-      shape = 4,
-      size = 2.0,
-      stroke = 0.75,
-      color = "black"
-    ) +
-    scale_fill_gradientn(
-      colors = c("firebrick4", "goldenrod2", "seagreen4"),
-      values = scales::rescale(c(0, 0.05, 1)),
-      limits = c(0, 1),
-      oob = scales::squish,
-      na.value = "grey90",
-      name = "p-value"
-    ) +
-    labs(
-      x = "Response",
-      y = "Diagnostic"
-    ) +
-    theme_pub() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
-      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE)
-    )
-
-  ggsave(
-    file.path(supp_plot_dir, "watershed_char_storage_mlr_diagnostics.png"),
-    p_diag,
-    width = 11 * FIG_WIDTH_SCALE,
-    height = 4.5 * FIG_HEIGHT_SCALE,
-    dpi = 300
-  )
-  ggsave(
-    file.path(supp_plot_pdf_dir, "watershed_char_storage_mlr_diagnostics.pdf"),
-    p_diag,
-    width = 11 * FIG_WIDTH_SCALE,
-    height = 4.5 * FIG_HEIGHT_SCALE
-  )
-}

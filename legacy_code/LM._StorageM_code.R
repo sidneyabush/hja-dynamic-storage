@@ -1,7 +1,7 @@
-# 2 EMMA baseflow correlation with peak swe.
-# Inputs: output_dir/HJA_Ave_StorageMetrics_CatCharacter.csv.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# 2 emma baseflow correlation with peak swe.
+# inputs: output_dir/hja_ave_storagemetrics_catcharacter.csv.
+# author: sidney bush
+# date: 2026-02-13
 
 require(ggpmisc)
 require(EflowStats)
@@ -14,7 +14,7 @@ require(QuantPsyc)
 require(plot.matrix)
 require(tibble)
 require(raster)
-#install.packages("QuantPsyc")
+#install.packages("quantpsyc")
 
 #define wds
 base_dir   <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/03_Data"
@@ -22,9 +22,9 @@ base_dir   <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Sto
 output_dir <-"/Users/pamelasullivan/Box Sync/2024_NSF-Wildfire_WaterCycle/05_Storage_Manuscript/05_Outputs/Hydrometric"
 
 
-#BF_files<-c("CoalCreekBaseflow.csv", "HJABaseflow.csv", "SagehenBaseflow.csv")
+#bf_files<-c("coalcreekbaseflow.csv", "hjabaseflow.csv", "sagehenbaseflow.csv")
 
-#Loadfiles 
+#loadfiles 
 HJA_Ave<-read_csv(
   file.path(output_dir, "HJA_Ave_StorageMetrics_CatCharacter.csv"),
   show_col_types = FALSE
@@ -37,11 +37,11 @@ outcome_vars <- c(
   "mean_bf_mean", "fdc_slope_mean", "S_annual_mm_mean", "DR_Overall", "JST_AT_mean"
 )
 
-# Create a named list of data frames
+# create a named list of data frames
 
-#"Slope_mean",  "Harvest", "Landslide_Young",  "Landslide_Total", "Lava1_per", "Lava2_per","Ash_Per","Pyro_per"
+#"slope_mean",  "harvest", "landslide_young",  "landslide_total", "lava1_per", "lava2_per","ash_per","pyro_per"
 
-# Loop through each metric and create a separate data frame
+# loop through each metric and create a separate data frame
 for (col in metric_columns) {
   df <- HJA_Ave[, c(col,"Slope_mean",  "Harvest", "Landslide_Young",  "Landslide_Total", "Lava1_per", "Lava2_per","Ash_Per","Pyro_per")]
   names(df)[1] <- col  # Ensure the second column retains its original name
@@ -60,18 +60,18 @@ r2_df_list<-list()
   #cycle through outcome variables
   for (k in 1:length(site_data)) {
     
-    #create model forumla for AIC
+    #create model forumla for aic
     lm_mod_vars<-formula(paste(outcome_vars[k], "~."))
     
     #put into model
     lm_mod<-lm(lm_mod_vars, na.omit(site_data[[k]]))
     
-    #lm_ols<-stepAIC(lm_mod, direction = "backward")
+    #lm_ols<-stepaic(lm_mod, direction = "backward")
     
-    #run stepwise AIC
+    #run stepwise aic
     lm_AIC<-stepAIC(lm_mod, direction = "backward")
     
-    #extract AIC coefficients
+    #extract aic coefficients
     AIC_coef<-as.data.frame(lm_AIC$coefficients)
     
     #turn the rows to columns
@@ -80,13 +80,13 @@ r2_df_list<-list()
     #remove the intercept
     remove_int<-c("(Intercept)")
     
-    #remove intercept column, cannot be inclded to check VIF
+    #remove intercept column, cannot be inclded to check vif
     AIC_coef<-AIC_coef[!AIC_coef$rowname %in% "(Intercept)",]
     
-    #AIC_coef$lm_input<-ifelse(AIC_coef$rowname=="(Intercept)", paste0(AIC_coef$`lm_AIC$coefficients`),
-                              #paste0(AIC_coef$rowname, "*", AIC_coef$`lm_AIC$coefficients`))
+    #aic_coef$lm_input<-ifelse(aic_coef$rowname=="(intercept)", paste0(aic_coef$`lm_aic$coefficients`),
+                              #paste0(aic_coef$rowname, "*", aic_coef$`lm_aic$coefficients`))
     
-    #create new model imput from rownames of retained variables from AIC
+    #create new model imput from rownames of retained variables from aic
     new_lm_input<-paste(AIC_coef$rowname, collapse = "+")
     
     #create new model input
@@ -101,10 +101,10 @@ r2_df_list<-list()
     #get coefficients (mostly just interested in p value here)
     coefs<-as.data.frame(lm_sum$coefficients)
     
-    #get VIF of retained variables
+    #get vif of retained variables
     vif_df<-if(length(AIC_coef$rowname) > 1){
       
-      #get VIF of retained variables
+      #get vif of retained variables
       as.data.frame(vif(lm_post_AIC))
       
     }else{
@@ -120,7 +120,7 @@ r2_df_list<-list()
     beta_df<-rownames_to_column(beta_df)
     names(beta_df)[1]<-"Row.names"
     
-    #append coefficients and VIF together
+    #append coefficients and vif together
     df_master<-merge(coefs, vif_df, by="row.names", all.x = TRUE)
     
     df_master<-merge(df_master, beta_df, by="Row.names", all.x = TRUE)
@@ -128,7 +128,7 @@ r2_df_list<-list()
     #turn rownames column back into rownames
     df_master<-df_master %>% remove_rownames %>% column_to_rownames(var="Row.names")
     
-    #extract p value and VIF columns
+    #extract p value and vif columns
     df_master<-df_master[,c("Pr(>|t|)", "vif(lm_post_AIC)", "lm.beta(lm_post_AIC)")]
     
     #rename columns based on site and outcome variable
@@ -153,33 +153,33 @@ r2_df_list<-list()
   
 
 
-# Initialize an empty data frame to store results
+# initialize an empty data frame to store results
 final_df <- data.frame(Prefix = character(), Variable = character(), Beta = numeric(), pvalue = numeric(), stringsAsFactors = FALSE)
 
-# Loop through each dataframe in the list
+# loop through each dataframe in the list
 for (df in coef_df_list) {
-  # Find columns that end with "_VIF"
+  # find columns that end with "_vif"
   vif_cols <- grep("_VIF$", names(df), value = TRUE)
   
   for (vif_col in vif_cols) {
-    # Extract the prefix before "_VIF"
+    # extract the prefix before "_vif"
     prefix <- sub("_VIF$", "", vif_col)
     
-    # Construct corresponding beta and pvalue column names
+    # construct corresponding beta and pvalue column names
     beta_col <- paste0(prefix, "_beta")
     pval_col <- paste0(prefix, "_pvalue")
     
-    # Check if beta and pvalue columns exist
+    # check if beta and pvalue columns exist
     if (beta_col %in% names(df) && pval_col %in% names(df)) {
-      # Filter rows where VIF value is 10 or less
+      # filter rows where vif value is 10 or less
       valid_indices <- which(df[[vif_col]] <= 10)
       
-      # Extract row names and corresponding beta and pvalue values
+      # extract row names and corresponding beta and pvalue values
       valid_rows <- rownames(df)[valid_indices]
       beta_vals <- df[[beta_col]][valid_indices]
       pval_vals <- df[[pval_col]][valid_indices]
       
-      # Create a temporary data frame
+      # create a temporary data frame
       temp_df <- data.frame(
         Prefix = prefix,
         Variable = valid_rows,
@@ -188,14 +188,14 @@ for (df in coef_df_list) {
         stringsAsFactors = FALSE
       )
       
-      # Append to the final data frame
+      # append to the final data frame
       final_df <- rbind(final_df, temp_df)
     }
   }
 }
 
-### This is creating a matrix of the Beta value so that we can create a plot from them. 
-# Define row and column names
+### this is creating a matrix of the beta value so that we can create a plot from them. 
+# define row and column names
 row_names <- c("Ash_Per", "Harvest", "Landslide_Total", "Landslide_Young", 
                "Lava1_per", "Lava2_per", "Slope_mean")
 
@@ -203,116 +203,116 @@ col_names <- c("recession_curve_slope_mean", "RBI_mean", "Q5norm_mean",
                "CV_Q5norm_mean", "mean_bf_mean", "fdc_slope_mean", 
                "S_annual_mm_mean", "DR_Overall", "JST_AT_mean")
 
-# Initialize an empty matrix
+# initialize an empty matrix
 beta_matrix <- matrix(NA, nrow = length(row_names), ncol = length(col_names),
                       dimnames = list(row_names, col_names))
 
-# Fill the matrix using df_final
+# fill the matrix using df_final
 for (i in seq_along(row_names)) {
   for (j in seq_along(col_names)) {
-    # Filter df_final for matching Variable and Prefix
+    # filter df_final for matching variable and prefix
     match_row <- final_df[final_df$Variable == row_names[i] & final_df$Prefix == col_names[j], ]
     
-    # If a match is found, assign the Beta value to the matrix
+    # if a match is found, assign the beta value to the matrix
     if (nrow(match_row) == 1) {
       beta_matrix[row_names[i], col_names[j]] <- match_row$Beta
     }
   }
 }
 
-# View the matrix
+# view the matrix
 
 
-#### At this point we are only using the variables that had a VIF less than 10 to re-run the models 
+#### at this point we are only using the variables that had a vif less than 10 to re-run the models 
 
 
-# Open lists for coefficient and r2 values to be appended into
+# open lists for coefficient and r2 values to be appended into
 coef_df_list <- list()
 r2_df_list <- list()
 
-# Cycle through outcome variables to come to a final model
+# cycle through outcome variables to come to a final model
 for (k in 1:length(site_data)) {
   
-  # Get the current prefix (outcome variable name)
+  # get the current prefix (outcome variable name)
   current_prefix <- outcome_vars[k]
   
-  # Filter final_df to get variables associated with this prefix
+  # filter final_df to get variables associated with this prefix
   relevant_vars <- final_df$Variable[final_df$Prefix == current_prefix]
   
-  # Subset site_data[[k]] to include only relevant variables
+  # subset site_data[[k]] to include only relevant variables
   site_subset <- site_data[[k]][, relevant_vars, drop = FALSE]
   
-  # Add the outcome variable (Prefix) column to site_subset
+  # add the outcome variable (prefix) column to site_subset
   site_subset[[current_prefix]] <- site_data[[k]][[current_prefix]]
   
-  # Create model formula
+  # create model formula
   lm_mod_vars <- formula(paste(current_prefix, "~", paste(relevant_vars, collapse = "+")))
   
-  # Fit model with NA removed
+  # fit model with na removed
   lm_mod <- lm(lm_mod_vars, data = na.omit(site_subset))
   lm_sum <- summary(lm_mod)
   
-  # Extract coefficients
+  # extract coefficients
   coefs <- as.data.frame(lm_sum$coefficients)
   
-  # Get beta coefficients
+  # get beta coefficients
   beta_df <- as.data.frame(lm.beta(lm_mod))
   beta_df <- rownames_to_column(beta_df)
   names(beta_df)[1] <- "Row.names"
   
   
-  # Merge results
+  # merge results
   df_master <- merge(coefs, beta_df, by.x = "row.names", by.y = "Row.names", all.x = TRUE)
   
-  # Rename the merged row name column to a consistent name
+  # rename the merged row name column to a consistent name
   names(df_master)[1] <- "Variable"
   
-  # Set row names and clean up
+  # set row names and clean up
   df_master <- df_master %>% column_to_rownames(var = "Variable")
   df_master <- df_master[, c("Pr(>|t|)", "lm.beta(lm_mod)")]
   
-  # Rename columns
+  # rename columns
   colnames(df_master) <- c(paste0(current_prefix, "_pvalue"),
                            paste0(current_prefix, "_beta"))
   
   
-  # Get R² and adjusted R²
+  # get r² and adjusted r²
   r2 <- lm_sum$r.squared
   adj_r2 <- lm_sum$adj.r.squared
   r2_tot <- rbind(r2, adj_r2)
   colnames(r2_tot) <- paste0(current_prefix)
   
-  # Append results
+  # append results
   coef_df_list[[k]] <- df_master
   r2_df_list[[k]] <- r2_tot
 }
 
 
-#### Puts results back into a dataframe
+#### puts results back into a dataframe
 
 
-# Initialize an empty data frame to store results
+# initialize an empty data frame to store results
 final_df <- data.frame(Prefix = character(), Variable = character(), Beta = numeric(), pvalue = numeric(), stringsAsFactors = FALSE)
 
-# Loop through each dataframe in the list of coefficents an put it into a daframe, at this point we have only kept vairables with a VIF that was less than = 10. 
+# loop through each dataframe in the list of coefficents an put it into a daframe, at this point we have only kept vairables with a vif that was less than = 10. 
 for (df in coef_df_list) {
-  # Identify beta and pvalue columns
+  # identify beta and pvalue columns
   beta_cols <- grep("_beta$", names(df), value = TRUE)
   pval_cols <- grep("_pvalue$", names(df), value = TRUE)
   
-  # Loop through each prefix found in beta columns
+  # loop through each prefix found in beta columns
   for (beta_col in beta_cols) {
     prefix <- sub("_beta$", "", beta_col)
     pval_col <- paste0(prefix, "_pvalue")
     
-    # Check if corresponding pvalue column exists
+    # check if corresponding pvalue column exists
     if (pval_col %in% names(df)) {
-      # Extract row names and corresponding beta and pvalue values
+      # extract row names and corresponding beta and pvalue values
       variables <- rownames(df)
       beta_vals <- df[[beta_col]]
       pval_vals <- df[[pval_col]]
       
-      # Create a temporary data frame
+      # create a temporary data frame
       temp_df <- data.frame(
         Prefix = prefix,
         Variable = variables,
@@ -321,19 +321,19 @@ for (df in coef_df_list) {
         stringsAsFactors = FALSE
       )
       
-      # Append to the final data frame
+      # append to the final data frame
       final_df <- rbind(final_df, temp_df)
     }
   }
 }
 
-#Removing intercept 
+#removing intercept 
 final_df <- final_df[final_df$Variable != "(Intercept)", ]
 
 
 
-### This is creating a matrix of the Beta value so that we can create a plot from them. 
-# Define row and column names
+### this is creating a matrix of the beta value so that we can create a plot from them. 
+# define row and column names
 row_names <- c("Ash_Per", "Harvest", "Landslide_Total", "Landslide_Young", 
                "Lava1_per", "Lava2_per", "Slope_mean")
 
@@ -341,30 +341,30 @@ col_names <- c("recession_curve_slope_mean", "RBI_mean", "Q5norm_mean",
                "CV_Q5norm_mean", "mean_bf_mean", "fdc_slope_mean", 
                "S_annual_mm_mean", "DR_Overall", "JST_AT_mean")
 
-# Initialize an empty matrix
+# initialize an empty matrix
 beta_matrix <- matrix(NA, nrow = length(row_names), ncol = length(col_names),
                       dimnames = list(row_names, col_names))
 
-# Fill the matrix using df_final
+# fill the matrix using df_final
 for (i in seq_along(row_names)) {
   for (j in seq_along(col_names)) {
-    # Filter df_final for matching Variable and Prefix
+    # filter df_final for matching variable and prefix
     match_row <- final_df[final_df$Variable == row_names[i] & final_df$Prefix == col_names[j], ]
     
-    # If a match is found, assign the Beta value to the matrix
+    # if a match is found, assign the beta value to the matrix
     if (nrow(match_row) == 1) {
       beta_matrix[row_names[i], col_names[j]] <- match_row$Beta
     }
   }
 }
 
-# View the matrix
+# view the matrix
 #plot
 
 values<-seq(-3,2,0.1)
 ii <- cut(values, breaks = seq(min(values), max(values), len = 45), 
           include.lowest = TRUE)
-## Use bin indices, ii, to select color from vector of n-1 equally spaced colors
+## use bin indices, ii, to select color from vector of n-1 equally spaced colors
 colors <- colorRampPalette(c("firebrick4", "indianred","white", "skyblue2", "dodgerblue4"))(44)[ii]
 
 nHalf = ((3+2)*100)/2
@@ -372,13 +372,13 @@ Min = -3
 Max = 2
 Thresh = 0
 
-## Make vector of colors for values below threshold
+## make vector of colors for values below threshold
 rc1 = colorRampPalette(colors = c("firebrick4", "indianred", "white"), space="Lab")(nHalf)    
-## Make vector of colors for values above threshold
+## make vector of colors for values above threshold
 rc2 = colorRampPalette(colors = c("white","skyblue2", "dodgerblue3"), space="Lab")(nHalf)
 rampcols = c(rc1, rc2)
 
-## In your example, this line sets the color for values between 49 and 51. 
+## in your example, this line sets the color for values between 49 and 51. 
 rampcols[c(nHalf)] = rgb(t(col2rgb("white")), maxColorValue=256) 
 
 rb1 = seq(Min, Thresh, length.out=nHalf)
@@ -394,7 +394,7 @@ pdf("Beta_Weight_Plot_HJA2.pdf", width = 9, height = 7,family = "Times")
 #increase margin
 par(mar=c(11,10,3,6)+.1)
 
-# Remove "_mean" from column names
+# remove "_mean" from column names
 colnames(beta_matrix) <- sub("_mean$", "", colnames(beta_matrix))
 
 adj_r2_values <- sapply(r2_df_list, function(df) round(df[2, 1], 2))

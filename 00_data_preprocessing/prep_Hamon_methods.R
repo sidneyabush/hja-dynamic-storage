@@ -1,7 +1,6 @@
-#!/usr/bin/env Rscript
-# Calibrate Hamon ET to PT ET methods and produce daily water-balance ET inputs.
-# Inputs: OUT_MET_SUPPORT_DIR/PT_ET_methods_timeseries.csv
-# Outputs: OUT_MET_SUPPORT_DIR/daily_water_balance_et_hamon_zhang_coeff_interp.csv
+# calibrate hamon et to pt et methods and produce daily water-balance et inputs.
+# inputs: out_met_support_dir/pt_et_methods_timeseries.csv
+# outputs: out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
 
 library(readr)
 library(dplyr)
@@ -12,12 +11,12 @@ library(zoo)
 
 source("config.R")
 
-# --- Directories ---
+# --- directories ---
 input_dir <- OUT_MET_SUPPORT_DIR
 output_dir <- OUT_MET_SUPPORT_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# --- 1. Load PT ET timeseries and compute uncalibrated Hamon ---
+# --- 1. load pt et timeseries and compute uncalibrated hamon ---
 pt_file <- file.path(input_dir, "PT_ET_methods_timeseries.csv")
 if (!file.exists(pt_file)) {
   stop("Missing required PT ET timeseries file: ", pt_file)
@@ -50,7 +49,7 @@ data <- pt %>%
 calibration_start <- as.Date("2013-01-01")
 calibration_end <- as.Date(sprintf("%d-09-30", WY_END))
 
-# --- 2. Derive monthly median coefficients (target: 2013 through WY_END) ---
+# --- 2. derive monthly median coefficients (target: 2013 through wy_end) ---
 cal_window_raw <- data %>%
   filter(DATE >= calibration_start, DATE <= calibration_end)
 
@@ -95,14 +94,14 @@ monthly_coef_szilagyi <- cal_window_raw %>%
   summarise(coef_szilagyi_month = median(ET_PT_szilagyi / ET_Hamon_uncalibrated),
             .groups="drop")
 
-# --- 3. Fallback: site‐mean & global median coefficients ---
+# --- 3. fallback: site‐mean & global median coefficients ---
 site_mean_zhang    <- monthly_coef_zhang    %>% group_by(SITECODE) %>% summarise(coef_zhang_site    = mean(coef_zhang_month),    .groups="drop")
 site_mean_szilagyi <- monthly_coef_szilagyi %>% group_by(SITECODE) %>% summarise(coef_szilagyi_site = mean(coef_szilagyi_month), .groups="drop")
 
 global_coef_zhang    <- mean(monthly_coef_zhang$coef_zhang_month,    na.rm=TRUE)
 global_coef_szilagyi <- mean(monthly_coef_szilagyi$coef_szilagyi_month, na.rm=TRUE)
 
-# --- 4. Merge in coefficients & compute monthly‐calibrated Hamon ---
+# --- 4. merge in coefficients & compute monthly‐calibrated hamon ---
 data <- data %>%
   left_join(monthly_coef_zhang,    by = c("SITECODE","MONTH")) %>%
   left_join(site_mean_zhang,       by = "SITECODE") %>%
@@ -119,11 +118,11 @@ data <- data %>%
                                           pmax(0, ET_Hamon_uncalibrated * coef_szilagyi_final))
   )
 
-# --- 5. Re‐define calibration window on the _new_ columns ---
+# --- 5. re‐define calibration window on the _new_ columns ---
 cal_window <- data %>%
   filter(DATE >= calibration_start, DATE <= calibration_end)
 
-# --- 6. Fit per‐site regressions (require ≥10 pts) ---
+# --- 6. fit per‐site regressions (require ≥10 pts) ---
 reg_sites_zhang    <- cal_window %>%
   filter(!is.na(ET_PT_zhang), !is.na(ET_Hamon_pt_zhang_monthly)) %>%
   pull(SITECODE) %>% unique()
@@ -142,7 +141,7 @@ regressions_szilagyi <- map(reg_sites_szilagyi, function(site) {
   if(nrow(df) >= 10) lm(ET_Hamon_pt_szilagyi_monthly ~ ET_PT_szilagyi, data = df) else NULL
 }) %>% set_names(reg_sites_szilagyi)
 
-# --- 7. Predict via regression where monthly‐calibrated is NA but PT exists ---
+# --- 7. predict via regression where monthly‐calibrated is na but pt exists ---
 pred_zhang <- map_dfr(reg_sites_zhang, function(site) {
   m <- regressions_zhang[[site]]
   df <- data %>%
@@ -175,7 +174,7 @@ data <- data %>%
   left_join(pred_zhang,    by = c("SITECODE","DATE")) %>%
   left_join(pred_szilagyi, by = c("SITECODE","DATE"))
 
-# --- 8. Create initial interpolated‐by‐coefficient‐and‐regression series ---
+# --- 8. create initial interpolated‐by‐coefficient‐and‐regression series ---
 data <- data %>%
   mutate(
     ET_Hamon_pt_zhang_interpolated   = coalesce(ET_Hamon_pt_zhang_monthly,
@@ -184,7 +183,7 @@ data <- data %>%
                                                  ET_Hamon_pt_szilagyi_pred)
   )
 
-# --- 9. Fill any remaining NA by time‐series interpolation within each site ---
+# --- 9. fill any remaining na by time‐series interpolation within each site ---
 data <- data %>%
   arrange(SITECODE, DATE) %>%
   group_by(SITECODE) %>%
@@ -195,13 +194,13 @@ data <- data %>%
     ET_Hamon_pt_szilagyi_interp_full = na.approx(ET_Hamon_pt_szilagyi_interpolated,
                                                  x = DATE, na.rm = FALSE),
     
-    # 9b) carry‐forward to fill any remaining leading NAs
+    # 9b) carry‐forward to fill any remaining leading nas
     ET_Hamon_pt_zhang_interp_full   = na.locf(ET_Hamon_pt_zhang_interp_full,
                                               na.rm = FALSE),
     ET_Hamon_pt_szilagyi_interp_full = na.locf(ET_Hamon_pt_szilagyi_interp_full,
                                                na.rm = FALSE),
     
-    # 9c) carry‐backward to fill any remaining trailing NAs
+    # 9c) carry‐backward to fill any remaining trailing nas
     ET_Hamon_pt_zhang_interp_full   = na.locf(ET_Hamon_pt_zhang_interp_full,
                                               fromLast = TRUE),
     ET_Hamon_pt_szilagyi_interp_full = na.locf(ET_Hamon_pt_szilagyi_interp_full,
@@ -209,7 +208,7 @@ data <- data %>%
   ) %>%
   ungroup()
 
-# --- 10. Drop all the temporary coefficient & prediction columns ---
+# --- 10. drop all the temporary coefficient & prediction columns ---
 data <- data %>%
   select(-contains("coef"),
          -contains("alpha"),
@@ -218,13 +217,13 @@ data <- data %>%
          -MONTH
          )
 
-# --- 11. Export full methods table (for diagnostics) ---
+# --- 11. export full methods table (for diagnostics) ---
 write_csv(
   data,
   file.path(output_dir, "daily_MET_water_balance_all_ET_methods_1997_present.csv")
 )
 
-# --- 12. Export water-balance subset with all ET methods ---
+# --- 12. export water-balance subset with all et methods ---
 wb_data <- data %>%
   select(-any_of(c("RH_d_pct", "NR_Wm2_d", "VPD_kPa")))
 
@@ -233,7 +232,7 @@ write_csv(
   file.path(output_dir, "daily_water_balance_all_ET_methods_1997_present.csv")
 )
 
-# --- 13. Export canonical ET series used by WB dynamic storage ---
+# --- 13. export default et series used by wb dynamic storage ---
 wb_data_final_et <- data %>%
   select(
     -any_of(c("RH_d_pct", "NR_Wm2_d", "VPD_kPa")),
@@ -247,10 +246,4 @@ wb_data_final_et <- data %>%
 write_csv(
   wb_data_final_et,
   file.path(output_dir, "daily_water_balance_et_hamon_zhang_coeff_interp.csv")
-)
-
-# Backward-compatible filename used by legacy scripts.
-write_csv(
-  wb_data_final_et,
-  file.path(output_dir, "daily_water_balance_ET_Hamon-Zhang_coeff_interp.csv")
 )

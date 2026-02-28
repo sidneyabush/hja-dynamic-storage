@@ -1,7 +1,7 @@
-# Fit stepwise-AIC linear models for annual eco response metrics,.
-# Inputs: No direct CSV file reads in this script.
-# Author: Sidney Bush
-# Date: 2026-02-13
+# fit stepwise-aic linear models for annual eco response metrics,.
+# inputs: no direct csv file reads in this script.
+# author: sidney bush
+# date: 2026-02-13
 
 library(dplyr)
 library(readr)
@@ -11,11 +11,11 @@ library(tidyr)
 
 rm(list = ls())
 
-# Load project config
+# load project config
 source("config.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 file_prefix <- "storage_ecovar_mlr"
 
 MODEL_MIN_N <- 20
@@ -58,20 +58,6 @@ if (!("Q_7Q5" %in% names(merged_data)) && ("min_Q_7d_mm_d" %in% names(merged_dat
     mutate(Q_7Q5 = min_Q_7d_mm_d)
 }
 
-if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_during_q5_7d_C" %in% names(merged_data))) {
-  merged_data <- merged_data %>%
-    mutate(T_Q7Q5 = temp_during_q5_7d_C)
-}
-if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_during_min_Q_7d_C" %in% names(merged_data))) {
-  merged_data <- merged_data %>%
-    mutate(T_Q7Q5 = temp_during_min_Q_7d_C)
-}
-
-if (!("T_Q7Q5" %in% names(merged_data)) && ("temp_at_min_Q_7d_C" %in% names(merged_data))) {
-  merged_data <- merged_data %>%
-    mutate(T_Q7Q5 = temp_at_min_Q_7d_C)
-}
-
 if (!("P_WetSeason" %in% names(merged_data))) {
   merged_data$P_WetSeason <- NA_real_
 }
@@ -85,7 +71,7 @@ if ("precip_nov_jan_mm" %in% names(merged_data)) {
   merged_data$P_WetSeason <- dplyr::coalesce(merged_data$P_WetSeason, merged_data$precip_nov_jan_mm)
 }
 
-response_vars_required <- c("T_7DMax", "Q_7Q5", "T_Q7Q5")
+response_vars_required <- c("T_7DMax", "Q_7Q5")
 missing_response_vars <- setdiff(response_vars_required, names(merged_data))
 if (length(missing_response_vars) > 0) {
   stop(
@@ -118,20 +104,20 @@ if (length(eco_predictors_all) == 0) {
   stop("No eco predictors found in master annual dataset")
 }
 
-# Guardrail: eco models must not include static watershed-characteristic predictors.
-disallowed_watershed_predictors <- c(
+# guardrail: eco models must not include static catchment-characteristic predictors.
+disallowed_catchment_predictors <- c(
   "basin_slope", "Harvest",
   "Landslide_Total", "Landslide_Young",
   "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
 )
-if (any(disallowed_watershed_predictors %in% eco_predictors_all)) {
+if (any(disallowed_catchment_predictors %in% eco_predictors_all)) {
   stop(
-    "Eco predictor set contains watershed-characteristic predictors; ",
+    "Eco predictor set contains catchment-characteristic predictors; ",
     "remove them from eco MLR."
   )
 }
 
-# Eco models use only annual storage metrics plus wet-season precipitation.
+# eco models use only annual storage metrics plus wet-season precipitation.
 candidate_predictor_sets <- list(eco_predictors_all)
 
 calc_loocv_stats <- function(model_obj, model_formula, df) {
@@ -175,7 +161,7 @@ calc_loocv_stats <- function(model_obj, model_formula, df) {
   if (!is.finite(rmse_loocv)) {
     rmse_loocv <- sqrt(mean(errs^2, na.rm = TRUE))
   }
-  # Each LOOCV test run has one held-out observation; RMSE per run is |error|.
+  # each loocv test run has one held-out observation; rmse per run is |error|.
   rmse_loocv_mean_runs <- mean(abs(errs), na.rm = TRUE)
   sst <- sum((obs[valid] - mean(obs[valid], na.rm = TRUE))^2, na.rm = TRUE)
   sse <- sum(errs^2, na.rm = TRUE)
@@ -247,7 +233,7 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     return(NULL)
   }
 
-  # Keep only predictors with enough overlap with the response and real variation.
+  # keep only predictors with enough overlap with the response and real variation.
   pred_stats <- lapply(predictors_use, function(p) {
     x <- site_df[[p]]
     y <- site_df[[response]]
@@ -264,8 +250,8 @@ fit_one_model <- function(df_in, site_id, response, predictors,
     return(NULL)
   }
 
-  # Build the site-level modeling table using only rows with complete data.
-  # If we do not have enough years, drop the sparsest predictor and try again.
+  # build the site-level modeling table using only rows with complete data.
+  # if we do not have enough years, drop the sparsest predictor and try again.
   build_model_df <- function(preds) {
     keep_cols <- unique(c("site", "year", response, preds))
     keep_cols <- keep_cols[keep_cols %in% names(site_df)]
@@ -306,8 +292,8 @@ fit_one_model <- function(df_in, site_id, response, predictors,
   }
   fallback_full_model <- FALSE
   if (length(setdiff(names(coef(lm_aic)), "(Intercept)")) == 0) {
-    # If stepwise AIC drops everything, keep the screened full model instead.
-    # This avoids returning a blank model when data are otherwise usable.
+    # if stepwise aic drops everything, keep the screened full model instead.
+    # this avoids returning a blank model when data are otherwise usable.
     lm_aic <- lm_full
     fallback_full_model <- TRUE
   }
@@ -487,11 +473,25 @@ fit_one_model <- function(df_in, site_id, response, predictors,
       delta_RMSE_LOOCV_mean_runs_minus_model = RMSE_LOOCV_MEAN_RUNS - RMSE
     )
 
+  fitted_vals <- tryCatch(
+    as.numeric(predict(lm_aic, newdata = model_df)),
+    error = function(e) rep(NA_real_, nrow(model_df))
+  )
+  pred_obs_out <- tibble(
+    Site = site_id,
+    Response = response,
+    year = if ("year" %in% names(model_df)) model_df$year else NA_real_,
+    Observed = model_df[[response]],
+    Predicted = fitted_vals,
+    Residual = model_df[[response]] - fitted_vals
+  )
+
   list(
     model = lm_aic,
     data = model_df,
     coef = coef_out,
-    summary = summary_out
+    summary = summary_out,
+    pred_obs = pred_obs_out
   )
 }
 
@@ -547,6 +547,7 @@ run_strict_method <- function() {
   model_selection <- list()
   model_coverage <- list()
   model_diagnostics <- list()
+  model_pred_obs <- list()
 
   site_order_for_model <- SITE_ORDER_HYDROMETRIC[SITE_ORDER_HYDROMETRIC %in% unique(merged_data$site)]
 
@@ -605,6 +606,7 @@ run_strict_method <- function() {
 
       model_results[[paste(site_id, response, sep = "_")]] <- best_fit$coef
       model_summary[[paste(site_id, response, sep = "_")]] <- best_fit$summary
+      model_pred_obs[[paste(site_id, response, sep = "_")]] <- best_fit$pred_obs
       model_diagnostics[[paste(site_id, response, sep = "_")]] <- compute_residual_diagnostics(best_fit$model, best_fit$data) %>%
         mutate(
           Site = site_id,
@@ -637,7 +639,19 @@ run_strict_method <- function() {
     summary = bind_rows(model_summary),
     selection = bind_rows(model_selection),
     coverage = bind_rows(model_coverage),
-    diagnostics = bind_rows(model_diagnostics)
+    diagnostics = bind_rows(model_diagnostics),
+    predictions = if (length(model_pred_obs) > 0) {
+      bind_rows(model_pred_obs)
+    } else {
+      tibble(
+        Site = character(),
+        Response = character(),
+        year = numeric(),
+        Observed = numeric(),
+        Predicted = numeric(),
+        Residual = numeric()
+      )
+    }
   )
 }
 
@@ -685,6 +699,8 @@ diagnostics_combined <- model_run$diagnostics %>%
     by = c("Site", "Response")
   ) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars))
+pred_obs_combined <- model_run$predictions %>%
+  arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), year)
 aicc_lt2 <- selection_combined %>%
   filter(is.finite(delta_AICc), delta_AICc <= 2) %>%
   arrange(match(Site, SITE_ORDER_HYDROMETRIC), match(Response, response_vars), delta_AICc, AICc, Candidate_Set)
@@ -734,6 +750,9 @@ diagnostics_export <- diagnostics_combined %>%
     Predictors_Final = format_export_predictor_text(Predictors_Final)
   ) %>%
   round_export_cols(c("shapiro_W", "shapiro_p", "ncv_chisq", "ncv_p"))
+pred_obs_export <- pred_obs_combined %>%
+  mutate(Response = format_export_response(Response)) %>%
+  round_export_cols(c("Observed", "Predicted", "Residual"), digits = 4)
 
 aicc_lt2_export <- aicc_lt2 %>%
   mutate(
@@ -776,6 +795,11 @@ write.csv(
   row.names = FALSE
 )
 write.csv(
+  pred_obs_export,
+  file.path(output_dir, paste0(file_prefix, "_predicted_observed.csv")),
+  row.names = FALSE
+)
+write.csv(
   aicc_lt2_export,
   file.path(output_dir, paste0(file_prefix, "_aicc_lt2.csv")),
   row.names = FALSE
@@ -803,7 +827,7 @@ write.csv(flags_export,
           file.path(output_dir, paste0(file_prefix, "_corr_flags.csv")),
           row.names = FALSE)
 
-# Cleanup legacy strict-suffixed outputs; strict is now the default workflow.
+# cleanup legacy strict-suffixed outputs; strict is now the default workflow.
 legacy_strict_files <- c(
   file.path(output_dir, paste0(file_prefix, "_summary_strict.csv")),
   file.path(output_dir, paste0(file_prefix, "_results_strict.csv"))
@@ -812,7 +836,7 @@ for (legacy_file in legacy_strict_files) {
   if (file.exists(legacy_file)) unlink(legacy_file)
 }
 
-# Explicit LOOCV validation output
+# explicit loocv validation output
 loocv_validation <- model_run$summary %>%
   transmute(
     model_family = "storage_ecovar_mlr",
@@ -836,17 +860,13 @@ write.csv(
   row.names = FALSE
 )
 if (isTRUE(WRITE_TABLE_OUTPUTS)) {
-  if (!dir.exists(file.path(OUT_TABLES_DIR, "validation"))) {
-    dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
-  }
+  dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
   write.csv(
     loocv_validation,
     file.path(OUT_TABLES_DIR, "validation", "storage_ecovar_mlr_loocv_validation.csv"),
     row.names = FALSE
   )
-  if (!dir.exists(OUT_TABLES_MLR_DIR)) {
-    dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
-  }
+  dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
   write.csv(
     aicc_lt2,
     file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_aicc_lt2.csv"),
@@ -859,26 +879,26 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   )
 }
 if (isTRUE(WRITE_TABLE_OUTPUTS)) {
-  # Export a unified main MLR results table for manuscript reporting.
-  # Inputs: mlr_dir/storage_ecovar_mlr_model_perf.csv; mlr_dir/watershed_char_storage_mlr_model_perf.csv; val_dir/watershed_char_storage_mlr_loocv_validation.csv.
-  # Author: Sidney Bush
-  # Date: 2026-02-13
+  # export a unified main mlr results table for manuscript reporting.
+  # inputs: mlr_dir/storage_ecovar_mlr_model_perf.csv; mlr_dir/catchment_char_storage_mlr_model_perf.csv; val_dir/catchment_char_storage_mlr_loocv_validation.csv.
+  # author: sidney bush
+  # date: 2026-02-13
 
   library(dplyr)
   library(readr)
 
   rm(list = ls())
 
-  # Load project config
+  # load project config
   source("config.R")
 
   mlr_dir <- file.path(OUT_TABLES_DIR, "mlr")
   val_dir <- file.path(OUT_TABLES_DIR, "validation")
-  if (!dir.exists(mlr_dir)) dir.create(mlr_dir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(mlr_dir, recursive = TRUE, showWarnings = FALSE)
 
   eco_perf_file <- file.path(mlr_dir, "storage_ecovar_mlr_model_perf.csv")
-  ws_perf_file <- file.path(mlr_dir, "watershed_char_storage_mlr_model_perf.csv")
-  ws_val_file <- file.path(val_dir, "watershed_char_storage_mlr_loocv_validation.csv")
+  ws_perf_file <- file.path(mlr_dir, "catchment_char_storage_mlr_model_perf.csv")
+  ws_val_file <- file.path(val_dir, "catchment_char_storage_mlr_loocv_validation.csv")
 
   if (!file.exists(eco_perf_file)) stop("Missing file: ", eco_perf_file)
   if (!file.exists(ws_perf_file)) stop("Missing file: ", ws_perf_file)
@@ -919,7 +939,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
 
   ws_main <- ws_perf %>%
     transmute(
-      model_family = "watershed_char_storage_mlr",
+      model_family = "catchment_char_storage_mlr",
       site = "all_sites",
       response = pick_col(ws_perf, c("Outcome", "response")),
       n = pick_col(ws_perf, c("N", "n")),
@@ -932,7 +952,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
     dplyr::select(model_family, site, response, n, predictors_final, r2, r2_adj, rmse, rmse_loocv, aicc)
 
   site_rank <- setNames(seq_along(SITE_ORDER_HYDROMETRIC), SITE_ORDER_HYDROMETRIC)
-  response_order_eco <- c("Q_7Q5", "T_Q7Q5", "T_7DMax")
+  response_order_eco <- c("Q_7Q5", "T_7DMax")
 
   main_table <- bind_rows(eco_perf, ws_main) %>%
     mutate(
@@ -940,7 +960,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
       site_rank = if_else(site %in% names(site_rank), as.integer(site_rank[site]), 999L),
       response_rank = if_else(response %in% response_order_eco, match(response, response_order_eco), 999L),
       predictors_final = if_else(
-        model_family == "watershed_char_storage_mlr",
+        model_family == "catchment_char_storage_mlr",
         label_catchment_predictor_list(predictors_final),
         predictors_final
       )
