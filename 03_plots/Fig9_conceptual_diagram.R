@@ -380,7 +380,6 @@ quad_df <- tibble(
   )
 ) %>%
   mutate(
-    x = if_else(label == "high dynamic\nhigh mobile", x + 0.12 * x_span, x),
     y = if_else(label == "high dynamic\nhigh mobile", y + 0.08 * y_span, y)
   )
 

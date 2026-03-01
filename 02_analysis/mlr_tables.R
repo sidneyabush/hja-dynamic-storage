@@ -230,8 +230,6 @@ write_csv(
   ws_summary_table,
   file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv")
 )
-old_table4 <- file.path(MS_TABLES_MAIN_DIR, "table4_catchment_char_storage_mlr_model_stats.csv")
-if (file.exists(old_table4)) file.remove(old_table4)
 
 # ---- table 5: eco-response summary in same format as table 4 ----
 eco_summary_table <- eco_models %>%
@@ -279,8 +277,3 @@ write_csv(
   eco_summary_table,
   file.path(MS_TABLES_MAIN_DIR, "Table5_mlr_all_models_listed.csv")
 )
-old_table5 <- file.path(MS_TABLES_MAIN_DIR, "table5_mlr_all_models_listed.csv")
-if (file.exists(old_table5)) file.remove(old_table5)
-
-old_supp_all_models <- file.path(MS_TABLES_SUPP_DIR, "tableSX_mlr_all_models_listed.csv")
-if (file.exists(old_supp_all_models)) file.remove(old_supp_all_models)
