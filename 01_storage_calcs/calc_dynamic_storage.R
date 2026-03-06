@@ -7,8 +7,6 @@ library(dplyr)
 library(lubridate)
 library(readr)
 library(tidyr)
-library(pracma)
-library(zoo)
 library(tibble)
 
 rm(list = ls())
@@ -362,75 +360,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- part 3: extended dynamic storage (wb depletion) ----
-
-discharge_wb <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
-  mutate(
-    SITECODE = standardize_site_code(SITECODE),
-    date = as.Date(DATE, "%m/%d/%Y"),
-    waterYear = get_water_year(date)
-  ) %>%
-  filter(
-    SITECODE %in% SITE_ORDER_HYDROMETRIC,
-    waterYear >= WY_START,
-    waterYear <= WY_END
-  )
-
-goodyears_wb <- discharge_wb %>%
-  group_by(SITECODE, waterYear) %>%
-  summarise(num_days = n_distinct(date), .groups = "drop") %>%
-  filter(num_days >= 365)
-
-discharge_wb <- discharge_wb %>%
-  semi_join(goodyears_wb, by = c("SITECODE", "waterYear")) %>%
-  mutate(SITECODE = factor(SITECODE, levels = SITE_ORDER_HYDROMETRIC)) %>%
-  group_by(SITECODE) %>%
-  arrange(date) %>%
-  mutate(Q_smoothed = rollmean(MEAN_Q, k = 7, fill = NA, align = "right")) %>%
-  ungroup() %>%
-  filter(!is.na(Q_smoothed))
-
-find_last_peak <- function(data, threshold_pct = 0.08) {
-  time_series <- data$MEAN_Q
-  max_peak_discharge <- max(time_series, na.rm = TRUE)
-  threshold_value <- max_peak_discharge * threshold_pct
-  peaks <- tryCatch(findpeaks(time_series), error = function(e) NULL)
-  if (is.null(peaks)) {
-    return(tibble(last_peak_date = as.Date(NA), last_peak_value = NA_real_))
-  }
-
-  peaks_df <- as_tibble(peaks) %>%
-    rename(peak_height = V1, peak_index = V2) %>%
-    filter(peak_height >= threshold_value) %>%
-    mutate(
-      date = data$date[peak_index],
-      wyd = get_water_year_day(date)
-    ) %>%
-    filter(wyd < 300) %>%
-    arrange(peak_index)
-
-  last_valid_peak <- peaks_df %>% slice_tail(n = 1)
-  if (nrow(last_valid_peak) == 0) {
-    return(tibble(last_peak_date = as.Date(NA), last_peak_value = NA_real_))
-  }
-
-  tibble(
-    last_peak_date = last_valid_peak$date,
-    last_peak_value = time_series[last_valid_peak$peak_index]
-  )
-}
-
-last_peak <- discharge_wb %>%
-  group_by(SITECODE, waterYear) %>%
-  do(find_last_peak(.)) %>%
-  ungroup() %>%
-  mutate(wyd = get_water_year_day(last_peak_date))
-
-write.csv(
-  last_peak,
-  file.path(output_dir_ed, "ds_depletion_date.csv"),
-  row.names = FALSE
-)
+# ---- part 3: extended dynamic storage (canonical wb depletion) ----
 
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
@@ -441,31 +371,75 @@ wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
     ) %>% as.Date(),
     waterYear = get_water_year(DATE)
   ) %>%
-  filter(waterYear >= WY_START, waterYear <= WY_END)
-
-wb_daily <- left_join(wb_daily, last_peak, by = c("SITECODE", "waterYear")) %>%
-  filter(!is.na(last_peak_date))
-
-wb_cropped <- wb_daily %>%
-  group_by(SITECODE, waterYear) %>%
-  filter(DATE >= last_peak_date)
-
-wb_depletion <- wb_cropped %>%
-  group_by(SITECODE, waterYear) %>%
-  mutate(
-    DS_daily = P_mm_d - Q_mm_d - ET_mm_d,
-    WB = cumsum(DS_daily)
+  filter(
+    SITECODE %in% SITE_ORDER_HYDROMETRIC,
+    waterYear >= WY_START,
+    waterYear <= WY_END,
+    is.finite(P_mm_d),
+    is.finite(Q_mm_d),
+    is.finite(ET_mm_d)
   ) %>%
-  ungroup()
+  arrange(SITECODE, waterYear, DATE)
 
-ds_max <- wb_depletion %>%
+goodyears_wb <- wb_daily %>%
   group_by(SITECODE, waterYear) %>%
-  slice_min(WB, n = 1) %>%
-  select(SITECODE, waterYear, WB) %>%
+  summarise(num_days = n_distinct(DATE), .groups = "drop") %>%
+  filter(num_days >= 365)
+
+wb_daily <- wb_daily %>%
+  semi_join(goodyears_wb, by = c("SITECODE", "waterYear"))
+
+calc_wb_depletion <- function(df_sub) {
+  df_sub <- df_sub %>% arrange(DATE)
+  ds_daily <- df_sub$P_mm_d - df_sub$Q_mm_d - df_sub$ET_mm_d
+  wb_cum <- cumsum(ds_daily)
+  drawdown <- cummax(wb_cum) - wb_cum
+
+  if (!any(is.finite(drawdown))) {
+    return(tibble(
+      peak_storage_date = as.Date(NA),
+      depletion_date = as.Date(NA),
+      WB = NA_real_
+    ))
+  }
+
+  depletion_idx <- which.max(drawdown)[1]
+  peak_idx <- which.max(wb_cum[seq_len(depletion_idx)])[1]
+
+  tibble(
+    peak_storage_date = df_sub$DATE[peak_idx],
+    depletion_date = df_sub$DATE[depletion_idx],
+    WB = as.numeric(drawdown[depletion_idx])
+  )
+}
+
+wb_summary <- wb_daily %>%
+  group_by(SITECODE, waterYear) %>%
+  group_modify(~ calc_wb_depletion(.x)) %>%
   ungroup()
 
 write.csv(
-  ds_max,
+  wb_summary %>%
+    mutate(
+      peak_storage_wyd = get_water_year_day(peak_storage_date),
+      depletion_wyd = get_water_year_day(depletion_date)
+    ) %>%
+    select(
+      SITECODE,
+      waterYear,
+      peak_storage_date,
+      depletion_date,
+      peak_storage_wyd,
+      depletion_wyd,
+      WB
+    ),
+  file.path(output_dir_ed, "ds_depletion_date.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  wb_summary %>%
+    select(SITECODE, waterYear, WB),
   file.path(output_dir_ed, "ds_depletion_annual.csv"),
   row.names = FALSE
 )

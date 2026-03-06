@@ -157,7 +157,7 @@ metric_oriented <- site_df %>%
     RCS = RCS_mean,
     FDC = FDC_mean,
     SD = SD_mean,
-    WB_depletion_mag = abs(WB_mean),
+    WB_depletion_mag = WB_mean,
     DR_inv = -DR,
     Fyw_inv = -Fyw,
     MTT1 = MTT1,

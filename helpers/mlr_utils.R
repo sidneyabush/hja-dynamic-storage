@@ -161,7 +161,11 @@ apply_correlated_predictor_rules_catchment <- function(model_obj, outcome, model
     if (length(keep_fit) == 0) {
       return(NULL)
     }
-    list(model = fit, aicc = calc_aicc(fit, nrow(model_df)))
+    list(
+      model = fit,
+      aicc = calc_aicc(fit, nrow(model_df)),
+      aic = tryCatch(AIC(fit), error = function(e) NA_real_)
+    )
   }
 
   model_obj_curr <- model_obj
@@ -188,7 +192,17 @@ apply_correlated_predictor_rules_catchment <- function(model_obj, outcome, model
       break
     }
 
-    best <- valid[which.min(vapply(options[valid], function(x) x$aicc, numeric(1)))]
+    aicc_scores <- vapply(options[valid], function(x) x$aicc, numeric(1))
+    if (any(is.finite(aicc_scores))) {
+      best <- valid[which.min(aicc_scores)]
+    } else {
+      aic_scores <- vapply(options[valid], function(x) x$aic, numeric(1))
+      if (any(is.finite(aic_scores))) {
+        best <- valid[which.min(aic_scores)]
+      } else {
+        best <- valid[1]
+      }
+    }
     model_obj_curr <- options[[best]]$model
   }
 

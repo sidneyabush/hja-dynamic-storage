@@ -10,6 +10,9 @@ CHS (EC baseflow) notes:
 - EC input file is `inputs/CF01201_v4.txt`.
 - Meteorological input files are in `inputs/all_hydromet/`.
 
+WB (extended dynamic storage) note:
+- `WB` now uses the canonical depletion workflow (maximum cumulative recession drawdown within water year); the legacy peak-anchored WB workflow is removed from the core pipeline.
+
 ## scripts
 
 - `00_data_preprocessing`: hydromet and ET preprocessing
