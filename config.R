@@ -119,29 +119,29 @@ for (d in output_dirs) {
 # hydrometric sites with continuous streamflow data (for dynamic metrics)
 # order: ws06 grouped with 07 and 08 for plotting
 SITE_ORDER_HYDROMETRIC <- c(
-  "WS09", # Catchment 09
-  "WS10", # Catchment 10
-  "WS01", # Catchment 01
-  "Look", # Lookout Creek
-  "WS02", # Catchment 02
-  "WS03", # Catchment 03
-  "Mack", # Mack Creek
-  "WS06", # Catchment 06 (no chemistry/isotope data)
-  "WS07", # Catchment 07
-  "WS08" # Catchment 08
+  "WS09", # WS09
+  "WS10", # WS10
+  "WS01", # WS01
+  "Look", # Look
+  "WS02", # WS02
+  "WS03", # WS03
+  "Mack", # Mack
+  "WS06", # WS06 (no chemistry/isotope data)
+  "WS07", # WS07
+  "WS08" # WS08
 )
 
 # sites with chemistry data (for chs)
 SITE_ORDER_CHEMISTRY <- c(
-  "WS10", # Catchment 10
-  "WS01", # Catchment 01
-  "Look", # Lookout Creek
-  "WS02", # Catchment 02
-  "WS03", # Catchment 03
-  "WS06", # Catchment 06
-  "WS07", # Catchment 07
-  "WS08", # Catchment 08
-  "Mack" # Mack Creek
+  "WS10", # WS10
+  "WS01", # WS01
+  "Look", # Look
+  "WS02", # WS02
+  "WS03", # WS03
+  "WS06", # WS06
+  "WS07", # WS07
+  "WS08", # WS08
+  "Mack" # Mack
 )
 
 # active analysis/plotting site set
@@ -149,22 +149,22 @@ SITE_ORDER_ALL <- SITE_ORDER_HYDROMETRIC
 
 # site name lookup table
 SITE_NAMES <- c(
-  "WS09" = "Catchment 09",
-  "WS10" = "Catchment 10",
-  "WS01" = "Catchment 01",
-  "Look" = "Lookout",
-  "WS02" = "Catchment 02",
-  "WS03" = "Catchment 03",
-  "WS06" = "Catchment 06",
-  "WS07" = "Catchment 07",
-  "WS08" = "Catchment 08",
+  "WS09" = "WS09",
+  "WS10" = "WS10",
+  "WS01" = "WS01",
+  "Look" = "Look",
+  "WS02" = "WS02",
+  "WS03" = "WS03",
+  "WS06" = "WS06",
+  "WS07" = "WS07",
+  "WS08" = "WS08",
   "Mack" = "Mack",
-  "MR" = "McRae",
-  "NC" = "Nostoc",
-  "LC" = "Longer",
-  "LO2" = "Upper Lookout 2",
-  "CC" = "Cold Creek",
-  "LO1" = "Upper Lookout 1"
+  "MR" = "MR",
+  "NC" = "NC",
+  "LC" = "LC",
+  "LO2" = "LO2",
+  "CC" = "CC",
+  "LO1" = "LO1"
 )
 
 # water year range
@@ -223,10 +223,10 @@ MASTER_SITE_FILE <- "master_site.csv"
 # raw site codes that should be excluded from analysis tables.
 SITE_EXCLUDE_RAW <- c("GSWSMA", "GSWSMF")
 
-# site recode map used when bringing met/discharge records into catchment codes.
+# site recode map used when bringing met/discharge records into site codes.
 SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 
-# component catchments used to make gslook met composites.
+# component sites used to make gslook met composites.
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 
@@ -329,7 +329,7 @@ standardize_site_code <- function(site_code) {
     site_code == "LO2CRE" ~ "LO2",
     site_code == "CCCREE" ~ "CC",
     site_code == "LO1CRE" ~ "LO1",
-    # numbered catchments: gsws## -> ws##
+    # numbered sites: gsws## -> ws##
     grepl("^GSWS[0-9]+$", site_code) ~ gsub("^GSWS", "WS", site_code),
     TRUE ~ site_code
   )

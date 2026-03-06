@@ -360,7 +360,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- part 3: extended dynamic storage (canonical wb depletion) ----
+# ---- part 3: extended dynamic storage (wb depletion) ----
 
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(

@@ -11,7 +11,7 @@ CHS (EC baseflow) notes:
 - Meteorological input files are in `inputs/all_hydromet/`.
 
 WB (extended dynamic storage) note:
-- `WB` now uses the canonical depletion workflow (maximum cumulative recession drawdown within water year); the legacy peak-anchored WB workflow is removed from the core pipeline.
+- `WB` now uses the depletion workflow (maximum cumulative recession drawdown within water year); the legacy peak-anchored WB workflow is removed from the core pipeline.
 
 ## scripts
 
