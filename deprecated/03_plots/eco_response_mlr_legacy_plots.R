@@ -1,5 +1,5 @@
 # plots: pooled eco-response predictor effects (all-sites model).
-# inputs: output_dir/storage_ecovar_mlr_all_sites_results.csv.
+# inputs: output_dir/storage_eco_response_mlr_all_sites_results.csv.
 # author: sidney bush
 # date: 2026-02-24
 
@@ -13,8 +13,8 @@ rm(list = ls())
 # load project config
 source("config.R")
 
-output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
-file_prefix <- "storage_ecovar_mlr_all_sites"
+output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
+file_prefix <- "storage_eco_response_mlr_all_sites"
 ALPHA <- 0.05
 
 plot_dir <- MS_FIG_MAIN_DIR

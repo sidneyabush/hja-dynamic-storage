@@ -14,9 +14,9 @@ rm(list = ls())
 # load project config
 source("config.R")
 
-output_dir <- OUT_MODELS_STORAGE_ECOVAR_MLR_DIR
+output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-file_prefix <- "storage_ecovar_mlr"
+file_prefix <- "storage_eco_response_mlr"
 
 MODEL_MIN_N <- 20
 VIF_THRESHOLD <- 10
@@ -775,7 +775,7 @@ if (ncol(cor_data) >= 2) {
   cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
   cor_response_predictors <- cor_matrix[response_vars, eco_predictors_all, drop = FALSE]
   write.csv(cor_response_predictors,
-            file.path(output_dir, "storage_ecovar_mlr_corr_matrix.csv"),
+            file.path(output_dir, "storage_eco_response_mlr_corr_matrix.csv"),
             row.names = TRUE)
 }
 
@@ -839,7 +839,7 @@ for (legacy_file in legacy_strict_files) {
 # explicit loocv validation output
 loocv_validation <- model_run$summary %>%
   transmute(
-    model_family = "storage_ecovar_mlr",
+    model_family = "storage_eco_response_mlr",
     site = Site,
     response = Response,
     n = n,
@@ -856,31 +856,31 @@ loocv_validation <- model_run$summary %>%
 
 write.csv(
   loocv_validation,
-  file.path(OUT_STATS_VALIDATION_DIR, "storage_ecovar_mlr_loocv_validation.csv"),
+  file.path(OUT_STATS_VALIDATION_DIR, "storage_eco_response_mlr_loocv_validation.csv"),
   row.names = FALSE
 )
 if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   dir.create(file.path(OUT_TABLES_DIR, "validation"), recursive = TRUE, showWarnings = FALSE)
   write.csv(
     loocv_validation,
-    file.path(OUT_TABLES_DIR, "validation", "storage_ecovar_mlr_loocv_validation.csv"),
+    file.path(OUT_TABLES_DIR, "validation", "storage_eco_response_mlr_loocv_validation.csv"),
     row.names = FALSE
   )
   dir.create(OUT_TABLES_MLR_DIR, recursive = TRUE, showWarnings = FALSE)
   write.csv(
     aicc_lt2,
-    file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_aicc_lt2.csv"),
+    file.path(OUT_TABLES_MLR_DIR, "storage_eco_response_mlr_aicc_lt2.csv"),
     row.names = FALSE
   )
   write.csv(
     diagnostics_combined,
-    file.path(OUT_TABLES_MLR_DIR, "storage_ecovar_mlr_diagnostics.csv"),
+    file.path(OUT_TABLES_MLR_DIR, "storage_eco_response_mlr_diagnostics.csv"),
     row.names = FALSE
   )
 }
 if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   # export a unified main mlr results table for manuscript reporting.
-  # inputs: mlr_dir/storage_ecovar_mlr_model_perf.csv; mlr_dir/catchment_char_storage_mlr_model_perf.csv; val_dir/catchment_char_storage_mlr_loocv_validation.csv.
+  # inputs: mlr_dir/storage_eco_response_mlr_model_perf.csv; mlr_dir/catchment_char_storage_mlr_model_perf.csv; val_dir/catchment_char_storage_mlr_loocv_validation.csv.
   # author: sidney bush
   # date: 2026-02-13
 
@@ -896,7 +896,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   val_dir <- file.path(OUT_TABLES_DIR, "validation")
   dir.create(mlr_dir, recursive = TRUE, showWarnings = FALSE)
 
-  eco_perf_file <- file.path(mlr_dir, "storage_ecovar_mlr_model_perf.csv")
+  eco_perf_file <- file.path(mlr_dir, "storage_eco_response_mlr_model_perf.csv")
   ws_perf_file <- file.path(mlr_dir, "catchment_char_storage_mlr_model_perf.csv")
   ws_val_file <- file.path(val_dir, "catchment_char_storage_mlr_loocv_validation.csv")
 
@@ -912,7 +912,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   eco_raw <- read_csv(eco_perf_file, show_col_types = FALSE)
   eco_perf <- read_csv(eco_perf_file, show_col_types = FALSE) %>%
     transmute(
-      model_family = "storage_ecovar_mlr",
+      model_family = "storage_eco_response_mlr",
       site = pick_col(eco_raw, c("site", "Site")),
       response = pick_col(eco_raw, c("response", "Response")),
       n = pick_col(eco_raw, c("n", "N")),
@@ -956,7 +956,7 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
 
   main_table <- bind_rows(eco_perf, ws_main) %>%
     mutate(
-      model_rank = if_else(model_family == "storage_ecovar_mlr", 1L, 2L),
+      model_rank = if_else(model_family == "storage_eco_response_mlr", 1L, 2L),
       site_rank = if_else(site %in% names(site_rank), as.integer(site_rank[site]), 999L),
       response_rank = if_else(response %in% response_order_eco, match(response, response_order_eco), 999L),
       predictors_final = if_else(

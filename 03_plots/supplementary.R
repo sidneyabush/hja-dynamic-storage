@@ -104,13 +104,10 @@ if (file.exists(figs1_script)) {
 }
 
 # pooled eco predicted vs observed
-# Prefer legacy ecovar predicted-vs-observed output because it matches the
-# manuscript-facing pooled diagnostics used for the supplementary figure.
-pred_file_candidates <- c(
-  file.path(OUTPUT_DIR, "models", "storage_ecovar_mlr", "storage_ecovar_mlr_predicted_observed.csv"),
-  file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_predicted_observed.csv")
+pred_file <- file.path(
+  OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
+  "storage_eco_response_mlr_predicted_observed.csv"
 )
-pred_file <- pred_file_candidates[file.exists(pred_file_candidates)][1]
 
 if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
   pred_df <- read_csv(pred_file, show_col_types = FALSE) %>%
@@ -192,9 +189,6 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     width = 8.8 * FIG_WIDTH_SCALE,
     height = 8.4 * FIG_HEIGHT_SCALE
   ))
-
-  unlink(file.path(supp_dir, "storage_ecovar_mlr_predicted_vs_observed.png"))
-  unlink(file.path(supp_pdf_dir, "storage_ecovar_mlr_predicted_vs_observed.pdf"))
 }
 
 # pca precipitation anomaly supplement figure

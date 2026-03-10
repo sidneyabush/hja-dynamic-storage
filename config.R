@@ -70,8 +70,6 @@ OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR <- file.path(
   OUT_STATS_DIR,
   "storage_eco_response_mlr"
 )
-# alias name still used in some scripts
-OUT_MODELS_STORAGE_ECOVAR_MLR_DIR <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
 OUT_STATS_VALIDATION_DIR <- file.path(OUT_STATS_DIR, "validation")
 
 OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")

@@ -41,30 +41,23 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 }
 
 output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
-legacy_eco_dir <- file.path(OUT_STATS_DIR, "storage_ecovar_mlr")
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
 for (d in c(main_dir, main_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-results_candidates <- c(
-  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_results.csv"),
-  file.path(output_dir, "storage_eco_response_mlr_results.csv")
-)
-results_file <- results_candidates[file.exists(results_candidates)][1]
-if (is.na(results_file) || !nzchar(results_file) || !file.exists(results_file)) {
+results_file <- file.path(output_dir, "storage_eco_response_mlr_results.csv")
+if (!file.exists(results_file)) {
   stop(
-    "Missing required eco pooled model file; checked: ",
-    paste(results_candidates, collapse = ", ")
+    "Missing required eco pooled model file: ", results_file
   )
 }
 
-summary_candidates <- c(
-  file.path(legacy_eco_dir, "storage_ecovar_mlr_all_sites_summary.csv"),
-  file.path(output_dir, "storage_eco_response_mlr_summary.csv")
-)
-summary_file <- summary_candidates[file.exists(summary_candidates)][1]
+summary_file <- file.path(output_dir, "storage_eco_response_mlr_summary.csv")
+if (!file.exists(summary_file)) {
+  stop("Missing required eco pooled model summary file: ", summary_file)
+}
 
 norm_response <- function(x) {
   out <- as.character(x)
@@ -84,7 +77,6 @@ predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS")
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
-# legacy all-sites file can include multiple candidate models per response;
 # retain only the selected candidate set when available.
 if ("Candidate_Set" %in% names(coef_raw) && !is.na(summary_file) && file.exists(summary_file)) {
   selected_sets <- read_csv(summary_file, show_col_types = FALSE) %>%
