@@ -12,6 +12,10 @@ CHS notes:
 - Comparison outputs are written to `outputs/metrics/mobile/annual_gw_prop_ec_ca_comparison.csv`, plus site-year paired values (`annual_gw_prop_ec_ca_site_year_pairs.csv`) and per-site stats (`annual_gw_prop_ec_ca_site_by_site_stats.csv`) in the same folder.
 - Meteorological input files are in `inputs/all_hydromet/`.
 
+Annual isotope (Segura) notes:
+- When `USE_SEGURA_ANNUAL_ISOTOPE_METRICS = TRUE`, the workflow reads `inputs/MTT_FYW_2026-03-05.xlsx` (`MTT_Segura_2021` + `YWF_Segura_2021`) and writes annual site-year `MTT` and `Fyw` to `outputs/metrics/mobile/isotope_metrics_annual_segura.csv`.
+- This pathway is separate from the site-level mean isotope metrics (`MTT1`, `MTT2`, `Fyw`) so it can be toggled/reverted independently.
+
 WB (extended dynamic storage) note:
 - `WB` now uses a max within-year depletion workflow (`max(cummax(cumsum(P-Q-ET)) - cumsum(P-Q-ET))`), not a simple annual range; the legacy peak-anchored WB workflow is removed from the core pipeline.
 

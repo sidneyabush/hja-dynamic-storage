@@ -1,11 +1,12 @@
 # calculate mobile-storage metrics (chs + isotope metrics) by site and water year.
-# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; ec_dir/cf00201_v7.csv; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv.
+# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; ec_dir/cf00201_v7.csv; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv; isotope_dir/mtt_fyw_2026-03-05.xlsx.
 # author: keira johnson (original chs), sidney bush
 # date: 2026-03-09
 
 library(dplyr)
 library(readr)
 library(lubridate)
+library(readxl)
 
 rm(list = ls())
 
@@ -411,3 +412,104 @@ write.csv(
   file.path(output_dir, "isotope_metrics_site.csv"),
   row.names = FALSE
 )
+
+# ---- part 3: annual isotope metrics from segura workbook (separate path) ----
+
+if (isTRUE(USE_SEGURA_ANNUAL_ISOTOPE_METRICS)) {
+  segura_file <- file.path(isotope_dir, SEGURA_ANNUAL_ISOTOPE_FILE)
+  if (!file.exists(segura_file)) {
+    stop("Missing required annual isotope workbook: ", segura_file)
+  }
+
+  parse_leading_numeric <- function(x) {
+    x_chr <- trimws(as.character(x))
+    has_num <- grepl("[-+]?[0-9]*\\.?[0-9]+", x_chr)
+    out <- suppressWarnings(as.numeric(sub("^\\s*([-+]?[0-9]*\\.?[0-9]+).*$", "\\1", x_chr)))
+    out[!has_num] <- NA_real_
+    out
+  }
+
+  normalize_segura_site <- function(x) {
+    out <- toupper(trimws(as.character(x)))
+    out <- ifelse(grepl("^WS[0-9]$", out), paste0("WS0", sub("^WS", "", out)), out)
+    out <- dplyr::case_when(
+      out == "MACK" ~ "Mack",
+      out == "LOOK" ~ "Look",
+      TRUE ~ out
+    )
+    standardize_site_code(out)
+  }
+
+  mtt_raw <- read_excel(
+    segura_file,
+    sheet = "MTT_Segura_2021",
+    skip = 5,
+    col_names = FALSE,
+    .name_repair = "minimal"
+  )
+
+  mtt_wide <- mtt_raw %>%
+    transmute(
+      site = normalize_segura_site(...1),
+      MTT_2015 = parse_leading_numeric(...2),
+      MTT_2016 = parse_leading_numeric(...4),
+      MTT_2017 = parse_leading_numeric(...6),
+      MTT_2018 = parse_leading_numeric(...8)
+    ) %>%
+    filter(!is.na(site), site != "")
+
+  mtt_long <- bind_rows(
+    mtt_wide %>% transmute(site, year = 2015L, MTT = MTT_2015),
+    mtt_wide %>% transmute(site, year = 2016L, MTT = MTT_2016),
+    mtt_wide %>% transmute(site, year = 2017L, MTT = MTT_2017),
+    mtt_wide %>% transmute(site, year = 2018L, MTT = MTT_2018)
+  ) %>%
+    distinct(site, year, .keep_all = TRUE)
+
+  fyw_raw <- read_excel(
+    segura_file,
+    sheet = "YWF_Segura_2021",
+    skip = 2,
+    col_names = FALSE,
+    .name_repair = "minimal"
+  )
+
+  fyw_wide <- fyw_raw %>%
+    transmute(
+      site = normalize_segura_site(...1),
+      Fyw_2015 = parse_leading_numeric(...2),
+      Fyw_2016 = parse_leading_numeric(...3),
+      Fyw_2017 = parse_leading_numeric(...4),
+      Fyw_2018 = parse_leading_numeric(...5)
+    ) %>%
+    filter(!is.na(site), site != "")
+
+  fyw_long <- bind_rows(
+    fyw_wide %>% transmute(site, year = 2015L, Fyw = Fyw_2015),
+    fyw_wide %>% transmute(site, year = 2016L, Fyw = Fyw_2016),
+    fyw_wide %>% transmute(site, year = 2017L, Fyw = Fyw_2017),
+    fyw_wide %>% transmute(site, year = 2018L, Fyw = Fyw_2018)
+  ) %>%
+    distinct(site, year, .keep_all = TRUE)
+
+  annual_isotope_segura <- mtt_long %>%
+    full_join(fyw_long, by = c("site", "year")) %>%
+    mutate(
+      site = standardize_site_code(site),
+      year = as.integer(year),
+      MTT = suppressWarnings(as.numeric(MTT)),
+      Fyw = suppressWarnings(as.numeric(Fyw))
+    ) %>%
+    filter(
+      site %in% SITE_ORDER_HYDROMETRIC,
+      year >= WY_START,
+      year <= WY_END
+    ) %>%
+    arrange(site, year)
+
+  write.csv(
+    annual_isotope_segura,
+    file.path(output_dir, SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE),
+    row.names = FALSE
+  )
+}

@@ -1,5 +1,5 @@
 # assemble all annual/site-level metrics into master analysis tables.
-# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; isotope_dir/mtt_fyw.csv; +1 more csv files.
+# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; isotope_dir/mtt_fyw.csv; mobile_dir/isotope_metrics_annual_segura.csv; +1 more csv files.
 # author: sidney bush
 # date: 2026-02-13
 
@@ -162,6 +162,42 @@ thermal_lowflow <- thermal_lowflow %>%
   )
 assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
+# annual isotope metrics (segura workbook path; separate from site-level means)
+annual_isotope <- tibble(
+  site = character(),
+  year = integer(),
+  MTT = numeric(),
+  Fyw = numeric()
+)
+if (isTRUE(USE_SEGURA_ANNUAL_ISOTOPE_METRICS)) {
+  annual_isotope_path <- file.path(mobile_dir, SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE)
+  if (file.exists(annual_isotope_path)) {
+    annual_isotope <- read_csv(
+      annual_isotope_path,
+      show_col_types = FALSE
+    ) %>%
+      mutate(
+        site = if ("site" %in% names(.)) site else SITECODE,
+        year = if ("year" %in% names(.)) year else waterYear
+      ) %>%
+      mutate(
+        site = standardize_site_code(site),
+        year = as.integer(year),
+        MTT = suppressWarnings(as.numeric(MTT)),
+        Fyw = suppressWarnings(as.numeric(Fyw))
+      ) %>%
+      filter(
+        site %in% SITE_ORDER_HYDROMETRIC,
+        year >= WY_START,
+        year <= WY_END
+      ) %>%
+      select(site, year, MTT, Fyw)
+  } else {
+    warning("Annual isotope file not found (Segura path enabled): ", annual_isotope_path)
+  }
+}
+assert_unique_keys(annual_isotope, c("site", "year"), "annual_isotope")
+
 # merge annual tables into one site-year master table
 
 HJA_annual <- rbi_recession %>%
@@ -169,6 +205,7 @@ HJA_annual <- rbi_recession %>%
   full_join(baseflow, by = c("site", "year")) %>%
   full_join(wb_storage, by = c("site", "year")) %>%
   full_join(thermal_lowflow, by = c("site", "year")) %>%
+  full_join(annual_isotope, by = c("site", "year")) %>%
   # keep only hydrometric sites used in analysis
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   # keep site order consistent across outputs/plots
@@ -275,6 +312,8 @@ annual_sample_sizes <- HJA_annual %>%
     n_SD = sum(!is.na(SD)),
     n_CHS = sum(!is.na(CHS)),
     n_WB = sum(!is.na(WB)),
+    n_MTT_annual = sum(!is.na(MTT)),
+    n_Fyw_annual = sum(!is.na(Fyw)),
     n_t_7dmax = sum(!is.na(T_7DMax)),
     n_q_7q5 = sum(!is.na(Q_7Q5)),
     n_p_wetseason = sum(!is.na(Pws)),

@@ -177,6 +177,12 @@ CHS_MIN_DAYS_PER_WY <- 300
 # (from cf002 chemistry records, e.g., cond and ca).
 CHS_MIN_OBS_PER_WY_CHEM <- 10
 
+# annual isotope inputs from segura workbook (kept separate from site-level
+# mean isotope metrics so this pathway can be toggled/reverted independently).
+USE_SEGURA_ANNUAL_ISOTOPE_METRICS <- TRUE
+SEGURA_ANNUAL_ISOTOPE_FILE <- "MTT_FYW_2026-03-05.xlsx"
+SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE <- "isotope_metrics_annual_segura.csv"
+
 # sites intentionally excluded from chs-based modeling summaries.
 # note: gslook is standardized to look upstream.
 CHS_EXCLUDE_SITES <- c("Look", "WS09")
