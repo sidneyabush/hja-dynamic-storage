@@ -5,9 +5,11 @@ Dynamic, mobile, and extended dynamic storage workflow for H.J. Andrews catchmen
 Eco-response variable notes:
 - `WS09` has no stream-temperature records in `HT00451_v10.txt`, so `T_7DMax` and `T_Q7Q5` are unavailable (`NA`) for `WS09`.
 
-CHS (EC baseflow) notes:
+CHS notes:
 - CHS keeps a water year only when there are at least `300` days with overlapping EC + discharge data (`CHS_MIN_DAYS_PER_WY` in `config.R`).
 - EC input file is `inputs/CF01201_v4.txt`.
+- Ca/chemistry comparison uses `inputs/CF00201_v7.csv` with `CA` and `COND` and keeps years with at least `10` chemistry observations (`CHS_MIN_OBS_PER_WY_CHEM`).
+- Comparison outputs are written to `outputs/metrics/mobile/annual_gw_prop_ec_ca_comparison.csv` plus site/overall summary CSVs in the same folder.
 - Meteorological input files are in `inputs/all_hydromet/`.
 
 WB (extended dynamic storage) note:

@@ -175,6 +175,10 @@ WY_END <- 2020
 # minimum number of daily ec+q observations needed to keep a chs water year.
 CHS_MIN_DAYS_PER_WY <- 300
 
+# minimum number of chemistry samples per water year for sample-based chs
+# (from cf002 chemistry records, e.g., cond and ca).
+CHS_MIN_OBS_PER_WY_CHEM <- 10
+
 # sites intentionally excluded from chs-based modeling summaries.
 # note: gslook is standardized to look upstream.
 CHS_EXCLUDE_SITES <- c("Look", "WS09")

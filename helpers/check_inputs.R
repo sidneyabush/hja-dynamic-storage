@@ -78,6 +78,12 @@ if (!file.exists(ec_file)) {
   stop("Missing required EC input file: ", ec_file)
 }
 
+# chemistry file used for ca/cond chs comparison.
+chem_file <- file.path(EC_DIR, "CF00201_v7.csv")
+if (!file.exists(chem_file)) {
+  stop("Missing required chemistry input file: ", chem_file)
+}
+
 # minimal schema checks on key files.
 check_columns <- function(path, required_cols) {
   cols <- names(suppressMessages(read_csv(
@@ -102,6 +108,8 @@ check_columns(
   file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
   c("DATE", "SITECODE", "MEAN_Q")
 )
+check_columns(ec_file, c("DATE_TIME", "SITECODE", "EC_INST"))
+check_columns(chem_file, c("DATE_TIME", "SITECODE", "COND", "CA"))
 temp_file <- file.path(STREAM_TEMP_DIR, "HT00451_v10.txt")
 temp_cols <- names(suppressMessages(read_csv(
   temp_file,
