@@ -395,3 +395,141 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     unlink(file.path(supp_pdf_dir, "FigSx_mobile_metrics_corr.pdf"))
   }
 }
+
+# supplementary ec-vs-ca chs relationship plots
+ec_ca_pairs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop_ec_ca_site_year_pairs.csv")
+if (file.exists(ec_ca_pairs_file)) {
+  ec_ca_pairs <- read_csv(ec_ca_pairs_file, show_col_types = FALSE) %>%
+    mutate(
+      SITECODE = standardize_site_code(SITECODE),
+      waterYear = suppressWarnings(as.integer(waterYear)),
+      CHS_EC = suppressWarnings(as.numeric(CHS_EC)),
+      CHS_CA = suppressWarnings(as.numeric(CHS_CA))
+    ) %>%
+    filter(
+      SITECODE %in% SITE_ORDER_CHEMISTRY,
+      is.finite(CHS_EC),
+      is.finite(CHS_CA)
+    ) %>%
+    mutate(
+      SITECODE = factor(SITECODE, levels = SITE_ORDER_CHEMISTRY)
+    )
+
+  if (nrow(ec_ca_pairs) > 0) {
+    site_rel_stats <- ec_ca_pairs %>%
+      group_by(SITECODE) %>%
+      summarise(
+        n = n(),
+        r = suppressWarnings(cor(CHS_EC, CHS_CA, use = "complete.obs")),
+        .groups = "drop"
+      )
+
+    facet_labels <- site_rel_stats %>%
+      mutate(
+        label = ifelse(
+          is.finite(r),
+          paste0(as.character(SITECODE), "\n", "n=", n, ", r=", sprintf("%.2f", r)),
+          paste0(as.character(SITECODE), "\n", "n=", n, ", r=NA")
+        )
+      ) %>%
+      {stats::setNames(.$label, as.character(.$SITECODE))}
+
+    p_ec_ca_site <- ggplot(ec_ca_pairs, aes(x = CHS_EC, y = CHS_CA)) +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey45", linewidth = 0.5) +
+      geom_point(
+        aes(color = SITECODE),
+        size = FIG_POINT_SIZE_MED,
+        alpha = 0.85,
+        show.legend = FALSE
+      ) +
+      geom_smooth(
+        method = "lm",
+        formula = y ~ x,
+        se = FALSE,
+        color = "black",
+        linewidth = 0.55
+      ) +
+      facet_wrap(~ SITECODE, ncol = 3, labeller = as_labeller(facet_labels)) +
+      scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+      scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
+      coord_equal() +
+      labs(x = "CHS from EC", y = "CHS from Ca") +
+      theme_pub() +
+      theme(
+        axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+        axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+        strip.text = element_text(size = FIG_STRIP_TEXT_SIZE)
+      )
+
+    overall_r <- suppressWarnings(cor(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA, use = "complete.obs"))
+    overall_n <- nrow(ec_ca_pairs)
+    anno_label <- if (is.finite(overall_r)) {
+      paste0("n=", overall_n, ", r=", sprintf("%.2f", overall_r))
+    } else {
+      paste0("n=", overall_n, ", r=NA")
+    }
+
+    p_ec_ca_overall <- ggplot(ec_ca_pairs, aes(x = CHS_EC, y = CHS_CA)) +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey45", linewidth = 0.5) +
+      geom_point(
+        aes(color = SITECODE),
+        size = FIG_POINT_SIZE_MED + 0.3,
+        alpha = 0.85
+      ) +
+      geom_smooth(
+        method = "lm",
+        formula = y ~ x,
+        se = FALSE,
+        color = "black",
+        linewidth = 0.65
+      ) +
+      annotate(
+        "text",
+        x = 0.02,
+        y = 0.98,
+        label = anno_label,
+        hjust = 0,
+        vjust = 1,
+        size = FIG_ANNOT_TEXT_SIZE + 1.2
+      ) +
+      scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+      scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
+      coord_equal() +
+      labs(x = "CHS from EC", y = "CHS from Ca", color = NULL) +
+      theme_pub() +
+      theme(
+        axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+        axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+        legend.text = element_text(size = FIG_AXIS_TEXT_SIZE)
+      )
+
+    invisible(safe_ggsave(
+      file.path(supp_dir, "FigSX_chs_ec_vs_ca_by_site.png"),
+      p_ec_ca_site,
+      width = 9.6 * FIG_WIDTH_SCALE,
+      height = 8.2 * FIG_HEIGHT_SCALE,
+      dpi = 300
+    ))
+    invisible(safe_ggsave(
+      file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_by_site.pdf"),
+      p_ec_ca_site,
+      width = 9.6 * FIG_WIDTH_SCALE,
+      height = 8.2 * FIG_HEIGHT_SCALE
+    ))
+    invisible(safe_ggsave(
+      file.path(supp_dir, "FigSX_chs_ec_vs_ca_overall.png"),
+      p_ec_ca_overall,
+      width = 7.2 * FIG_WIDTH_SCALE,
+      height = 6.4 * FIG_HEIGHT_SCALE,
+      dpi = 300
+    ))
+    invisible(safe_ggsave(
+      file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_overall.pdf"),
+      p_ec_ca_overall,
+      width = 7.2 * FIG_WIDTH_SCALE,
+      height = 6.4 * FIG_HEIGHT_SCALE
+    ))
+  }
+}
