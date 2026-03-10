@@ -451,9 +451,9 @@ if (file.exists(ec_ca_pairs_file)) {
           is.finite(r2),
           paste0(
             as.character(SITECODE), "\n",
-            "n=", n, ", R2=", sprintf("%.2f", r2), ", p=", vapply(p_value, format_p, FUN.VALUE = character(1))
+            "n=", n, ", R²=", sprintf("%.2f", r2), ", p=", vapply(p_value, format_p, FUN.VALUE = character(1))
           ),
-          paste0(as.character(SITECODE), "\n", "n=", n, ", R2=NA, p=NA")
+          paste0(as.character(SITECODE), "\n", "n=", n, ", R²=NA, p=NA")
         )
       ) %>%
       {stats::setNames(.$label, as.character(.$SITECODE))}
@@ -490,9 +490,9 @@ if (file.exists(ec_ca_pairs_file)) {
     overall_p <- safe_p(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA)
     overall_n <- nrow(ec_ca_pairs)
     anno_label <- if (is.finite(overall_r2)) {
-      paste0("n=", overall_n, ", R2=", sprintf("%.2f", overall_r2), ", p=", format_p(overall_p))
+      paste0("n=", overall_n, ", R²=", sprintf("%.2f", overall_r2), ", p=", format_p(overall_p))
     } else {
-      paste0("n=", overall_n, ", R2=NA, p=NA")
+      paste0("n=", overall_n, ", R²=NA, p=NA")
     }
 
     p_ec_ca_overall <- ggplot(ec_ca_pairs, aes(x = CHS_EC, y = CHS_CA)) +
