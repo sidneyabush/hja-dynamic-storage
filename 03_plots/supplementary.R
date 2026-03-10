@@ -416,20 +416,50 @@ if (file.exists(ec_ca_pairs_file)) {
     )
 
   if (nrow(ec_ca_pairs) > 0) {
+    safe_r2 <- function(x, y) {
+      keep <- is.finite(x) & is.finite(y)
+      if (sum(keep) < 2) {
+        return(NA_real_)
+      }
+      suppressWarnings(cor(x[keep], y[keep], use = "complete.obs")^2)
+    }
+
+    safe_p <- function(x, y) {
+      keep <- is.finite(x) & is.finite(y)
+      if (sum(keep) < 3) {
+        return(NA_real_)
+      }
+      suppressWarnings(cor.test(x[keep], y[keep], method = "pearson")$p.value)
+    }
+
+    format_p <- function(p) {
+      if (!is.finite(p)) {
+        return("NA")
+      }
+      if (p < 0.001) {
+        return("<0.001")
+      }
+      sprintf("%.3f", p)
+    }
+
     site_rel_stats <- ec_ca_pairs %>%
       group_by(SITECODE) %>%
       summarise(
         n = n(),
-        r = suppressWarnings(cor(CHS_EC, CHS_CA, use = "complete.obs")),
+        r2 = safe_r2(CHS_EC, CHS_CA),
+        p_value = safe_p(CHS_EC, CHS_CA),
         .groups = "drop"
       )
 
     facet_labels <- site_rel_stats %>%
       mutate(
         label = ifelse(
-          is.finite(r),
-          paste0(as.character(SITECODE), "\n", "n=", n, ", r=", sprintf("%.2f", r)),
-          paste0(as.character(SITECODE), "\n", "n=", n, ", r=NA")
+          is.finite(r2),
+          paste0(
+            as.character(SITECODE), "\n",
+            "n=", n, ", R2=", sprintf("%.2f", r2), ", p=", vapply(p_value, format_p, FUN.VALUE = character(1))
+          ),
+          paste0(as.character(SITECODE), "\n", "n=", n, ", R2=NA, p=NA")
         )
       ) %>%
       {stats::setNames(.$label, as.character(.$SITECODE))}
@@ -462,12 +492,13 @@ if (file.exists(ec_ca_pairs_file)) {
         strip.text = element_text(size = FIG_STRIP_TEXT_SIZE)
       )
 
-    overall_r <- suppressWarnings(cor(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA, use = "complete.obs"))
+    overall_r2 <- safe_r2(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA)
+    overall_p <- safe_p(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA)
     overall_n <- nrow(ec_ca_pairs)
-    anno_label <- if (is.finite(overall_r)) {
-      paste0("n=", overall_n, ", r=", sprintf("%.2f", overall_r))
+    anno_label <- if (is.finite(overall_r2)) {
+      paste0("n=", overall_n, ", R2=", sprintf("%.2f", overall_r2), ", p=", format_p(overall_p))
     } else {
-      paste0("n=", overall_n, ", r=NA")
+      paste0("n=", overall_n, ", R2=NA, p=NA")
     }
 
     p_ec_ca_overall <- ggplot(ec_ca_pairs, aes(x = CHS_EC, y = CHS_CA)) +
