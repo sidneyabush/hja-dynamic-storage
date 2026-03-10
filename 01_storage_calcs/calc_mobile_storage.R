@@ -231,6 +231,14 @@ safe_cor <- function(x, y) {
   cor(x[keep], y[keep])
 }
 
+safe_cor_spearman <- function(x, y) {
+  keep <- is.finite(x) & is.finite(y)
+  if (sum(keep) < 2) {
+    return(NA_real_)
+  }
+  cor(x[keep], y[keep], method = "spearman")
+}
+
 safe_mean <- function(x) {
   if (!any(is.finite(x))) {
     return(NA_real_)
@@ -245,6 +253,22 @@ safe_rmse <- function(x, y) {
     return(NA_real_)
   }
   sqrt(mean(d[keep]^2))
+}
+
+safe_lm_intercept <- function(x, y) {
+  keep <- is.finite(x) & is.finite(y)
+  if (sum(keep) < 2) {
+    return(NA_real_)
+  }
+  coef(lm(y[keep] ~ x[keep]))[1]
+}
+
+safe_lm_slope <- function(x, y) {
+  keep <- is.finite(x) & is.finite(y)
+  if (sum(keep) < 2) {
+    return(NA_real_)
+  }
+  coef(lm(y[keep] ~ x[keep]))[2]
 }
 
 site_summary <- comparison %>%
@@ -275,6 +299,38 @@ overall_summary <- tibble(
   rmse_ca_vs_ec_chem = safe_rmse(comparison$CHS_CA, comparison$CHS_EC_CHEM)
 )
 
+site_year_pairs_ec_ca <- comparison %>%
+  filter(is.finite(CHS_EC_CHEM), is.finite(CHS_CA)) %>%
+  transmute(
+    SITECODE,
+    waterYear,
+    CHS_EC = CHS_EC_CHEM,
+    CHS_CA,
+    diff_ca_minus_ec = CHS_CA - CHS_EC_CHEM,
+    abs_diff_ca_minus_ec = abs(CHS_CA - CHS_EC_CHEM),
+    pct_diff_ca_vs_ec = ifelse(
+      abs(CHS_EC_CHEM) > 0,
+      100 * (CHS_CA - CHS_EC_CHEM) / CHS_EC_CHEM,
+      NA_real_
+    )
+  ) %>%
+  arrange(SITECODE, waterYear)
+
+site_by_site_stats <- site_year_pairs_ec_ca %>%
+  group_by(SITECODE) %>%
+  summarise(
+    n_years_paired = n(),
+    corr_pearson = safe_cor(CHS_EC, CHS_CA),
+    corr_spearman = safe_cor_spearman(CHS_EC, CHS_CA),
+    mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
+    median_diff_ca_minus_ec = median(diff_ca_minus_ec, na.rm = TRUE),
+    rmse_ca_vs_ec = safe_rmse(CHS_CA, CHS_EC),
+    lm_intercept_ca_on_ec = safe_lm_intercept(CHS_EC, CHS_CA),
+    lm_slope_ca_on_ec = safe_lm_slope(CHS_EC, CHS_CA),
+    .groups = "drop"
+  ) %>%
+  arrange(SITECODE)
+
 write.csv(
   comparison,
   file.path(output_dir, "annual_gw_prop_ec_ca_comparison.csv"),
@@ -290,6 +346,18 @@ write.csv(
 write.csv(
   overall_summary,
   file.path(output_dir, "annual_gw_prop_ec_ca_overall_summary.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  site_year_pairs_ec_ca,
+  file.path(output_dir, "annual_gw_prop_ec_ca_site_year_pairs.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  site_by_site_stats,
+  file.path(output_dir, "annual_gw_prop_ec_ca_site_by_site_stats.csv"),
   row.names = FALSE
 )
 
