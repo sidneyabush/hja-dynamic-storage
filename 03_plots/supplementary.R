@@ -436,6 +436,14 @@ if (file.exists(ec_ca_pairs_file)) {
       sprintf("%.3f", p)
     }
 
+    format_p_label <- function(p) {
+      p_txt <- format_p(p)
+      if (identical(p_txt, "<0.001")) {
+        return("<0.001")
+      }
+      paste0("p=", p_txt)
+    }
+
     site_rel_stats <- ec_ca_pairs %>%
       group_by(SITECODE) %>%
       summarise(
@@ -451,7 +459,7 @@ if (file.exists(ec_ca_pairs_file)) {
           is.finite(r2),
           paste0(
             as.character(SITECODE), "\n",
-            "n=", n, ", R²=", sprintf("%.2f", r2), ", p=", vapply(p_value, format_p, FUN.VALUE = character(1))
+            "n=", n, ", R²=", sprintf("%.2f", r2), ", ", vapply(p_value, format_p_label, FUN.VALUE = character(1))
           ),
           paste0(as.character(SITECODE), "\n", "n=", n, ", R²=NA, p=NA")
         )
@@ -490,7 +498,7 @@ if (file.exists(ec_ca_pairs_file)) {
     overall_p <- safe_p(ec_ca_pairs$CHS_EC, ec_ca_pairs$CHS_CA)
     overall_n <- nrow(ec_ca_pairs)
     anno_label <- if (is.finite(overall_r2)) {
-      paste0("n=", overall_n, ", R²=", sprintf("%.2f", overall_r2), ", p=", format_p(overall_p))
+      paste0("n=", overall_n, ", R²=", sprintf("%.2f", overall_r2), ", ", format_p_label(overall_p))
     } else {
       paste0("n=", overall_n, ", R²=NA, p=NA")
     }
