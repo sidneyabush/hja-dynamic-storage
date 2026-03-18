@@ -266,7 +266,7 @@ p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
     drop = FALSE
   ) +
   coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
-  labs(x = NULL, y = "Baseflow Fraction from Chemical Hydrograph Separation (CHS)") +
+  labs(x = NULL, y = "Baseflow Fraction (CHS)") +
   theme_storage_panel() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE + 1),
