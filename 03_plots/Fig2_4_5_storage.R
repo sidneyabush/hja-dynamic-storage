@@ -148,11 +148,11 @@ letters_fig2 <- letters_df %>%
   mutate(y = ymax_site + offset)
 
 fig2_titles <- c(
-  RBI = "a) Richards-Baker Index\n(RBI)",
-  RCS = "b) Recession Curve Slope\n(RCS)",
-  FDC = "c) Flow Duration Curve Slope\n(FDC)",
-  SD = "d) Storage-Discharge\n(SD)",
-  WB = "e) Water-Balance Depletion Range\n(WB)"
+  RBI = "a) Richards-Baker Index (RBI)",
+  RCS = "b) Recession Curve Slope (RCS)",
+  FDC = "c) Flow Duration Curve Slope (FDC)",
+  SD = "d) Storage-Discharge (SD)",
+  WB = "e) Water-Balance Depletion Range (WB)"
 )
 fig2_y_labels <- c(
   RBI = "Unitless",
@@ -352,9 +352,9 @@ fig5_df <- site_summary %>%
   mutate(metric = factor(metric, levels = names(fig5_map)))
 
 fig5_titles <- c(
-  DR = "a) Damping Ratio\n(DR)",
-  Fyw = "b) Young Water Fraction\n(Fyw)",
-  MTT = "c) Mean Transit Time\n(MTT)"
+  DR = "a) Damping Ratio (DR)",
+  Fyw = "b) Young Water Fraction (Fyw)",
+  MTT = "c) Mean Transit Time (MTT)"
 )
 fig5_y_labels <- c(
   DR = "Damping Ratio",
