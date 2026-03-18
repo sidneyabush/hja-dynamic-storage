@@ -28,10 +28,18 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   )
 }
 
-build_corr_triangle_plot <- function(data_df, metric_map, legend_title = "Pearson's r") {
+build_corr_triangle_plot <- function(
+  data_df,
+  metric_map,
+  legend_title = "Pearson's r",
+  metric_labels = NULL
+) {
   metric_map <- metric_map[metric_map %in% names(data_df)]
   if (length(metric_map) < 2) {
     return(NULL)
+  }
+  if (is.null(metric_labels)) {
+    metric_labels <- stats::setNames(names(metric_map), names(metric_map))
   }
 
   corr_input <- as.data.frame(lapply(data_df[, unname(metric_map), drop = FALSE], function(x) {
@@ -68,6 +76,8 @@ build_corr_triangle_plot <- function(data_df, metric_map, legend_title = "Pearso
   ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
     geom_tile(color = "white", linewidth = 0.3) +
     geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE * 1.25) +
+    scale_x_discrete(labels = metric_labels) +
+    scale_y_discrete(labels = metric_labels) +
     scale_fill_gradient2(
       low = "firebrick3",
       mid = "white",
@@ -120,7 +130,14 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     ) %>%
     filter(Response %in% c("Q7Q5", "T7DMax"), is.finite(Observed), is.finite(Predicted))
 
-  response_labels <- c("Q7Q5" = "a) Q7Q5", "T7DMax" = "b) T7DMax")
+  response_labels <- c(
+    "Q7Q5" = "a) Seven-Day Low-Flow Discharge (Q7Q5)",
+    "T7DMax" = "b) Seven-Day Maximum Stream Temperature (T7DMax)"
+  )
+  response_labels <- stats::setNames(
+    wrap_plot_label(response_labels, width = 36),
+    names(response_labels)
+  )
   pred_point_alpha <- 0.65
 
   r2_df <- pred_df %>%
@@ -350,7 +367,15 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     MTT = "MTT"
   )
 
-  p_dynamic_corr <- build_corr_triangle_plot(annual_corr, dynamic_map, legend_title = "Pearson's r")
+  p_dynamic_corr <- build_corr_triangle_plot(
+    annual_corr,
+    dynamic_map,
+    legend_title = "Pearson's r",
+    metric_labels = stats::setNames(
+      wrap_plot_label(label_storage_metric(names(dynamic_map)), width = 18),
+      names(dynamic_map)
+    )
+  )
   if (!is.null(p_dynamic_corr)) {
     invisible(safe_ggsave(
       file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"),
@@ -369,7 +394,15 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     unlink(file.path(supp_pdf_dir, "FigSx_dynamic_metrics_corr.pdf"))
   }
 
-  p_mobile_corr <- build_corr_triangle_plot(site_df, mobile_map, legend_title = "Pearson's r")
+  p_mobile_corr <- build_corr_triangle_plot(
+    site_df,
+    mobile_map,
+    legend_title = "Pearson's r",
+    metric_labels = stats::setNames(
+      wrap_plot_label(label_storage_metric(names(mobile_map)), width = 20),
+      names(mobile_map)
+    )
+  )
   if (!is.null(p_mobile_corr)) {
     invisible(safe_ggsave(
       file.path(supp_dir, "FigSX_mobile_metrics_corr.png"),
@@ -485,7 +518,10 @@ if (file.exists(ec_ca_pairs_file)) {
       scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
       scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
       coord_equal() +
-      labs(x = "CHS from EC", y = "CHS from Ca") +
+      labs(
+        x = "Chemical Hydrograph Separation from Electrical Conductivity (CHS from EC)",
+        y = "Chemical Hydrograph Separation from Calcium (CHS from Ca)"
+      ) +
       theme_pub() +
       theme(
         axis.text = element_text(size = FIG_AXIS_TEXT_SIZE),
@@ -529,7 +565,11 @@ if (file.exists(ec_ca_pairs_file)) {
       scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
       scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
       coord_equal() +
-      labs(x = "CHS from EC", y = "CHS from Ca", color = NULL) +
+      labs(
+        x = "Chemical Hydrograph Separation from Electrical Conductivity (CHS from EC)",
+        y = "Chemical Hydrograph Separation from Calcium (CHS from Ca)",
+        color = NULL
+      ) +
       theme_pub() +
       theme(
         axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),

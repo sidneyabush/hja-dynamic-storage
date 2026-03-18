@@ -74,6 +74,14 @@ norm_predictor <- function(x) {
 
 response_order <- c("Q7Q5", "T7DMax")
 predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "MTT")
+response_axis_labels <- stats::setNames(
+  wrap_plot_label(label_eco_response(response_order), width = 24),
+  response_order
+)
+predictor_axis_labels <- stats::setNames(
+  wrap_plot_label(label_eco_predictor(predictor_order), width = 20),
+  predictor_order
+)
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
@@ -126,12 +134,6 @@ plot_df <- expand_grid(
     label = ifelse(is.finite(Beta_Std), paste0(sprintf("%.2f", Beta_Std), sig), "")
   )
 
-predictor_axis_labels <- function(vals) {
-  txt <- as.character(vals)
-  txt[txt == "Pws"] <- "P[ws]"
-  parse(text = txt)
-}
-
 p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
   geom_tile(fill = "white", color = "white", linewidth = 0.3) +
   geom_tile(
@@ -150,11 +152,13 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
     oob = scales::squish,
     name = expression(italic(beta))
   ) +
+  scale_x_discrete(labels = response_axis_labels) +
   scale_y_discrete(labels = predictor_axis_labels) +
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
-    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
+    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
     legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
     legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)

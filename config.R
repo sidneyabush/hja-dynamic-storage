@@ -354,6 +354,80 @@ make_panel_label_map <- function(values) {
   stats::setNames(labels, values)
 }
 
+STORAGE_METRIC_FULL_NAMES <- c(
+  "RBI" = "Richards-Baker Index",
+  "RCS" = "Recession Curve Slope",
+  "FDC" = "Flow Duration Curve Slope",
+  "SD" = "Storage-Discharge",
+  "WB" = "Water-Balance Depletion Range",
+  "CHS" = "Chemical Hydrograph Separation",
+  "DR" = "Damping Ratio",
+  "Fyw" = "Young Water Fraction",
+  "MTT" = "Mean Transit Time"
+)
+
+ECO_RESPONSE_FULL_NAMES <- c(
+  "Q7Q5" = "Seven-Day Low-Flow Discharge (Q7Q5)",
+  "T7DMax" = "Seven-Day Maximum Stream Temperature (T7DMax)"
+)
+
+ECO_PREDICTOR_FULL_NAMES <- c(
+  "Pws" = "Wet-Season Precipitation (Pws)",
+  "RBI" = "Richards-Baker Index (RBI)",
+  "RCS" = "Recession Curve Slope (RCS)",
+  "FDC" = "Flow Duration Curve Slope (FDC)",
+  "SD" = "Storage-Discharge (SD)",
+  "WB" = "Water-Balance Depletion Range (WB)",
+  "CHS" = "Chemical Hydrograph Separation (CHS)",
+  "DR" = "Damping Ratio (DR)",
+  "Fyw" = "Young Water Fraction (Fyw)",
+  "MTT" = "Mean Transit Time (MTT)"
+)
+
+label_storage_metric <- function(x, include_abbrev = TRUE) {
+  x_chr <- as.character(x)
+  long <- unname(STORAGE_METRIC_FULL_NAMES[x_chr])
+  miss <- is.na(long)
+  long[miss] <- x_chr[miss]
+  if (!isTRUE(include_abbrev)) {
+    return(long)
+  }
+  out <- paste0(long, " (", x_chr, ")")
+  out[miss] <- x_chr[miss]
+  out
+}
+
+label_eco_response <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(ECO_RESPONSE_FULL_NAMES[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
+label_eco_predictor <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(ECO_PREDICTOR_FULL_NAMES[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
+wrap_plot_label <- function(x, width = 22) {
+  x_chr <- as.character(x)
+  vapply(
+    x_chr,
+    function(lbl) {
+      parts <- strwrap(lbl, width = width)
+      if (length(parts) == 0) {
+        return("")
+      }
+      paste(parts, collapse = "\n")
+    },
+    FUN.VALUE = character(1)
+  )
+}
+
 CATCHMENT_PREDICTOR_LABELS <- c(
   "basin_slope" = "Basin Slope",
   "Harvest" = "Harvest",

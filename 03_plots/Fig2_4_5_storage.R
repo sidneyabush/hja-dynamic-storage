@@ -148,11 +148,11 @@ letters_fig2 <- letters_df %>%
   mutate(y = ymax_site + offset)
 
 fig2_titles <- c(
-  RBI = "a) RBI",
-  RCS = "b) RCS",
-  FDC = "c) FDC",
-  SD = "d) SD",
-  WB = "e) WB"
+  RBI = "a) Richards-Baker Index\n(RBI)",
+  RCS = "b) Recession Curve Slope\n(RCS)",
+  FDC = "c) Flow Duration Curve Slope\n(FDC)",
+  SD = "d) Storage-Discharge\n(SD)",
+  WB = "e) Water-Balance Depletion Range\n(WB)"
 )
 fig2_y_labels <- c(
   RBI = "Unitless",
@@ -266,7 +266,7 @@ p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
     drop = FALSE
   ) +
   coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
-  labs(x = NULL, y = "Baseflow Fraction (CHS)") +
+  labs(x = NULL, y = "Baseflow Fraction from Chemical Hydrograph Separation (CHS)") +
   theme_storage_panel() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE + 1),
@@ -293,17 +293,17 @@ if (file.exists(isotope_file)) {
         ),
         na.rm = TRUE
       ),
-      MTT1_err = suppressWarnings(as.numeric(MTT1_SD)),
-      MTT2_err = rowMeans(
+      MTT_early_window_err = suppressWarnings(as.numeric(MTT1_SD)),
+      MTT_late_window_err = rowMeans(
         cbind(
           suppressWarnings(as.numeric(MTT2L_SD)),
           suppressWarnings(as.numeric(MTT2H_SD))
         ),
         na.rm = TRUE
       ),
-      MTT_err = rowMeans(cbind(MTT1_err, MTT2_err), na.rm = TRUE),
+      MTT_err = rowMeans(cbind(MTT_early_window_err, MTT_late_window_err), na.rm = TRUE),
       Fyw_err = ifelse(is.nan(Fyw_err), NA_real_, Fyw_err),
-      MTT2_err = ifelse(is.nan(MTT2_err), NA_real_, MTT2_err),
+      MTT_late_window_err = ifelse(is.nan(MTT_late_window_err), NA_real_, MTT_late_window_err),
       MTT_err = ifelse(is.nan(MTT_err), NA_real_, MTT_err)
     ) %>%
     filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
@@ -352,14 +352,14 @@ fig5_df <- site_summary %>%
   mutate(metric = factor(metric, levels = names(fig5_map)))
 
 fig5_titles <- c(
-  DR = "a) DR",
-  Fyw = "b) Fyw",
-  MTT = "c) MTT"
+  DR = "a) Damping Ratio\n(DR)",
+  Fyw = "b) Young Water Fraction\n(Fyw)",
+  MTT = "c) Mean Transit Time\n(MTT)"
 )
 fig5_y_labels <- c(
-  DR = "Ratio",
-  Fyw = "Fraction",
-  MTT = "Years"
+  DR = "Damping Ratio",
+  Fyw = "Young Water Fraction",
+  MTT = "Mean Transit Time (years)"
 )
 
 build_fig5_panel <- function(metric_key) {

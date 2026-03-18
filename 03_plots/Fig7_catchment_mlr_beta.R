@@ -63,6 +63,10 @@ if (!file.exists(summary_file)) stop("Missing file: catchment_char_storage_mlr_s
 mlr_results <- read_csv(results_file, show_col_types = FALSE)
 mlr_summary <- read_csv(summary_file, show_col_types = FALSE)
 outcome_order <- STORAGE_METRIC_ORDER
+outcome_axis_labels <- stats::setNames(
+  wrap_plot_label(label_storage_metric(outcome_order), width = 18),
+  outcome_order
+)
 
 format_model_p <- function(p) {
   ifelse(
@@ -128,7 +132,7 @@ adj_r2_lookup <- mlr_summary %>%
     Outcome_clean = gsub("_mean$", "", Outcome),
     Outcome_label = factor(Outcome_clean, levels = outcome_order),
     Outcome_stats = paste0(
-      Outcome_clean,
+      label_storage_metric(Outcome_clean),
       ": adj R2 ",
       sprintf("%.2f", R2_adj),
       ", model p ",
@@ -164,6 +168,7 @@ fig7_legend_text <- (FIG_AXIS_TEXT_SIZE + 1) * FIG7_TEXT_SCALE
 p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = beta_label), size = fig7_tile_text) +
+  scale_x_discrete(labels = outcome_axis_labels) +
   scale_fill_gradient2(
     low = "firebrick3",
     mid = "white",
@@ -176,7 +181,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
-    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    axis.text.x = element_text(angle = 28, hjust = 1, vjust = 1),
     axis.text = element_text(size = fig7_axis_text),
     axis.title = element_text(size = fig7_axis_title),
     legend.title = element_text(size = fig7_legend_title),
