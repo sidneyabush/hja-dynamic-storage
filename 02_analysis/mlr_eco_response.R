@@ -27,6 +27,32 @@ if (!file.exists(annual_file)) {
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
+# always use combined site-level MTT (legacy MTT1+MTT2 collapsed) as the
+# MTT predictor in eco models.
+isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
+if (!file.exists(isotope_site_mean_file)) {
+  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+}
+
+mtt_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
+  mutate(
+    site = if ("site" %in% names(.)) site else SITECODE,
+    site = standardize_site_code(site),
+    MTT_site_combined = suppressWarnings(as.numeric(MTT))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !is.na(site), site != "") %>%
+  group_by(site) %>%
+  summarise(
+    MTT_site_combined = ifelse(any(is.finite(MTT_site_combined)), mean(MTT_site_combined, na.rm = TRUE), NA_real_),
+    .groups = "drop"
+  )
+
+data_all <- data_all %>%
+  mutate(site = standardize_site_code(site)) %>%
+  left_join(mtt_site_mean, by = "site") %>%
+  mutate(MTT = MTT_site_combined) %>%
+  dplyr::select(-MTT_site_combined)
+
 if (!("T_7DMax" %in% names(data_all)) && ("max_temp_7d_C" %in% names(data_all))) {
   data_all <- data_all %>% mutate(T_7DMax = max_temp_7d_C)
 }
@@ -60,7 +86,7 @@ if (length(missing_responses) > 0) {
 }
 
 mandatory_predictors <- c("Pws")
-storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS")
+storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "MTT")
 storage_predictors <- storage_predictors[storage_predictors %in% names(data_all)]
 if (!("Pws" %in% names(data_all))) {
   stop("Missing required predictor: Pws")

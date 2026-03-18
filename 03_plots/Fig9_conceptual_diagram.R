@@ -304,7 +304,7 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
 
 required_mobile_dynamic_cols <- c(
   "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean",
-  "CHS_mean", "DR", "Fyw", "MTT1", "MTT2"
+  "CHS_mean", "DR", "Fyw", "MTT"
 )
 missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
 if (length(missing_required_cols) > 0) {
@@ -320,7 +320,7 @@ eligible_sites_panel_b <- master_site %>%
     eligible = if_all(
       all_of(c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean", "DR", "Fyw")),
       ~ is.finite(.x)
-    ) & (is.finite(MTT1) | is.finite(MTT2))
+    ) & is.finite(MTT)
   ) %>%
   filter(eligible) %>%
   pull(site)

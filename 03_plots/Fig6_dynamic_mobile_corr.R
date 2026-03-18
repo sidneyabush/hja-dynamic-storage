@@ -65,8 +65,7 @@ mobile_map <- c(
   CHS = "CHS_mean",
   DR = "DR",
   Fyw = "Fyw",
-  MTT1 = "MTT1",
-  MTT2 = "MTT2"
+  MTT = "MTT"
 )
 
 dynamic_map <- dynamic_map[dynamic_map %in% names(site_df)]

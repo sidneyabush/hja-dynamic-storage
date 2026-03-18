@@ -277,8 +277,7 @@ p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
 fig5_map <- c(
   DR = "DR",
   Fyw = "Fyw",
-  MTT1 = "MTT1",
-  MTT2 = "MTT2"
+  MTT = "MTT"
 )
 
 isotope_err <- tibble(site = SITE_ORDER_HYDROMETRIC)
@@ -302,22 +301,23 @@ if (file.exists(isotope_file)) {
         ),
         na.rm = TRUE
       ),
+      MTT_err = rowMeans(cbind(MTT1_err, MTT2_err), na.rm = TRUE),
       Fyw_err = ifelse(is.nan(Fyw_err), NA_real_, Fyw_err),
-      MTT2_err = ifelse(is.nan(MTT2_err), NA_real_, MTT2_err)
+      MTT2_err = ifelse(is.nan(MTT2_err), NA_real_, MTT2_err),
+      MTT_err = ifelse(is.nan(MTT_err), NA_real_, MTT_err)
     ) %>%
     filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
     group_by(site) %>%
     summarise(
       Fyw_err = first_finite(Fyw_err),
-      MTT1_err = first_finite(MTT1_err),
-      MTT2_err = first_finite(MTT2_err),
+      MTT_err = first_finite(MTT_err),
       .groups = "drop"
     )
 
   isotope_err <- isotope_err %>% left_join(mtt_err, by = "site")
 } else {
   isotope_err <- isotope_err %>%
-    mutate(Fyw_err = NA_real_, MTT1_err = NA_real_, MTT2_err = NA_real_)
+    mutate(Fyw_err = NA_real_, MTT_err = NA_real_)
 }
 
 if (file.exists(damping_file)) {
@@ -338,7 +338,7 @@ if (file.exists(damping_file)) {
 fig5_err_long <- isotope_err %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   pivot_longer(
-    cols = c(DR_err, Fyw_err, MTT1_err, MTT2_err),
+    cols = c(DR_err, Fyw_err, MTT_err),
     names_to = "metric",
     values_to = "err"
   ) %>%
@@ -354,19 +354,17 @@ fig5_df <- site_summary %>%
 fig5_titles <- c(
   DR = "a) DR",
   Fyw = "b) Fyw",
-  MTT1 = "c) MTT1",
-  MTT2 = "d) MTT2"
+  MTT = "c) MTT"
 )
 fig5_y_labels <- c(
   DR = "Ratio",
   Fyw = "Fraction",
-  MTT1 = "Years",
-  MTT2 = "Years"
+  MTT = "Years"
 )
 
 build_fig5_panel <- function(metric_key) {
   dat <- fig5_df %>% filter(metric == metric_key)
-  show_x <- metric_key %in% c("MTT1", "MTT2")
+  show_x <- metric_key == "MTT"
   y_lim <- calc_ylim(
     c(dat$value, dat$value - dat$err, dat$value + dat$err),
     numeric()
@@ -402,7 +400,7 @@ build_fig5_panel <- function(metric_key) {
 
 p_fig5 <- wrap_plots(
   lapply(names(fig5_map), build_fig5_panel),
-  ncol = 2,
+  ncol = length(fig5_map),
   byrow = TRUE
 )
 

@@ -27,6 +27,34 @@ if (!file.exists(site_file)) {
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
+# enforce combined site-level MTT values (legacy MTT1+MTT2 collapsed)
+# regardless of other isotope mode settings.
+isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
+if (!file.exists(isotope_site_mean_file)) {
+  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+}
+
+mtt_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
+  mutate(
+    site = if ("site" %in% names(.)) site else SITECODE,
+    site = standardize_site_code(site),
+    MTT_site_combined = suppressWarnings(as.numeric(MTT))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !is.na(site), site != "") %>%
+  group_by(site) %>%
+  summarise(
+    MTT_site_combined = ifelse(any(is.finite(MTT_site_combined)), mean(MTT_site_combined, na.rm = TRUE), NA_real_),
+    .groups = "drop"
+  )
+
+site_df <- site_df %>%
+  mutate(site = standardize_site_code(site)) %>%
+  left_join(mtt_site_mean, by = "site") %>%
+  mutate(
+    MTT = dplyr::coalesce(MTT_site_combined, suppressWarnings(as.numeric(MTT)))
+  ) %>%
+  dplyr::select(-MTT_site_combined)
+
 if (!("basin_slope" %in% names(site_df)) && ("Slope_mean" %in% names(site_df))) {
   site_df <- site_df %>% mutate(basin_slope = Slope_mean)
 }
@@ -40,8 +68,7 @@ outcome_map <- c(
   "CHS" = "CHS_mean",
   "DR" = "DR",
   "Fyw" = "Fyw",
-  "MTT1" = "MTT1",
-  "MTT2" = "MTT2"
+  "MTT" = "MTT"
 )
 
 predictor_vars <- c(

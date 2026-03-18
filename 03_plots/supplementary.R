@@ -347,8 +347,7 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     CHS = "CHS_mean",
     DR = "DR",
     Fyw = "Fyw",
-    MTT1 = "MTT1",
-    MTT2 = "MTT2"
+    MTT = "MTT"
   )
 
   p_dynamic_corr <- build_corr_triangle_plot(annual_corr, dynamic_map, legend_title = "Pearson's r")

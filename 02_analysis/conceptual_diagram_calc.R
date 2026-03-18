@@ -160,8 +160,7 @@ metric_oriented <- site_df %>%
     WB_depletion_mag = WB_mean,
     DR_inv = -DR,
     Fyw_inv = -Fyw,
-    MTT1 = MTT1,
-    MTT2 = MTT2,
+    MTT = MTT,
     CHS = CHS_mean
   )
 
@@ -173,10 +172,9 @@ dynamic_vals <- row_mean_min(
   min_non_na = 4L
 )
 
-mtt_vals <- row_mean_min(metric_z[, c("MTT1_z", "MTT2_z")], min_non_na = 1L)
 mobile_with_chs_vals <- row_mean_min(
   tibble(
-    MTT = mtt_vals$mean,
+    MTT = metric_z$MTT_z,
     DR = metric_z$DR_inv_z,
     Fyw = metric_z$Fyw_inv_z,
     CHS = metric_z$CHS_z
@@ -185,7 +183,7 @@ mobile_with_chs_vals <- row_mean_min(
 )
 mobile_no_chs_vals <- row_mean_min(
   tibble(
-    MTT = mtt_vals$mean,
+    MTT = metric_z$MTT_z,
     DR = metric_z$DR_inv_z,
     Fyw = metric_z$Fyw_inv_z
   ),

@@ -352,7 +352,7 @@ check_required_columns(
 )
 check_required_columns(
   isotope_site,
-  c("site", "MTT1", "MTT2", "Fyw", "DR"),
+  c("site", "MTT", "Fyw", "DR"),
   "isotope_metrics_site"
 )
 
@@ -544,8 +544,8 @@ if (nrow(mean_pairs) == 0) {
 
 # isotope site metrics should pass through to master_site unchanged.
 iso_cmp <- isotope_site %>%
-  select(site, MTT1, MTT2, Fyw, DR) %>%
-  inner_join(master_site %>% select(site, MTT1, MTT2, Fyw, DR), by = "site", suffix = c("_iso", "_site"))
+  select(site, MTT, Fyw, DR) %>%
+  inner_join(master_site %>% select(site, MTT, Fyw, DR), by = "site", suffix = c("_iso", "_site"))
 
 record_check(
   "rows_isotope_vs_master_site_join",
@@ -554,7 +554,7 @@ record_check(
   fatal = TRUE
 )
 
-for (col in c("MTT1", "MTT2", "Fyw", "DR")) {
+for (col in c("MTT", "Fyw", "DR")) {
   s <- max_diff_stats(iso_cmp[[paste0(col, "_iso")]], iso_cmp[[paste0(col, "_site")]])
   ok <- s$n > 0 && is.finite(s$max_abs) && s$max_abs <= 1e-8
   detail <- if (ok) {

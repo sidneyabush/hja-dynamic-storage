@@ -73,7 +73,7 @@ norm_predictor <- function(x) {
 }
 
 response_order <- c("Q7Q5", "T7DMax")
-predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS")
+predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "MTT")
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 

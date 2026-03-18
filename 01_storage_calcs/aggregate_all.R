@@ -1,5 +1,5 @@
 # assemble all annual/site-level metrics into master analysis tables.
-# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; isotope_dir/mtt_fyw.csv; mobile_dir/isotope_metrics_annual_segura.csv; +1 more csv files.
+# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; mobile_dir/isotope_metrics_site.csv; mobile_dir/isotope_metrics_annual_segura.csv; +1 more csv files.
 # author: sidney bush
 # date: 2026-02-13
 
@@ -28,7 +28,6 @@ mobile_dir  <- OUT_MET_MOBILE_DIR
 extended_dir <- OUT_MET_EXTENDED_DIR
 eco_dir <- OUT_MET_ECO_DIR
 master_dir <- file.path(OUTPUT_DIR, "master")
-isotope_dir <- ISOTOPE_DIR
 catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
 # make sure output directory exists
@@ -234,39 +233,25 @@ HJA_avg <- HJA_annual %>%
 
 # add isotope-based site-level metrics (not annual)
 
-# mtt1, mtt2, and fyw
-mtt_fyw <- read_csv(
-  file.path(isotope_dir, "MTT_FYW.csv"),
+isotope_site_path <- file.path(mobile_dir, "isotope_metrics_site.csv")
+if (!file.exists(isotope_site_path)) {
+  stop("Missing required isotope site file: ", isotope_site_path)
+}
+isotope_metrics <- read_csv(
+  isotope_site_path,
   show_col_types = FALSE
 ) %>%
-  mutate(site = standardize_site_code(site)) %>%
   mutate(
-    MTT1 = suppressWarnings(as.numeric(MTT1)),
-    MTT2L_val = if ("MTT2L" %in% names(.)) suppressWarnings(as.numeric(MTT2L)) else NA_real_,
-    MTT2H_val = if ("MTT2H" %in% names(.)) suppressWarnings(as.numeric(MTT2H)) else NA_real_,
-    MTT2M_val = if ("MTT2M" %in% names(.)) suppressWarnings(as.numeric(MTT2M)) else NA_real_,
-    MTT2 = suppressWarnings(as.numeric(dplyr::coalesce(
-      MTT2M_val,
-      rowMeans(cbind(MTT2L_val, MTT2H_val), na.rm = TRUE)
-    ))),
-    MTT2 = ifelse(is.nan(MTT2), NA_real_, MTT2),
-    Fyw = suppressWarnings(as.numeric(FYWM))
+    site = if ("site" %in% names(.)) site else SITECODE
   ) %>%
-  select(site, MTT1, MTT2, Fyw) %>%
+  mutate(
+    site = standardize_site_code(site),
+    MTT = suppressWarnings(as.numeric(MTT)),
+    Fyw = suppressWarnings(as.numeric(Fyw)),
+    DR = suppressWarnings(as.numeric(DR))
+  ) %>%
+  select(site, MTT, Fyw, DR) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
-
-# damping ratio
-damping_ratios <- read_csv(
-  file.path(isotope_dir, "DampingRatios_2025-07-07.csv"),
-  show_col_types = FALSE
-) %>%
-  mutate(site = standardize_site_code(site)) %>%
-  select(site, DR = DR_Overall, DR_err = DR__err) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC)
-
-# combine isotope metrics into one site-level table
-isotope_metrics <- mtt_fyw %>%
-  full_join(damping_ratios, by = "site")
 assert_unique_keys(isotope_metrics, c("site"), "isotope_metrics")
 
 # join isotope metrics into site-average table
@@ -322,14 +307,13 @@ annual_sample_sizes <- HJA_annual %>%
 
 # add isotope availability flags
 site_isotope <- HJA_avg %>%
-  select(site, MTT1, MTT2, Fyw, DR) %>%
+  select(site, MTT, Fyw, DR) %>%
   mutate(
-    has_MTT1 = !is.na(MTT1),
-    has_MTT2 = !is.na(MTT2),
+    has_MTT = !is.na(MTT),
     has_Fyw = !is.na(Fyw),
     has_DR = !is.na(DR)
   ) %>%
-  select(site, has_MTT1, has_MTT2, has_Fyw, has_DR)
+  select(site, has_MTT, has_Fyw, has_DR)
 
 sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
@@ -426,8 +410,7 @@ metrics_info <- tribble(
   "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "CHS"                   , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
-  "Mobile"           , "Mean Transit Time (MTT1)" , "MTT1"        , "MTT1"                  , "isotopes"    ,
-  "Mobile"           , "Mean Transit Time (MTT2)" , "MTT2"        , "MTT2"                  , "isotopes"
+  "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"
 )
 
 annual_metric_presence <- HJA_annual %>%
@@ -447,8 +430,7 @@ site_metric_presence <- isotope_metrics %>%
   mutate(site = as.character(site)) %>%
   transmute(
     site,
-    MTT1 = is.finite(MTT1),
-    MTT2 = is.finite(MTT2),
+    MTT = is.finite(MTT),
     Fyw = is.finite(Fyw),
     DR = is.finite(DR)
   )

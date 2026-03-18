@@ -4,11 +4,15 @@
 
 # default project paths (single supported layout)
 REPO_DIR <- normalizePath(getwd(), mustWork = FALSE)
-BOX_BASE_DIR <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
-FINAL_WORKFLOW_ROOT <- file.path(BOX_BASE_DIR, "final_workflow")
-BASE_DATA_DIR <- file.path(FINAL_WORKFLOW_ROOT, "inputs")
-OUTPUT_DIR <- file.path(FINAL_WORKFLOW_ROOT, "outputs")
-MS_MATERIALS_DIR <- file.path(FINAL_WORKFLOW_ROOT, "ms_materials")
+default_box_base_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
+BOX_BASE_DIR <- Sys.getenv("HJA_BOX_BASE_DIR", unset = default_box_base_dir)
+
+# allow local overrides for sandboxed/batch comparison runs.
+default_final_workflow_root <- file.path(BOX_BASE_DIR, "final_workflow")
+FINAL_WORKFLOW_ROOT <- Sys.getenv("HJA_FINAL_WORKFLOW_ROOT", unset = default_final_workflow_root)
+BASE_DATA_DIR <- Sys.getenv("HJA_BASE_DATA_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "inputs"))
+OUTPUT_DIR <- Sys.getenv("HJA_OUTPUT_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "outputs"))
+MS_MATERIALS_DIR <- Sys.getenv("HJA_MS_MATERIALS_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "ms_materials"))
 EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
 CONCEPTUAL_DIAGRAM_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "conceptual_diagram")
 SUPP_EXPLORATORY_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "supp")
@@ -177,8 +181,7 @@ CHS_MIN_DAYS_PER_WY <- 300
 # (from cf002 chemistry records, e.g., cond and ca).
 CHS_MIN_OBS_PER_WY_CHEM <- 10
 
-# annual isotope inputs from segura workbook (kept separate from site-level
-# mean isotope metrics so this pathway can be toggled/reverted independently).
+# annual isotope inputs from segura workbook.
 USE_SEGURA_ANNUAL_ISOTOPE_METRICS <- TRUE
 SEGURA_ANNUAL_ISOTOPE_FILE <- "MTT_FYW_2026-03-05.xlsx"
 SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE <- "isotope_metrics_annual_segura.csv"
@@ -190,8 +193,8 @@ CHS_EXCLUDE_SITES <- c("Look", "WS09")
 # storage metrics definitions
 
 # default storage-metric order across figures/tables:
-# rbi, rcs, fdc, sd, wb, chs, dr, fyw, mtt1, mtt2
-STORAGE_METRIC_ORDER <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT1", "MTT2")
+# rbi, rcs, fdc, sd, wb, chs, dr, fyw, mtt
+STORAGE_METRIC_ORDER <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
 
 # dynamic storage metrics (from streamflow data - year-by-year records)
 # rbi = richards-baker index, rcs = recession curve slope
@@ -200,24 +203,22 @@ DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS"
 
 # mobile storage metrics
 # chs = chemical hydrograph separation (mean baseflow fraction)
-# mtt1/mtt2 = mean transit time period-specific values, fyw = young water fraction, dr = damping ratio
+# mtt = mean transit time (single entity), fyw = young water fraction, dr = damping ratio
 MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS")]
-MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT1", "MTT2")] # Site-level from isotopes
+MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT")] # Site-level from isotopes
 
 # extended dynamic storage metrics (from water balance - annual)
 # wb = water balance (extended dynamic storage)
 EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("WB")]
 
 # shared metric display order for plotting.
-# keep isotope mobile metrics split as mtt1 and mtt2.
 PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")]
-PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT1", "MTT2")]
+PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT")]
 PLOT_MOBILE_STORAGE_SITE_COLS <- c(
   "CHS" = "CHS_mean",
   "DR" = "DR",
   "Fyw" = "Fyw",
-  "MTT1" = "MTT1",
-  "MTT2" = "MTT2"
+  "MTT" = "MTT"
 )
 
 # all storage metrics
