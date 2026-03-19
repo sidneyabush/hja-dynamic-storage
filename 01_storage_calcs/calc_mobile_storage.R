@@ -199,16 +199,6 @@ comparison <- annual_bf_prop %>%
     n_days_ec = n_days
   ) %>%
   full_join(
-    annual_bf_prop_ec_chem %>%
-      select(
-        SITECODE,
-        waterYear,
-        CHS_EC_CHEM = CHS,
-        n_obs_ec_chem = n_obs
-      ),
-    by = c("SITECODE", "waterYear")
-  ) %>%
-  full_join(
     annual_bf_prop_ca %>%
       select(
         SITECODE,
@@ -219,8 +209,7 @@ comparison <- annual_bf_prop %>%
     by = c("SITECODE", "waterYear")
   ) %>%
   mutate(
-    diff_ca_minus_ec = CHS_CA - CHS_EC,
-    diff_ca_minus_ec_chem = CHS_CA - CHS_EC_CHEM
+    diff_ca_minus_ec = CHS_CA - CHS_EC
   ) %>%
   arrange(SITECODE, waterYear)
 
@@ -279,39 +268,30 @@ site_summary <- comparison %>%
     corr_ec_vs_ca = safe_cor(CHS_EC, CHS_CA),
     mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
     rmse_ca_vs_ec = safe_rmse(CHS_CA, CHS_EC),
-    n_years_ec_chem_ca = sum(is.finite(CHS_EC_CHEM) & is.finite(CHS_CA)),
-    corr_ec_chem_vs_ca = safe_cor(CHS_EC_CHEM, CHS_CA),
-    mean_diff_ca_minus_ec_chem = safe_mean(diff_ca_minus_ec_chem),
-    rmse_ca_vs_ec_chem = safe_rmse(CHS_CA, CHS_EC_CHEM),
     .groups = "drop"
   )
 
 overall_n_years_ec_ca <- sum(is.finite(comparison$CHS_EC) & is.finite(comparison$CHS_CA))
-overall_n_years_ec_chem_ca <- sum(is.finite(comparison$CHS_EC_CHEM) & is.finite(comparison$CHS_CA))
 
 overall_summary <- tibble(
   n_years_ec_ca = overall_n_years_ec_ca,
   corr_ec_vs_ca = safe_cor(comparison$CHS_EC, comparison$CHS_CA),
   mean_diff_ca_minus_ec = safe_mean(comparison$diff_ca_minus_ec),
-  rmse_ca_vs_ec = safe_rmse(comparison$CHS_CA, comparison$CHS_EC),
-  n_years_ec_chem_ca = overall_n_years_ec_chem_ca,
-  corr_ec_chem_vs_ca = safe_cor(comparison$CHS_EC_CHEM, comparison$CHS_CA),
-  mean_diff_ca_minus_ec_chem = safe_mean(comparison$diff_ca_minus_ec_chem),
-  rmse_ca_vs_ec_chem = safe_rmse(comparison$CHS_CA, comparison$CHS_EC_CHEM)
+  rmse_ca_vs_ec = safe_rmse(comparison$CHS_CA, comparison$CHS_EC)
 )
 
 site_year_pairs_ec_ca <- comparison %>%
-  filter(is.finite(CHS_EC_CHEM), is.finite(CHS_CA)) %>%
+  filter(is.finite(CHS_EC), is.finite(CHS_CA)) %>%
   transmute(
     SITECODE,
     waterYear,
-    CHS_EC = CHS_EC_CHEM,
+    CHS_EC,
     CHS_CA,
-    diff_ca_minus_ec = CHS_CA - CHS_EC_CHEM,
-    abs_diff_ca_minus_ec = abs(CHS_CA - CHS_EC_CHEM),
+    diff_ca_minus_ec = CHS_CA - CHS_EC,
+    abs_diff_ca_minus_ec = abs(CHS_CA - CHS_EC),
     pct_diff_ca_vs_ec = ifelse(
-      abs(CHS_EC_CHEM) > 0,
-      100 * (CHS_CA - CHS_EC_CHEM) / CHS_EC_CHEM,
+      abs(CHS_EC) > 0,
+      100 * (CHS_CA - CHS_EC) / CHS_EC,
       NA_real_
     )
   ) %>%

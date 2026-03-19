@@ -182,7 +182,9 @@ CHS_MIN_DAYS_PER_WY <- 300
 CHS_MIN_OBS_PER_WY_CHEM <- 10
 
 # annual isotope inputs from segura workbook.
-USE_SEGURA_ANNUAL_ISOTOPE_METRICS <- TRUE
+# final workflow uses site-mean isotope metrics for modeling;
+# keep this off unless explicitly running a sensitivity comparison.
+USE_SEGURA_ANNUAL_ISOTOPE_METRICS <- FALSE
 SEGURA_ANNUAL_ISOTOPE_FILE <- "MTT_FYW_2026-03-05.xlsx"
 SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE <- "isotope_metrics_annual_segura.csv"
 

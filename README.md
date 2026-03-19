@@ -9,12 +9,14 @@ CHS notes:
 - CHS keeps a water year only when there are at least `300` days with overlapping EC + discharge data (`CHS_MIN_DAYS_PER_WY` in `config.R`).
 - EC input file is `inputs/CF01201_v4.txt`.
 - Ca/chemistry comparison uses `inputs/CF00201_v7.csv` with `CA` and `COND` and keeps years with at least `10` chemistry observations (`CHS_MIN_OBS_PER_WY_CHEM`).
+- Main-workflow CHS is Ca-based (`annual_gw_prop_ca.csv`).
+- EC-vs-Ca supplemental comparison uses CHS from daily EC (`annual_gw_prop.csv`) versus CHS from Ca (`annual_gw_prop_ca.csv`).
 - Comparison outputs are written to `outputs/metrics/mobile/annual_gw_prop_ec_ca_comparison.csv`, plus site-year paired values (`annual_gw_prop_ec_ca_site_year_pairs.csv`) and per-site stats (`annual_gw_prop_ec_ca_site_by_site_stats.csv`) in the same folder.
 - Meteorological input files are in `inputs/all_hydromet/`.
 
 Annual isotope (Segura) notes:
-- When `USE_SEGURA_ANNUAL_ISOTOPE_METRICS = TRUE`, the workflow reads `inputs/MTT_FYW_2026-03-05.xlsx` (`MTT_Segura_2021` + `YWF_Segura_2021`) and writes annual site-year `MTT` and `Fyw` to `outputs/metrics/mobile/isotope_metrics_annual_segura.csv`.
-- This pathway is separate from the site-level mean isotope metrics (`MTT1`, `MTT2`, `Fyw`) so it can be toggled/reverted independently.
+- Final workflow uses site-level mean isotope metrics for modeling (`MTT`, `Fyw`, `DR`).
+- Optional annual Segura ingestion (`inputs/MTT_FYW_2026-03-05.xlsx`) is disabled by default (`USE_SEGURA_ANNUAL_ISOTOPE_METRICS = FALSE`) and not used in core model fitting.
 
 WB (extended dynamic storage) note:
 - `WB` now uses a max within-year depletion workflow (`max(cummax(cumsum(P-Q-ET)) - cumsum(P-Q-ET))`), not a simple annual range; the legacy peak-anchored WB workflow is removed from the core pipeline.
