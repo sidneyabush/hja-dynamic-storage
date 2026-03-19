@@ -75,14 +75,8 @@ if (length(dynamic_map) == 0 || length(mobile_map) == 0) {
   stop("Required dynamic/mobile metric columns are missing from master_site.csv")
 }
 
-dynamic_axis_labels <- stats::setNames(
-  wrap_plot_label(label_storage_metric(names(dynamic_map)), width = 18),
-  names(dynamic_map)
-)
-mobile_axis_labels <- stats::setNames(
-  wrap_plot_label(label_storage_metric(names(mobile_map)), width = 20),
-  names(mobile_map)
-)
+dynamic_axis_labels <- stats::setNames(names(dynamic_map), names(dynamic_map))
+mobile_axis_labels <- stats::setNames(names(mobile_map), names(mobile_map))
 
 corr_df <- tidyr::expand_grid(
   Mobile = names(mobile_map),
@@ -124,7 +118,7 @@ p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   labs(x = "Dynamic Storage Metrics", y = "Mobile Storage Metrics") +
   theme_pub() +
   theme(
-    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE - 1, angle = 25, hjust = 1),
+    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE, angle = 0, hjust = 0.5),
     axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
     legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),

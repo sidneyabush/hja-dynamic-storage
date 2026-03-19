@@ -371,10 +371,7 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     annual_corr,
     dynamic_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(
-      wrap_plot_label(label_storage_metric(names(dynamic_map)), width = 18),
-      names(dynamic_map)
-    )
+    metric_labels = stats::setNames(names(dynamic_map), names(dynamic_map))
   )
   if (!is.null(p_dynamic_corr)) {
     invisible(safe_ggsave(
@@ -398,10 +395,7 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     site_df,
     mobile_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(
-      wrap_plot_label(label_storage_metric(names(mobile_map)), width = 20),
-      names(mobile_map)
-    )
+    metric_labels = stats::setNames(names(mobile_map), names(mobile_map))
   )
   if (!is.null(p_mobile_corr)) {
     invisible(safe_ggsave(

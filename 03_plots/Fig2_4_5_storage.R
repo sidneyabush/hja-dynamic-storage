@@ -364,7 +364,7 @@ fig5_y_labels <- c(
 
 build_fig5_panel <- function(metric_key) {
   dat <- fig5_df %>% filter(metric == metric_key)
-  show_x <- metric_key == "MTT"
+  show_x <- TRUE
   y_lim <- calc_ylim(
     c(dat$value, dat$value - dat$err, dat$value + dat$err),
     numeric()
