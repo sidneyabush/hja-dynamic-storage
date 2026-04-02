@@ -27,31 +27,38 @@ if (!file.exists(annual_file)) {
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
-# always use combined site-level MTT (legacy MTT1+MTT2 collapsed) as the
-# MTT predictor in eco models.
+# use site-level isotope means (DR, Fyw, MTT) as eco-model predictors.
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
   stop("Missing required isotope site mean file: ", isotope_site_mean_file)
 }
 
-mtt_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
+isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
   mutate(
     site = if ("site" %in% names(.)) site else SITECODE,
     site = standardize_site_code(site),
-    MTT_site_combined = suppressWarnings(as.numeric(MTT))
+    DR_site_mean = suppressWarnings(as.numeric(DR)),
+    Fyw_site_mean = suppressWarnings(as.numeric(Fyw)),
+    MTT_site_mean = suppressWarnings(as.numeric(MTT))
   ) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC, !is.na(site), site != "") %>%
   group_by(site) %>%
   summarise(
-    MTT_site_combined = ifelse(any(is.finite(MTT_site_combined)), mean(MTT_site_combined, na.rm = TRUE), NA_real_),
+    DR_site_mean = ifelse(any(is.finite(DR_site_mean)), mean(DR_site_mean, na.rm = TRUE), NA_real_),
+    Fyw_site_mean = ifelse(any(is.finite(Fyw_site_mean)), mean(Fyw_site_mean, na.rm = TRUE), NA_real_),
+    MTT_site_mean = ifelse(any(is.finite(MTT_site_mean)), mean(MTT_site_mean, na.rm = TRUE), NA_real_),
     .groups = "drop"
   )
 
 data_all <- data_all %>%
   mutate(site = standardize_site_code(site)) %>%
-  left_join(mtt_site_mean, by = "site") %>%
-  mutate(MTT = MTT_site_combined) %>%
-  dplyr::select(-MTT_site_combined)
+  left_join(isotope_site_mean, by = "site") %>%
+  mutate(
+    DR = DR_site_mean,
+    Fyw = Fyw_site_mean,
+    MTT = MTT_site_mean
+  ) %>%
+  dplyr::select(-DR_site_mean, -Fyw_site_mean, -MTT_site_mean)
 
 if (!("T_7DMax" %in% names(data_all)) && ("max_temp_7d_C" %in% names(data_all))) {
   data_all <- data_all %>% mutate(T_7DMax = max_temp_7d_C)
@@ -86,7 +93,7 @@ if (length(missing_responses) > 0) {
 }
 
 mandatory_predictors <- c("Pws")
-storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "MTT")
+storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
 storage_predictors <- storage_predictors[storage_predictors %in% names(data_all)]
 if (!("Pws" %in% names(data_all))) {
   stop("Missing required predictor: Pws")
@@ -129,6 +136,7 @@ fit_candidate <- function(df_in, response, predictors) {
   if (is.null(fit)) {
     return(NULL)
   }
+  fit <- tryCatch(stepAIC(fit, direction = "backward", trace = 0), error = function(e) fit)
 
   fit <- apply_vif_filter(
     model_obj = fit,

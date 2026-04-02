@@ -35,6 +35,7 @@ format_adj_r2_marked <- function(adj_r2, model_sig) {
 
 clean_predictor_labels <- function(x) {
   out <- as.character(x)
+  out <- gsub("\\bCHS\\b", "BF", out)
   out <- gsub("Pyroclastic \\(%\\)", "Pyroclastic", out)
   out <- gsub("Ash \\(%\\)", "Ash", out)
   out <- gsub("Lava 1 \\(%\\)", "Lava-1 (%)", out)
@@ -202,7 +203,10 @@ ws_models <- ws_sum %>%
 # ---- main-text catchment summary table ----
 ws_summary_table <- ws_models %>%
   transmute(
-    `Response Variable` = factor(response_variable, levels = WS_TABLE_ORDER),
+    `Response Variable` = factor(
+      label_metric_abbrev(response_variable),
+      levels = label_metric_abbrev(WS_TABLE_ORDER)
+    ),
     `Selected Predictor(s)` = clean_predictor_labels(selected_predictors),
     `R2` = r2,
     `Adj R2` = adj_r2_marked,
@@ -249,7 +253,11 @@ all_models <- bind_rows(eco_models, ws_models) %>%
   arrange(model_group, row_rank) %>%
   transmute(
     `Model Group` = as.character(model_group),
-    `Response Variable` = response_variable,
+    `Response Variable` = ifelse(
+      model_group == "Catchment characteristics",
+      label_metric_abbrev(response_variable),
+      response_variable
+    ),
     `Selected Predictor(s)` = clean_predictor_labels(selected_predictors),
     `R2` = r2,
     `Adj R2 marked` = adj_r2_marked,

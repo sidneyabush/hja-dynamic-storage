@@ -137,7 +137,7 @@ for (s in stats_scripts) {
 plot_scripts_core <- c(
   "03_plots/Fig3_ds_pca_annual.R",
   "03_plots/Fig6_dynamic_mobile_corr.R",
-  "03_plots/Fig9_conceptual_diagram.R",
+  "03_plots/Fig10_conceptual_diagram.R",
   "03_plots/Fig7_catchment_mlr_beta.R",
   "03_plots/Fig8_eco_mlr_beta.R",
   "03_plots/Fig2_4_5_storage.R"

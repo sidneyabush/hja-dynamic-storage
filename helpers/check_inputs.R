@@ -4,7 +4,6 @@
 
 suppressPackageStartupMessages({
   library(readr)
-  library(readxl)
 })
 
 find_repo_root <- function(start_dir) {
@@ -83,27 +82,6 @@ if (!file.exists(ec_file)) {
 chem_file <- file.path(EC_DIR, "CF00201_v7.csv")
 if (!file.exists(chem_file)) {
   stop("Missing required chemistry input file: ", chem_file)
-}
-
-if (isTRUE(USE_SEGURA_ANNUAL_ISOTOPE_METRICS)) {
-  annual_iso_file <- file.path(ISOTOPE_DIR, SEGURA_ANNUAL_ISOTOPE_FILE)
-  if (!file.exists(annual_iso_file)) {
-    stop("Missing required annual isotope workbook: ", annual_iso_file)
-  }
-  required_sheets <- c("MTT_Segura_2021", "YWF_Segura_2021")
-  present_sheets <- tryCatch(
-    excel_sheets(annual_iso_file),
-    error = function(e) character()
-  )
-  missing_sheets <- setdiff(required_sheets, present_sheets)
-  if (length(missing_sheets) > 0) {
-    stop(
-      "Missing required sheet(s) in ",
-      annual_iso_file,
-      ": ",
-      paste(missing_sheets, collapse = ", ")
-    )
-  }
 }
 
 # minimal schema checks on key files.

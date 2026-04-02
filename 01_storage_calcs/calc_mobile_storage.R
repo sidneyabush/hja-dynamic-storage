@@ -1,12 +1,11 @@
-# calculate mobile-storage metrics (chs + isotope metrics) by site and water year.
-# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; ec_dir/cf00201_v7.csv; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv; isotope_dir/mtt_fyw_2026-03-05.xlsx.
+# calculate mobile-storage metrics (chs + isotope metrics).
+# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; ec_dir/cf00201_v7.csv; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv.
 # author: keira johnson (original chs), sidney bush
 # date: 2026-03-09
 
 library(dplyr)
 library(readr)
 library(lubridate)
-library(readxl)
 
 rm(list = ls())
 
@@ -400,147 +399,8 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- part 3: annual isotope metrics from segura workbook (separate path) ----
-
-annual_isotope_segura <- tibble(
-  site = character(),
-  year = integer(),
-  MTT = numeric(),
-  Fyw = numeric()
-)
-
-if (isTRUE(USE_SEGURA_ANNUAL_ISOTOPE_METRICS)) {
-  segura_file <- file.path(isotope_dir, SEGURA_ANNUAL_ISOTOPE_FILE)
-  if (!file.exists(segura_file)) {
-    stop("Missing required annual isotope workbook: ", segura_file)
-  }
-
-  parse_leading_numeric <- function(x) {
-    x_chr <- trimws(as.character(x))
-    has_num <- grepl("[-+]?[0-9]*\\.?[0-9]+", x_chr)
-    out <- suppressWarnings(as.numeric(sub("^\\s*([-+]?[0-9]*\\.?[0-9]+).*$", "\\1", x_chr)))
-    out[!has_num] <- NA_real_
-    out
-  }
-
-  safe_excel_col <- function(df, idx) {
-    if (ncol(df) < idx) {
-      return(rep(NA, nrow(df)))
-    }
-    df[[idx]]
-  }
-
-  normalize_segura_site <- function(x) {
-    out <- toupper(trimws(as.character(x)))
-    out <- ifelse(grepl("^WS[0-9]$", out), paste0("WS0", sub("^WS", "", out)), out)
-    out <- dplyr::case_when(
-      out == "MACK" ~ "Mack",
-      out == "LOOK" ~ "Look",
-      TRUE ~ out
-    )
-    standardize_site_code(out)
-  }
-
-  mtt_raw <- read_excel(
-    segura_file,
-    sheet = "MTT_Segura_2021",
-    skip = 5,
-    col_names = FALSE,
-    .name_repair = "minimal"
-  )
-
-  mtt_wide <- tibble(
-    site = normalize_segura_site(safe_excel_col(mtt_raw, 1)),
-    MTT_2015 = parse_leading_numeric(safe_excel_col(mtt_raw, 2)),
-    MTT_2016 = parse_leading_numeric(safe_excel_col(mtt_raw, 4)),
-    MTT_2017 = parse_leading_numeric(safe_excel_col(mtt_raw, 6)),
-    MTT_2018 = parse_leading_numeric(safe_excel_col(mtt_raw, 8))
-  ) %>%
-    filter(!is.na(site), site != "")
-
-  mtt_long <- bind_rows(
-    mtt_wide %>% transmute(site, year = 2015L, MTT = MTT_2015),
-    mtt_wide %>% transmute(site, year = 2016L, MTT = MTT_2016),
-    mtt_wide %>% transmute(site, year = 2017L, MTT = MTT_2017),
-    mtt_wide %>% transmute(site, year = 2018L, MTT = MTT_2018)
-  ) %>%
-    distinct(site, year, .keep_all = TRUE)
-
-  fyw_raw <- read_excel(
-    segura_file,
-    sheet = "YWF_Segura_2021",
-    skip = 2,
-    col_names = FALSE,
-    .name_repair = "minimal"
-  )
-
-  fyw_wide <- tibble(
-    site = normalize_segura_site(safe_excel_col(fyw_raw, 1)),
-    Fyw_2015 = parse_leading_numeric(safe_excel_col(fyw_raw, 2)),
-    Fyw_2016 = parse_leading_numeric(safe_excel_col(fyw_raw, 3)),
-    Fyw_2017 = parse_leading_numeric(safe_excel_col(fyw_raw, 4)),
-    Fyw_2018 = parse_leading_numeric(safe_excel_col(fyw_raw, 5))
-  ) %>%
-    filter(!is.na(site), site != "")
-
-  fyw_long <- bind_rows(
-    fyw_wide %>% transmute(site, year = 2015L, Fyw = Fyw_2015),
-    fyw_wide %>% transmute(site, year = 2016L, Fyw = Fyw_2016),
-    fyw_wide %>% transmute(site, year = 2017L, Fyw = Fyw_2017),
-    fyw_wide %>% transmute(site, year = 2018L, Fyw = Fyw_2018)
-  ) %>%
-    distinct(site, year, .keep_all = TRUE)
-
-  annual_isotope_segura <- mtt_long %>%
-    full_join(fyw_long, by = c("site", "year")) %>%
-    mutate(
-      site = standardize_site_code(site),
-      year = as.integer(year),
-      MTT = suppressWarnings(as.numeric(MTT)),
-      Fyw = suppressWarnings(as.numeric(Fyw))
-    ) %>%
-    filter(
-      site %in% SITE_ORDER_HYDROMETRIC,
-      year >= WY_START,
-      year <= WY_END
-    ) %>%
-    arrange(site, year)
-
-  write.csv(
-    annual_isotope_segura,
-    file.path(output_dir, SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE),
-    row.names = FALSE
-  )
-}
-
-annual_isotope_summary <- annual_isotope_segura %>%
-  group_by(site) %>%
-  summarise(
-    n_MTT_years = sum(is.finite(MTT)),
-    n_Fyw_years = sum(is.finite(Fyw)),
-    n_isotope_years = sum(is.finite(MTT) | is.finite(Fyw)),
-    MTT = ifelse(any(is.finite(MTT)), mean(MTT, na.rm = TRUE), NA_real_),
-    Fyw = ifelse(any(is.finite(Fyw)), mean(Fyw, na.rm = TRUE), NA_real_),
-    .groups = "drop"
-  ) %>%
-  select(site, MTT, Fyw, n_MTT_years, n_Fyw_years, n_isotope_years)
-
-isotope_metrics_annual <- site_template %>%
-  left_join(annual_isotope_summary, by = "site") %>%
-  left_join(damping, by = "site") %>%
-  mutate(site = factor(site, levels = SITE_ORDER_ALL)) %>%
-  arrange(site)
-
 write.csv(
-  isotope_metrics_annual,
-  file.path(output_dir, "isotope_metrics_site_annual.csv"),
-  row.names = FALSE
-)
-
-isotope_metrics <- isotope_metrics_mean
-
-write.csv(
-  isotope_metrics,
+  isotope_metrics_mean,
   file.path(output_dir, "isotope_metrics_site.csv"),
   row.names = FALSE
 )

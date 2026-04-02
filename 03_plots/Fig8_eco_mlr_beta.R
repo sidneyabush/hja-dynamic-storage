@@ -73,15 +73,9 @@ norm_predictor <- function(x) {
 }
 
 response_order <- c("Q7Q5", "T7DMax")
-predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "MTT")
-response_axis_labels <- stats::setNames(
-  wrap_plot_label(label_eco_response(response_order), width = 24),
-  response_order
-)
-predictor_axis_labels <- stats::setNames(
-  wrap_plot_label(label_eco_predictor(predictor_order), width = 20),
-  predictor_order
-)
+predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
+response_axis_labels <- stats::setNames(response_order, response_order)
+predictor_axis_labels <- stats::setNames(label_metric_abbrev(predictor_order), predictor_order)
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
@@ -167,7 +161,7 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
 invisible(safe_ggsave(
   file.path(main_dir, "Fig8_eco_mlr_beta.png"),
   p,
-  width = 7.2 * FIG_WIDTH_SCALE,
+  width = 5.4 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))
@@ -175,6 +169,6 @@ invisible(safe_ggsave(
 invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig8_eco_mlr_beta.pdf"),
   p,
-  width = 7.2 * FIG_WIDTH_SCALE,
+  width = 5.4 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE
 ))

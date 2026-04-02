@@ -1,4 +1,4 @@
-# figure 9 conceptual diagram
+# figure 10 conceptual diagram
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -16,7 +16,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig9_",
+    pattern = "fig10_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -99,6 +99,9 @@ pca_scores <- axes %>%
     geology_pc2 = as.numeric(geology_pc2)
   ) %>%
   filter(is.finite(geology_pc1), is.finite(geology_pc2))
+
+# keep site-shape mapping aligned with Figure 3.
+SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 
 loading_df <- loadings %>%
   transmute(
@@ -218,9 +221,7 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
     max.overlaps = Inf
   ) +
   geom_point(
-    aes(fill = site),
-    shape = 21,
-    color = "grey20",
+    aes(color = site, fill = site, shape = site),
     stroke = pca_point_stroke,
     size = pca_point_size,
     alpha = 0.98
@@ -289,6 +290,7 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
   ) +
   scale_color_manual(values = SITE_COLORS) +
   scale_fill_manual(values = SITE_COLORS) +
+  scale_shape_manual(values = SITE_SHAPES, guide = "none", drop = FALSE) +
   labs(
     x = paste0("PC1 (", number(pc1_pct, accuracy = 0.1), "%)"),
     y = paste0("PC2 (", number(pc2_pct, accuracy = 0.1), "%)")
@@ -346,14 +348,6 @@ if (nrow(plot_b) < 3) {
   stop("Not enough complete-case sites for panel b")
 }
 
-fit <- lm(mobile ~ dynamic, data = plot_b)
-fit_sum <- summary(fit)
-slope <- unname(coef(fit)[2])
-r2 <- unname(fit_sum$r.squared)
-p_val <- unname(coef(fit_sum)[2, 4])
-
-ann_stats <- sprintf("italic(R)^2 == %.3f~~italic(p) == %.3f~~italic(b) == %.3f", r2, p_val, slope)
-
 x_rng <- range(plot_b$dynamic, na.rm = TRUE)
 y_rng <- range(plot_b$mobile, na.rm = TRUE)
 x_span <- diff(x_rng)
@@ -364,8 +358,6 @@ x_pad <- 0.40 * x_span
 y_pad <- 0.40 * y_span
 x_lim <- c(x_rng[1] - x_pad, x_rng[2] + x_pad)
 y_lim <- c(y_rng[1] - y_pad, y_rng[2] + y_pad)
-stats_annot_x <- mean(x_lim)
-stats_annot_y <- y_lim[1] - 0.34 * y_span
 
 quad_df <- tibble(
   x = c(x_lim[1], x_lim[2], x_lim[1], x_lim[2]),
@@ -407,17 +399,8 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     linewidth = 0.5 * FIG9_ELEMENT_SCALE,
     linetype = "dashed"
   ) +
-  geom_smooth(
-    method = "lm",
-    se = FALSE,
-    color = alpha("grey30", 0.70),
-    linetype = "dashed",
-    linewidth = 0.75 * FIG9_ELEMENT_SCALE
-  ) +
   geom_point(
-    aes(fill = pc1, size = pc2),
-    shape = 21,
-    color = "grey35",
+    aes(shape = site, fill = pc1, color = pc1, size = pc2),
     stroke = 0.35 * FIG9_ELEMENT_SCALE,
     alpha = 0.96
   ) +
@@ -446,17 +429,6 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     linewidth = 0,
     label.padding = unit(0.25, "lines")
   ) +
-  annotate(
-    "text",
-    x = stats_annot_x,
-    y = stats_annot_y,
-    label = ann_stats,
-    parse = TRUE,
-    hjust = 0.5,
-    vjust = 1,
-    size = stats_label_size,
-    color = "grey20"
-  ) +
   scale_fill_gradient2(
     low = "#1b9e77",
     mid = "white",
@@ -464,6 +436,14 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     midpoint = 0,
     name = "PC1"
   ) +
+  scale_color_gradient2(
+    low = "#1b9e77",
+    mid = "white",
+    high = "#d95f02",
+    midpoint = 0,
+    guide = "none"
+  ) +
+  scale_shape_manual(values = SITE_SHAPES, guide = "none", drop = FALSE) +
   scale_size_continuous(
     name = "PC2",
     breaks = c(-2, -1, 0, 1),
@@ -515,7 +495,7 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     )
   )
 
-fig9 <- p_geo / p_state +
+fig10 <- p_geo / p_state +
   plot_layout(heights = c(1.15, 1)) +
   plot_annotation(tag_levels = "a", tag_suffix = ")") &
   theme(plot.tag = element_text(face = "plain", size = tag_label_size))
@@ -523,23 +503,23 @@ fig9 <- p_geo / p_state +
 fig9_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
 fig9_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
 
-nm <- "Fig9_conceptual_diagram"
+nm <- "Fig10_conceptual_diagram"
 invisible(safe_ggsave(
   file.path(main_dir, paste0(nm, ".png")),
-  fig9,
+  fig10,
   width = fig9_width,
   height = fig9_height,
   dpi = 300
 ))
 invisible(safe_ggsave(
   file.path(main_pdf_dir, paste0(nm, ".pdf")),
-  fig9,
+  fig10,
   width = fig9_width,
   height = fig9_height
 ))
 invisible(safe_ggsave(
   file.path(explore_dir, paste0(nm, ".png")),
-  fig9,
+  fig10,
   width = fig9_width,
   height = fig9_height,
   dpi = 300

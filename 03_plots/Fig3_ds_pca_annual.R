@@ -67,6 +67,11 @@ vexp <- read_csv(var_file, show_col_types = FALSE)
 pc1_pct <- ifelse(nrow(vexp) >= 1, 100 * vexp$Variance_Explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(vexp) >= 2, 100 * vexp$Variance_Explained[2], NA_real_)
 PCA_POINT_ALPHA <- 0.65
+# prioritize high-visibility filled symbols for color-blind readability.
+SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
+site_point_sizes <- setNames(rep(FIG_POINT_SIZE_LARGE + 1, length(SITE_ORDER_HYDROMETRIC)), SITE_ORDER_HYDROMETRIC)
+diamond_sites <- names(SITE_SHAPES)[SITE_SHAPES %in% c(18, 23)]
+site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 1.1
 
 # scale loading arrows to score space.
 score_lim <- max(abs(c(scores$PC1, scores$PC2)), na.rm = TRUE)
@@ -80,10 +85,10 @@ loads_plot <- loads %>%
     pretty_label = toupper(feature)
   )
 
-p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
+p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site, fill = site, shape = site)) +
   geom_hline(yintercept = 0, linewidth = 0.3, color = "grey70") +
   geom_vline(xintercept = 0, linewidth = 0.3, color = "grey70") +
-  geom_point(size = FIG_POINT_SIZE_LARGE + 1, alpha = PCA_POINT_ALPHA) +
+  geom_point(aes(size = site), alpha = PCA_POINT_ALPHA, stroke = 0.9) +
   geom_segment(
     data = loads_plot,
     aes(x = 0, y = 0, xend = PC1s, yend = PC2s),
@@ -105,8 +110,23 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site)) +
     nudge_y = 0.05,
     check_overlap = FIG_LABEL_CHECK_OVERLAP
   ) +
-  scale_color_manual(values = SITE_COLORS) +
-  guides(color = guide_legend(title = NULL, override.aes = list(size = FIG_POINT_SIZE_LARGE + 1, alpha = PCA_POINT_ALPHA))) +
+  scale_color_manual(values = SITE_COLORS, name = NULL, drop = FALSE) +
+  scale_fill_manual(values = SITE_COLORS, guide = "none", drop = FALSE) +
+  scale_shape_manual(values = SITE_SHAPES, name = NULL, drop = FALSE) +
+  scale_size_manual(values = site_point_sizes, guide = "none", drop = FALSE) +
+  guides(
+    color = guide_legend(
+      override.aes = list(
+        shape = unname(SITE_SHAPES[SITE_ORDER_HYDROMETRIC]),
+        fill = unname(SITE_COLORS[SITE_ORDER_HYDROMETRIC]),
+        alpha = PCA_POINT_ALPHA,
+        size = unname(site_point_sizes[SITE_ORDER_HYDROMETRIC]),
+        stroke = 0.9
+      )
+    ),
+    shape = "none",
+    size = "none"
+  ) +
   labs(
     x = paste0("PC1 (", number(pc1_pct, accuracy = 0.1), "%)"),
     y = paste0("PC2 (", number(pc2_pct, accuracy = 0.1), "%)")

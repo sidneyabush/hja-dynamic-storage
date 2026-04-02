@@ -62,16 +62,43 @@ rbi_recession <- read_csv(
   select(site, year, RCS, RBI)
 assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
 
-# storage-discharge, fdc, and supporting flow quantiles
+# storage-discharge and supporting flow quantiles (annual)
 fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
 storage_fdc <- read_csv(
   fdc_path,
   show_col_types = FALSE
 ) %>%
+  mutate(site = standardize_site_code(site)) %>%
   mutate(year = as.integer(year)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
+
+# enforce full-period (site-level) FDC for all downstream analyses.
+# annual site-year FDC is only used in figure 2 / ANOVA-Tukey scripts.
+fdc_site_path <- file.path(dynamic_dir, "fdc_slopes_overall.csv")
+if (!file.exists(fdc_site_path)) {
+  stop("Missing required full-period FDC file: ", fdc_site_path)
+}
+
+fdc_site <- read_csv(
+  fdc_site_path,
+  show_col_types = FALSE
+) %>%
+  mutate(
+    site = standardize_site_code(if ("site" %in% names(.)) site else SITECODE),
+    FDC_site = suppressWarnings(as.numeric(
+      if ("Slope" %in% names(.)) Slope else if ("fdc_slope" %in% names(.)) fdc_slope else if ("FDC" %in% names(.)) FDC else NA_real_
+    ))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  select(site, FDC_site)
+assert_unique_keys(fdc_site, c("site"), "fdc_site")
+
+storage_fdc <- storage_fdc %>%
+  left_join(fdc_site, by = "site") %>%
+  mutate(FDC = dplyr::coalesce(FDC_site, FDC)) %>%
+  select(-FDC_site)
 
 # mobile storage metric (annual chs)
 
@@ -94,7 +121,7 @@ assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
 # extended dynamic storage metric (annual wb)
 
-# water-balance depletion
+# water-balance deficit
 wb_path <- file.path(extended_dir, "ds_depletion_annual.csv")
 wb_storage <- read_csv(
   wb_path,
@@ -368,7 +395,7 @@ metrics_info <- tribble(
   "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "FDC"                   , "hydrometric" ,
   "Dynamic"          , "Storage-Discharge"        , "SD"          , "SD"                    , "hydrometric" ,
   "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric" ,
-  "Mobile"           , "Chemical Hydrograph Sep." , "CHS"         , "CHS"                   , "chemistry"   ,
+  "Mobile"           , "Baseflow Fraction (CHS)"  , "BF"          , "CHS"                   , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
   "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"

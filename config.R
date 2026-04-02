@@ -135,6 +135,7 @@ SITE_ORDER_HYDROMETRIC <- c(
 
 # sites with chemistry data (for chs)
 SITE_ORDER_CHEMISTRY <- c(
+  "WS09", # WS09
   "WS10", # WS10
   "WS01", # WS01
   "Look", # Look
@@ -181,16 +182,11 @@ CHS_MIN_DAYS_PER_WY <- 300
 # (from cf002 chemistry records, e.g., cond and ca).
 CHS_MIN_OBS_PER_WY_CHEM <- 10
 
-# annual isotope inputs from segura workbook.
-# final workflow uses site-mean isotope metrics for modeling;
-# keep this off unless explicitly running a sensitivity comparison.
-USE_SEGURA_ANNUAL_ISOTOPE_METRICS <- FALSE
-SEGURA_ANNUAL_ISOTOPE_FILE <- "MTT_FYW_2026-03-05.xlsx"
-SEGURA_ANNUAL_ISOTOPE_OUTPUT_FILE <- "isotope_metrics_annual_segura.csv"
+# isotope metrics are fixed as site averages in the final workflow.
+# no annual isotope-ingestion branch is used in core processing.
 
 # sites intentionally excluded from chs-based modeling summaries.
-# note: gslook is standardized to look upstream.
-CHS_EXCLUDE_SITES <- c("Look", "WS09")
+CHS_EXCLUDE_SITES <- character(0)
 
 # storage metrics definitions
 
@@ -198,9 +194,11 @@ CHS_EXCLUDE_SITES <- c("Look", "WS09")
 # rbi, rcs, fdc, sd, wb, chs, dr, fyw, mtt
 STORAGE_METRIC_ORDER <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
 
-# dynamic storage metrics (from streamflow data - year-by-year records)
+# dynamic storage metrics
 # rbi = richards-baker index, rcs = recession curve slope
-# fdc = flow duration curve, sd = storage-discharge
+# fdc = full-period site-level flow duration curve slope
+#       (annual site-year fdc is used only for figure 2 / anova-tukey display)
+# sd = storage-discharge
 DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD")]
 
 # mobile storage metrics
@@ -361,11 +359,23 @@ STORAGE_METRIC_FULL_NAMES <- c(
   "RCS" = "Recession Curve Slope",
   "FDC" = "Flow Duration Curve Slope",
   "SD" = "Storage-Discharge",
-  "WB" = "Water-Balance Depletion Range",
-  "CHS" = "Chemical Hydrograph Separation",
+  "WB" = "Water-balance deficit",
+  "CHS" = "Baseflow Fraction",
   "DR" = "Damping Ratio",
   "Fyw" = "Young Water Fraction",
   "MTT" = "Mean Transit Time"
+)
+
+METRIC_ABBREV_DISPLAY <- c(
+  "RBI" = "RBI",
+  "RCS" = "RCS",
+  "FDC" = "FDC",
+  "SD" = "SD",
+  "WB" = "WB",
+  "CHS" = "BF",
+  "DR" = "DR",
+  "Fyw" = "Fyw",
+  "MTT" = "MTT"
 )
 
 ECO_RESPONSE_FULL_NAMES <- c(
@@ -379,22 +389,31 @@ ECO_PREDICTOR_FULL_NAMES <- c(
   "RCS" = "Recession Curve Slope (RCS)",
   "FDC" = "Flow Duration Curve Slope (FDC)",
   "SD" = "Storage-Discharge (SD)",
-  "WB" = "Water-Balance Depletion Range (WB)",
-  "CHS" = "Chemical Hydrograph Separation (CHS)",
+  "WB" = "Water-balance deficit (WB)",
+  "CHS" = "Baseflow Fraction (BF)",
   "DR" = "Damping Ratio (DR)",
   "Fyw" = "Young Water Fraction (Fyw)",
   "MTT" = "Mean Transit Time (MTT)"
 )
 
+label_metric_abbrev <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(METRIC_ABBREV_DISPLAY[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
 label_storage_metric <- function(x, include_abbrev = TRUE) {
   x_chr <- as.character(x)
   long <- unname(STORAGE_METRIC_FULL_NAMES[x_chr])
+  abbr <- label_metric_abbrev(x_chr)
   miss <- is.na(long)
   long[miss] <- x_chr[miss]
   if (!isTRUE(include_abbrev)) {
     return(long)
   }
-  out <- paste0(long, " (", x_chr, ")")
+  out <- paste0(long, " (", abbr, ")")
   out[miss] <- x_chr[miss]
   out
 }

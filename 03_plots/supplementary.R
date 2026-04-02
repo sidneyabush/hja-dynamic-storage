@@ -39,7 +39,7 @@ build_corr_triangle_plot <- function(
     return(NULL)
   }
   if (is.null(metric_labels)) {
-    metric_labels <- stats::setNames(names(metric_map), names(metric_map))
+    metric_labels <- stats::setNames(label_metric_abbrev(names(metric_map)), names(metric_map))
   }
 
   corr_input <- as.data.frame(lapply(data_df[, unname(metric_map), drop = FALSE], function(x) {
@@ -70,7 +70,11 @@ build_corr_triangle_plot <- function(
     mutate(
       row_metric = factor(row_metric, levels = y_levels),
       col_metric = factor(col_metric, levels = x_levels),
-      label = ifelse(is.finite(r), sprintf("%.2f", r), "")
+      label = ifelse(
+        is.finite(r),
+        ifelse(abs(r) < 0.005, "|r| < 0.005", sprintf("%.2f", r)),
+        ""
+      )
     )
 
   ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
@@ -100,7 +104,9 @@ build_corr_triangle_plot <- function(
 
 supp_dir <- MS_FIG_SUPP_DIR
 supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
-for (d in c(supp_dir, supp_pdf_dir)) {
+main_dir <- MS_FIG_MAIN_DIR
+main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
+for (d in c(supp_dir, supp_pdf_dir, main_dir, main_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -131,14 +137,20 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     filter(Response %in% c("Q7Q5", "T7DMax"), is.finite(Observed), is.finite(Predicted))
 
   response_labels <- c(
-    "Q7Q5" = "a) Seven-Day Low-Flow Discharge (Q7Q5)",
-    "T7DMax" = "b) Seven-Day Maximum Stream Temperature (T7DMax)"
+    "Q7Q5" = "a) Q7Q5",
+    "T7DMax" = "b) T7DMax"
   )
   response_labels <- stats::setNames(
     wrap_plot_label(response_labels, width = 36),
     names(response_labels)
   )
   pred_point_alpha <- 0.65
+  # Keep site symbols consistent with Figure 3.
+  site_shapes <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
+  site_point_sizes <- setNames(rep(FIG_POINT_SIZE_LARGE + 1, length(SITE_ORDER_HYDROMETRIC)), SITE_ORDER_HYDROMETRIC)
+  diamond_sites <- names(site_shapes)[site_shapes %in% c(18, 23)]
+  site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 1.1
+  legend_site_levels <- SITE_ORDER_HYDROMETRIC
 
   r2_df <- pred_df %>%
     group_by(Response) %>%
@@ -155,8 +167,19 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
       .groups = "drop"
     )
 
+  r2_annot_df <- r2_df %>%
+    left_join(one_to_one_df, by = "Response") %>%
+    mutate(
+      x = min_v + 0.03 * (max_v - min_v),
+      y = max_v - 0.03 * (max_v - min_v)
+    )
+
   p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
-    geom_point(aes(color = site), size = FIG_POINT_SIZE_LARGE + 1, alpha = pred_point_alpha) +
+    geom_point(
+      aes(color = site, fill = site, shape = site, size = site),
+      alpha = pred_point_alpha,
+      stroke = 0.9
+    ) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey45", linewidth = 0.5) +
     geom_text(
       data = one_to_one_df,
@@ -166,22 +189,31 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
       size = FIG_ANNOT_TEXT_SIZE + 1.2
     ) +
     geom_text(
-      data = r2_df,
-      aes(label = paste0("R² = ", sprintf("%.2f", r2))),
+      data = r2_annot_df,
+      aes(x = x, y = y, label = paste0("R² = ", sprintf("%.2f", r2))),
       inherit.aes = FALSE,
-      x = -Inf,
-      y = Inf,
       size = FIG_ANNOT_TEXT_SIZE + 1.2,
-      hjust = -0.1,
-      vjust = 1.1
+      hjust = 0,
+      vjust = 1
     ) +
     facet_wrap(~ Response, scales = "free", ncol = 1, labeller = as_labeller(response_labels)) +
     scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+    scale_fill_manual(values = SITE_COLORS, drop = FALSE, guide = "none") +
+    scale_shape_manual(values = site_shapes, drop = FALSE) +
+    scale_size_manual(values = site_point_sizes, drop = FALSE) +
     guides(
       color = guide_legend(
         title = NULL,
-        override.aes = list(size = FIG_POINT_SIZE_LARGE + 1, alpha = pred_point_alpha)
-      )
+        override.aes = list(
+          shape = unname(site_shapes[legend_site_levels]),
+          fill = unname(SITE_COLORS[legend_site_levels]),
+          size = unname(site_point_sizes[legend_site_levels]),
+          alpha = pred_point_alpha,
+          stroke = 0.9
+        )
+      ),
+      shape = "none",
+      size = "none"
     ) +
     labs(x = "Observed", y = "Predicted", color = NULL) +
     theme_pub() +
@@ -194,14 +226,14 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     )
 
   invisible(safe_ggsave(
-    file.path(supp_dir, "FigSX_eco_observed_v_predicted.png"),
+    file.path(main_dir, "Fig9_eco_observed_v_predicted.png"),
     p_pred,
     width = 8.8 * FIG_WIDTH_SCALE,
     height = 8.4 * FIG_HEIGHT_SCALE,
     dpi = 300
   ))
   invisible(safe_ggsave(
-    file.path(supp_pdf_dir, "FigSX_eco_observed_v_predicted.pdf"),
+    file.path(main_pdf_dir, "Fig9_eco_observed_v_predicted.pdf"),
     p_pred,
     width = 8.8 * FIG_WIDTH_SCALE,
     height = 8.4 * FIG_HEIGHT_SCALE
@@ -371,48 +403,44 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     annual_corr,
     dynamic_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(names(dynamic_map), names(dynamic_map))
+    metric_labels = stats::setNames(label_metric_abbrev(names(dynamic_map)), names(dynamic_map))
   )
   if (!is.null(p_dynamic_corr)) {
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"),
+      file.path(supp_dir, "FigS2_dynamic_storage_corr.png"),
       p_dynamic_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSX_dynamic_metrics_corr.pdf"),
+      file.path(supp_pdf_dir, "FigS2_dynamic_storage_corr.pdf"),
       p_dynamic_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
-    unlink(file.path(supp_dir, "FigSx_dynamic_metrics_corr.png"))
-    unlink(file.path(supp_pdf_dir, "FigSx_dynamic_metrics_corr.pdf"))
   }
 
   p_mobile_corr <- build_corr_triangle_plot(
     site_df,
     mobile_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(names(mobile_map), names(mobile_map))
+    metric_labels = stats::setNames(label_metric_abbrev(names(mobile_map)), names(mobile_map))
   )
   if (!is.null(p_mobile_corr)) {
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSX_mobile_metrics_corr.png"),
+      file.path(supp_dir, "FigS3_mobile_storage_corr.png"),
       p_mobile_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSX_mobile_metrics_corr.pdf"),
+      file.path(supp_pdf_dir, "FigS3_mobile_storage_corr.pdf"),
       p_mobile_corr,
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
-    unlink(file.path(supp_dir, "FigSx_mobile_metrics_corr.png"))
-    unlink(file.path(supp_pdf_dir, "FigSx_mobile_metrics_corr.pdf"))
   }
 }
 
@@ -428,6 +456,7 @@ if (file.exists(ec_ca_pairs_file)) {
     ) %>%
     filter(
       SITECODE %in% SITE_ORDER_CHEMISTRY,
+      SITECODE != "Look",
       is.finite(CHS_EC),
       is.finite(CHS_CA)
     ) %>%
@@ -508,13 +537,13 @@ if (file.exists(ec_ca_pairs_file)) {
         linewidth = 0.55
       ) +
       facet_wrap(~ SITECODE, ncol = 3, labeller = as_labeller(facet_labels)) +
-      scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+      scale_color_manual(values = SITE_COLORS, drop = TRUE) +
       scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
       scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), expand = c(0, 0)) +
       coord_equal() +
       labs(
-        x = "Chemical Hydrograph Separation from Electrical Conductivity (CHS from EC)",
-        y = "Chemical Hydrograph Separation from Calcium (CHS from Ca)"
+        x = "Baseflow Fraction from Electrical Conductivity (BF from EC)",
+        y = "Baseflow Fraction from Calcium (BF from Ca)"
       ) +
       theme_pub() +
       theme(
@@ -555,13 +584,13 @@ if (file.exists(ec_ca_pairs_file)) {
         vjust = 1,
         size = FIG_ANNOT_TEXT_SIZE + 1.2
       ) +
-      scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+      scale_color_manual(values = SITE_COLORS, drop = TRUE) +
       scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
       scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), expand = c(0, 0)) +
       coord_equal() +
       labs(
-        x = "Chemical Hydrograph Separation from Electrical Conductivity (CHS from EC)",
-        y = "Chemical Hydrograph Separation from Calcium (CHS from Ca)",
+        x = "Baseflow Fraction from Electrical Conductivity (BF from EC)",
+        y = "Baseflow Fraction from Calcium (BF from Ca)",
         color = NULL
       ) +
       theme_pub() +

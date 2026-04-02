@@ -149,17 +149,17 @@ letters_fig2 <- letters_df %>%
 
 fig2_titles <- c(
   RBI = "a) Richards-Baker Index (RBI)",
-  RCS = "b) Recession Curve Slope (RCS)",
-  FDC = "c) Flow Duration Curve Slope (FDC)",
+  RCS = "b) Recession-curve Slope (RCS)",
+  FDC = "c) Flow-duration Curve Slope (FDC)",
   SD = "d) Storage-Discharge (SD)",
-  WB = "e) Water-Balance Depletion Range (WB)"
+  WB = "e) Water-balance deficit (WB)"
 )
 fig2_y_labels <- c(
   RBI = "Unitless",
   RCS = "Unitless",
   FDC = "Unitless",
   SD = "Depth (mm)",
-  WB = "Depletion (mm)"
+  WB = "Deficit (mm)"
 )
 
 build_fig2_panel <- function(metric_key) {
@@ -170,7 +170,8 @@ build_fig2_panel <- function(metric_key) {
   panel_margin <- if (identical(metric_key, "FDC")) {
     margin(5.5, 5.5, -7, 5.5)
   } else if (identical(metric_key, "WB")) {
-    margin(0, 5.5, 5.5, 5.5)
+    # Add extra top spacing so panel e title does not crowd panel c above.
+    margin(11, 5.5, 5.5, 5.5)
   } else {
     margin(5.5, 5.5, 5.5, 5.5)
   }
@@ -266,10 +267,10 @@ p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
     drop = FALSE
   ) +
   coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
-  labs(x = NULL, y = "Baseflow Fraction (CHS)") +
+  labs(x = NULL, y = "Baseflow Fraction (BF)") +
   theme_storage_panel() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE + 1),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = FIG_AXIS_TEXT_SIZE + 1),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1)
   )
 
@@ -357,14 +358,14 @@ fig5_titles <- c(
   MTT = "c) Mean Transit Time (MTT)"
 )
 fig5_y_labels <- c(
-  DR = "Damping Ratio",
-  Fyw = "Young Water Fraction",
-  MTT = "Mean Transit Time (years)"
+  DR = "Unitless",
+  Fyw = "Unitless",
+  MTT = "Years"
 )
 
 build_fig5_panel <- function(metric_key) {
   dat <- fig5_df %>% filter(metric == metric_key)
-  show_x <- TRUE
+  show_x <- !identical(metric_key, "DR")
   y_lim <- calc_ylim(
     c(dat$value, dat$value - dat$err, dat$value + dat$err),
     numeric()
@@ -398,9 +399,10 @@ build_fig5_panel <- function(metric_key) {
     )
 }
 
+fig5_plots <- lapply(names(fig5_map), build_fig5_panel)
 p_fig5 <- wrap_plots(
-  lapply(names(fig5_map), build_fig5_panel),
-  ncol = length(fig5_map),
+  c(fig5_plots, list(plot_spacer())),
+  ncol = 2,
   byrow = TRUE
 )
 
@@ -439,7 +441,7 @@ ggsave(
 ggsave(
   file.path(main_dir, "Fig5_iso_annual.png"),
   p_fig5,
-  width = 10.8 * FIG_WIDTH_SCALE,
+  width = 8.4 * FIG_WIDTH_SCALE,
   height = 8.4 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = 300
@@ -447,7 +449,7 @@ ggsave(
 ggsave(
   file.path(main_pdf_dir, "Fig5_iso_annual.pdf"),
   p_fig5,
-  width = 10.8 * FIG_WIDTH_SCALE,
+  width = 8.4 * FIG_WIDTH_SCALE,
   height = 8.4 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
