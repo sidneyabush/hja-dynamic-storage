@@ -110,7 +110,7 @@ create_relationship_plot <- function(data, site1, site2, variable, r_squared, co
   site1_col <- site1
   site2_col <- site2
 
-  ggplot(data, aes_string(x = paste0("`", site1_col, "`"), y = paste0("`", site2_col, "`"))) +
+  ggplot(data, aes(x = .data[[site1_col]], y = .data[[site2_col]])) +
     geom_point(alpha = 0.6, size = 2) +
     geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1) +
     theme_classic(base_size = 12) +

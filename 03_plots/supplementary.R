@@ -357,11 +357,17 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
   ))
 }
 
-# pca precipitation anomaly supplement figure
-pca_scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
-variance_file <- file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv")
-annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
-if (file.exists(pca_scores_file) && file.exists(annual_file)) {
+if (!isTRUE(WRITE_AUX_OUTPUTS)) {
+  unlink(file.path(supp_dir, "FigSX_pca_Pws_anomaly.png"))
+  unlink(file.path(supp_pdf_dir, "FigSX_pca_Pws_anomaly.pdf"))
+}
+
+if (isTRUE(WRITE_AUX_OUTPUTS)) {
+  # pca precipitation anomaly supplement figure (auxiliary)
+  pca_scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
+  variance_file <- file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv")
+  annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
+  if (file.exists(pca_scores_file) && file.exists(annual_file)) {
   pca_scores <- read_csv(pca_scores_file, show_col_types = FALSE) %>%
     mutate(site = standardize_site_code(site)) %>%
     filter(site %in% SITE_ORDER_HYDROMETRIC)
@@ -487,6 +493,7 @@ if (file.exists(pca_scores_file) && file.exists(annual_file)) {
     ))
     unlink(file.path(supp_dir, "PCA_precip_anomaly.png"))
     unlink(file.path(supp_pdf_dir, "PCA_precip_anomaly.pdf"))
+  }
   }
 }
 
@@ -815,9 +822,9 @@ if (file.exists(site_file)) {
   unlink(file.path(supp_pdf_dir, "FigS6_dynamic_mobile_scatter_matrix.pdf"))
 }
 
-# supplementary ec-vs-ca chs relationship plots
+# supplementary ec-vs-ca chs relationship plots (auxiliary)
 ec_ca_pairs_file <- file.path(OUT_MET_MOBILE_DIR, "annual_gw_prop_ec_ca_site_year_pairs.csv")
-if (file.exists(ec_ca_pairs_file)) {
+if (isTRUE(WRITE_AUX_OUTPUTS) && file.exists(ec_ca_pairs_file)) {
   ec_ca_pairs <- read_csv(ec_ca_pairs_file, show_col_types = FALSE) %>%
     mutate(
       SITECODE = standardize_site_code(SITECODE),

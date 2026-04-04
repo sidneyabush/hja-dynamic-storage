@@ -103,12 +103,11 @@ p_biplot <- ggplot(scores, aes(x = PC1, y = PC2, color = site, fill = site, shap
     inherit.aes = FALSE,
     color = "black",
     fill = scales::alpha("white", 0.75),
-    label.size = 0,
+    linewidth = 0,
     label.padding = grid::unit(0.12, "lines"),
     size = FIG_ANNOT_TEXT_SIZE,
     nudge_x = 0.05,
-    nudge_y = 0.05,
-    check_overlap = FIG_LABEL_CHECK_OVERLAP
+    nudge_y = 0.05
   ) +
   scale_color_manual(values = SITE_COLORS, name = NULL, drop = FALSE) +
   scale_fill_manual(values = SITE_COLORS, guide = "none", drop = FALSE) +
