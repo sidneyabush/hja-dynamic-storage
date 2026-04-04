@@ -32,7 +32,8 @@ build_corr_triangle_plot <- function(
   data_df,
   metric_map,
   legend_title = "Pearson's r",
-  metric_labels = NULL
+  metric_labels = NULL,
+  parse_metric_labels = FALSE
 ) {
   metric_map <- metric_map[metric_map %in% names(data_df)]
   if (length(metric_map) < 2) {
@@ -77,11 +78,9 @@ build_corr_triangle_plot <- function(
       )
     )
 
-  ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
+  p <- ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
     geom_tile(color = "white", linewidth = 0.3) +
     geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE * 1.25) +
-    scale_x_discrete(labels = metric_labels) +
-    scale_y_discrete(labels = metric_labels) +
     scale_fill_gradient2(
       low = "firebrick3",
       mid = "white",
@@ -100,13 +99,129 @@ build_corr_triangle_plot <- function(
       legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
       legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
     )
+
+  if (isTRUE(parse_metric_labels)) {
+    p <- p +
+      scale_x_discrete(
+        labels = function(x) {
+          parsed <- metric_labels[x]
+          parsed[is.na(parsed)] <- x[is.na(parsed)]
+          parse(text = unname(parsed))
+        }
+      ) +
+      scale_y_discrete(
+        labels = function(x) {
+          parsed <- metric_labels[x]
+          parsed[is.na(parsed)] <- x[is.na(parsed)]
+          parse(text = unname(parsed))
+        }
+      )
+  } else {
+    p <- p +
+      scale_x_discrete(labels = metric_labels) +
+      scale_y_discrete(labels = metric_labels)
+  }
+
+  p
+}
+
+build_diagnostic_p_plot <- function(
+  diag_df,
+  response_col,
+  response_order,
+  response_label_fn = identity
+) {
+  if (nrow(diag_df) == 0) {
+    return(NULL)
+  }
+
+  diag_df <- diag_df %>%
+    mutate(
+      response = as.character(.data[[response_col]]),
+      n_residuals = suppressWarnings(as.numeric(n_residuals)),
+      shapiro_p = suppressWarnings(as.numeric(shapiro_p)),
+      ncv_p = suppressWarnings(as.numeric(ncv_p))
+    )
+
+  long_df <- bind_rows(
+    diag_df %>%
+      transmute(
+        response,
+        n_residuals,
+        test = "Shapiro-Wilk normality test",
+        p_value = shapiro_p
+      ),
+    diag_df %>%
+      transmute(
+        response,
+        n_residuals,
+        test = "Non-constant variance test",
+        p_value = ncv_p
+      )
+  ) %>%
+    filter(is.finite(p_value)) %>%
+    mutate(
+      test = factor(
+        test,
+        levels = c("Shapiro-Wilk normality test", "Non-constant variance test"),
+        labels = c("a) Shapiro-Wilk normality test", "b) Non-constant variance test")
+      ),
+      response = factor(response, levels = response_order),
+      pass_p05 = p_value >= 0.05
+    )
+
+  if (nrow(long_df) == 0) {
+    return(NULL)
+  }
+
+  ggplot(long_df, aes(x = response, y = p_value)) +
+    geom_hline(yintercept = 0.05, linetype = "dashed", color = "firebrick3", linewidth = 0.5) +
+    geom_point(
+      aes(fill = pass_p05),
+      shape = 21,
+      color = "grey20",
+      alpha = 0.92,
+      stroke = 0.25,
+      size = 3.6
+    ) +
+    facet_wrap(~ test, ncol = 1) +
+    scale_x_discrete(labels = function(x) response_label_fn(as.character(x))) +
+    scale_y_continuous(
+      limits = c(-0.04, 1.04),
+      breaks = seq(0, 1, by = 0.2),
+      labels = scales::number_format(accuracy = 0.1),
+      oob = scales::squish,
+      expand = expansion(mult = c(0, 0))
+    ) +
+    scale_fill_manual(
+      values = c(`TRUE` = "dodgerblue3", `FALSE` = "firebrick3"),
+      breaks = c(TRUE, FALSE),
+      labels = c(expression(p >= 0.05), expression(p < 0.05)),
+      name = "p-value"
+    ) +
+    labs(x = NULL, y = "Diagnostic p-value") +
+    coord_cartesian(clip = "off") +
+    theme_pub() +
+    theme(
+      axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE + 1, angle = 0, hjust = 0.5),
+      axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE + 1),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE + 1),
+      strip.background = element_rect(fill = "grey97", color = "grey55", linewidth = 0.4),
+      panel.border = element_rect(fill = NA, color = "grey55", linewidth = 0.45),
+      panel.spacing = grid::unit(0.7, "lines"),
+      legend.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE)
+    )
 }
 
 supp_dir <- MS_FIG_SUPP_DIR
 supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-for (d in c(supp_dir, supp_pdf_dir, main_dir, main_pdf_dir)) {
+supp_explore_dir <- SUPP_EXPLORATORY_DIR
+supp_explore_pdf_dir <- SUPP_EXPLORATORY_PDF_DIR
+for (d in c(supp_dir, supp_pdf_dir, main_dir, main_pdf_dir, supp_explore_dir, supp_explore_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -170,8 +285,9 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
   r2_annot_df <- r2_df %>%
     left_join(one_to_one_df, by = "Response") %>%
     mutate(
-      x = min_v + 0.03 * (max_v - min_v),
-      y = max_v - 0.03 * (max_v - min_v)
+      x = min_v + 0.015 * (max_v - min_v),
+      y = max_v - 0.015 * (max_v - min_v),
+      label_parse = paste0("R^2==", sprintf("%.2f", r2))
     )
 
   p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
@@ -190,8 +306,9 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     ) +
     geom_text(
       data = r2_annot_df,
-      aes(x = x, y = y, label = paste0("R² = ", sprintf("%.2f", r2))),
+      aes(x = x, y = y, label = label_parse),
       inherit.aes = FALSE,
+      parse = TRUE,
       size = FIG_ANNOT_TEXT_SIZE + 1.2,
       hjust = 0,
       vjust = 1
@@ -403,7 +520,14 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     annual_corr,
     dynamic_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(label_metric_abbrev(names(dynamic_map)), names(dynamic_map))
+    metric_labels = c(
+      RBI = "plain(RBI)",
+      RCS = "plain(RCS)",
+      FDC = "plain(FDC)",
+      SD = "plain(SD)",
+      WB = "plain(WB)"
+    ),
+    parse_metric_labels = TRUE
   )
   if (!is.null(p_dynamic_corr)) {
     invisible(safe_ggsave(
@@ -419,13 +543,21 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
+    unlink(file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"))
+    unlink(file.path(supp_pdf_dir, "FigSX_dynamic_metrics_corr.pdf"))
   }
 
   p_mobile_corr <- build_corr_triangle_plot(
     site_df,
     mobile_map,
     legend_title = "Pearson's r",
-    metric_labels = stats::setNames(label_metric_abbrev(names(mobile_map)), names(mobile_map))
+    metric_labels = c(
+      CHS = "plain(BF)",
+      DR = "plain(DR)",
+      Fyw = "plain(F)[yw]",
+      MTT = "plain(MTT)"
+    ),
+    parse_metric_labels = TRUE
   )
   if (!is.null(p_mobile_corr)) {
     invisible(safe_ggsave(
@@ -441,7 +573,246 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
       width = 7.8 * FIG_WIDTH_SCALE,
       height = 6.6 * FIG_HEIGHT_SCALE
     ))
+    unlink(file.path(supp_dir, "FigSX_mobile_metrics_corr.png"))
+    unlink(file.path(supp_pdf_dir, "FigSX_mobile_metrics_corr.pdf"))
   }
+}
+
+# supplementary diagnostics summary for reported residual tests (table only)
+catch_diag_file <- file.path(
+  OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
+  "catchment_char_storage_mlr_diagnostics.csv"
+)
+catch_diag_tbl <- tibble()
+if (file.exists(catch_diag_file)) {
+  catch_diag <- read_csv(catch_diag_file, show_col_types = FALSE)
+  catch_diag_tbl <- catch_diag %>%
+    transmute(
+      model_set = "Catchment characteristics",
+      response_variable = label_metric_abbrev(gsub("_mean$", "", as.character(Outcome))),
+      n_residuals = suppressWarnings(as.numeric(n_residuals)),
+      shapiro_p = suppressWarnings(as.numeric(shapiro_p)),
+      ncv_p = suppressWarnings(as.numeric(ncv_p)),
+      shapiro_p = ifelse(
+        is.finite(shapiro_p),
+        paste0(format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE), ifelse(shapiro_p < 0.05, "*", "")),
+        NA_character_
+      ),
+      ncv_p = ifelse(
+        is.finite(ncv_p),
+        paste0(format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE), ifelse(ncv_p < 0.05, "*", "")),
+        NA_character_
+      )
+    )
+}
+
+eco_diag_file <- file.path(
+  OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
+  "storage_eco_response_mlr_diagnostics.csv"
+)
+eco_diag_tbl <- tibble()
+if (file.exists(eco_diag_file)) {
+  eco_diag <- read_csv(eco_diag_file, show_col_types = FALSE)
+  eco_diag_tbl <- eco_diag %>%
+    transmute(
+      model_set = "Ecological responses",
+      response_variable = as.character(Response),
+      n_residuals = suppressWarnings(as.numeric(n_residuals)),
+      shapiro_p = suppressWarnings(as.numeric(shapiro_p)),
+      ncv_p = suppressWarnings(as.numeric(ncv_p)),
+      shapiro_p = ifelse(
+        is.finite(shapiro_p),
+        paste0(format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE), ifelse(shapiro_p < 0.05, "*", "")),
+        NA_character_
+      ),
+      ncv_p = ifelse(
+        is.finite(ncv_p),
+        paste0(format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE), ifelse(ncv_p < 0.05, "*", "")),
+        NA_character_
+      )
+    )
+}
+
+# supplementary diagnostics table used for SI reporting.
+diag_table <- bind_rows(catch_diag_tbl, eco_diag_tbl)
+if (nrow(diag_table) > 0) {
+  diag_table <- diag_table %>%
+    arrange(model_set, response_variable)
+  write_csv(diag_table, file.path(supp_dir, "TableS7_mlr_model_diagnostics.csv"))
+  unlink(file.path(supp_dir, "Table_SX_mlr_model_diagnostics.csv"))
+}
+
+# remove legacy diagnostics figures from SI deliverables.
+unlink(file.path(supp_dir, "FigS4_catchment_mlr_diagnostics.png"))
+unlink(file.path(supp_pdf_dir, "FigS4_catchment_mlr_diagnostics.pdf"))
+unlink(file.path(supp_dir, "FigS5_eco_mlr_diagnostics.png"))
+unlink(file.path(supp_pdf_dir, "FigS5_eco_mlr_diagnostics.pdf"))
+
+# supplementary dynamic-mobile scatter matrix supporting Figure 6 interpretation
+if (file.exists(site_file)) {
+  site_df_scatter <- read_csv(site_file, show_col_types = FALSE) %>%
+    mutate(
+      site = standardize_site_code(site),
+      across(c(RBI_mean, RCS_mean, FDC_mean, SD_mean, WB_mean, CHS_mean, DR, Fyw, MTT), ~ suppressWarnings(as.numeric(.x)))
+    ) %>%
+    filter(site %in% SITE_ORDER_HYDROMETRIC)
+
+  dynamic_map_scatter <- c(
+    RBI = "RBI_mean",
+    RCS = "RCS_mean",
+    FDC = "FDC_mean",
+    SD = "SD_mean",
+    WB = "WB_mean"
+  )
+  mobile_map_scatter <- c(
+    BF = "CHS_mean",
+    DR = "DR",
+    Fyw = "Fyw",
+    MTT = "MTT"
+  )
+
+  scatter_df <- bind_rows(lapply(names(dynamic_map_scatter), function(dn) {
+    bind_rows(lapply(names(mobile_map_scatter), function(mn) {
+      tibble(
+        site = site_df_scatter$site,
+        Dynamic = dn,
+        Mobile = mn,
+        x = site_df_scatter[[dynamic_map_scatter[[dn]]]],
+        y = site_df_scatter[[mobile_map_scatter[[mn]]]]
+      )
+    }))
+  })) %>%
+    mutate(
+      Dynamic = factor(Dynamic, levels = names(dynamic_map_scatter)),
+      Mobile = factor(Mobile, levels = names(mobile_map_scatter))
+    )
+
+  # keep site-shape mapping aligned with Figure 3 and other manuscript plots.
+  site_shapes <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
+
+  panel_stats <- scatter_df %>%
+    group_by(Mobile, Dynamic) %>%
+    summarise(
+      n = sum(is.finite(x) & is.finite(y)),
+      r = suppressWarnings(cor(x, y, use = "complete.obs")),
+      x_min = suppressWarnings(min(x, na.rm = TRUE)),
+      x_max = suppressWarnings(max(x, na.rm = TRUE)),
+      y_min = suppressWarnings(min(y, na.rm = TRUE)),
+      y_max = suppressWarnings(max(y, na.rm = TRUE)),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      label = ifelse(
+        is.finite(r),
+        paste0("r=", sprintf("%.2f", r), "\n", "n=", n),
+        paste0("r=NA", "\n", "n=", n)
+      ),
+      x_span = ifelse(is.finite(x_max - x_min) & (x_max - x_min) > 0, x_max - x_min, 1),
+      y_span = ifelse(is.finite(y_max - y_min) & (y_max - y_min) > 0, y_max - y_min, 1),
+      # Place annotation in padded top-right space within panel bounds.
+      x = x_max + 0.12 * x_span,
+      y = y_max + 0.12 * y_span
+    )
+
+  smooth_df <- scatter_df %>%
+    group_by(Mobile, Dynamic) %>%
+    mutate(n_pair = sum(is.finite(x) & is.finite(y))) %>%
+    ungroup() %>%
+    filter(n_pair >= 3)
+
+  p_scatter <- ggplot(scatter_df, aes(x = x, y = y)) +
+    geom_point(
+      aes(color = site, fill = site, shape = site),
+      size = FIG_POINT_SIZE_MED + 0.1,
+      stroke = 0.7,
+      alpha = 0.88,
+      na.rm = TRUE
+    ) +
+    geom_smooth(
+      data = smooth_df,
+      method = "lm",
+      formula = y ~ x,
+      se = FALSE,
+      linewidth = 0.45,
+      color = "grey25",
+      na.rm = TRUE
+    ) +
+    geom_text(
+      data = panel_stats,
+      aes(x = x, y = y, label = label),
+      inherit.aes = FALSE,
+      hjust = 1,
+      vjust = 1,
+      size = FIG_ANNOT_TEXT_SIZE,
+      color = "grey35"
+    ) +
+    facet_grid(
+      Mobile ~ Dynamic,
+      scales = "free",
+      labeller = labeller(
+        Dynamic = as_labeller(
+          c(RBI = "RBI", RCS = "RCS", FDC = "FDC", SD = "SD", WB = "WB"),
+          label_parsed
+        ),
+        Mobile = as_labeller(
+          c(BF = "BF", DR = "DR", Fyw = "F[yw]", MTT = "MTT"),
+          label_parsed
+        )
+      )
+    ) +
+    scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+    scale_fill_manual(values = SITE_COLORS, drop = FALSE, guide = "none") +
+    scale_shape_manual(values = site_shapes, drop = FALSE) +
+    guides(
+      color = guide_legend(
+        title = NULL,
+        override.aes = list(
+          shape = unname(site_shapes[SITE_ORDER_HYDROMETRIC]),
+          fill = unname(SITE_COLORS[SITE_ORDER_HYDROMETRIC]),
+          size = rep(FIG_POINT_SIZE_MED + 0.6, length(SITE_ORDER_HYDROMETRIC)),
+          alpha = 0.88,
+          stroke = 0.7
+        )
+      ),
+      shape = "none"
+    ) +
+    labs(
+      x = "Dynamic storage metric value",
+      y = "Mobile storage metric value",
+      color = NULL
+    ) +
+    scale_x_continuous(expand = expansion(mult = c(0.03, 0.20))) +
+    scale_y_continuous(expand = expansion(mult = c(0.03, 0.20))) +
+    theme_pub() +
+    theme(
+      axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE, angle = 45, hjust = 1, vjust = 1),
+      axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
+      axis.line = element_blank(),
+      axis.ticks = element_line(color = "grey65", linewidth = 0.3),
+      strip.text = element_text(size = FIG_STRIP_TEXT_SIZE),
+      strip.background = element_rect(fill = "grey97", color = "grey55", linewidth = 0.4),
+      panel.border = element_rect(fill = NA, color = "grey55", linewidth = 0.45),
+      panel.spacing = grid::unit(0.65, "lines"),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE),
+      plot.margin = margin(8, 8, 8, 8)
+    )
+
+  invisible(safe_ggsave(
+    file.path(supp_dir, "FigS4_dynamic_mobile_scatter_matrix.png"),
+    p_scatter,
+    width = 12.8 * FIG_WIDTH_SCALE,
+    height = 8.8 * FIG_HEIGHT_SCALE,
+    dpi = 300
+  ))
+  invisible(safe_ggsave(
+    file.path(supp_pdf_dir, "FigS4_dynamic_mobile_scatter_matrix.pdf"),
+    p_scatter,
+    width = 12.8 * FIG_WIDTH_SCALE,
+    height = 8.8 * FIG_HEIGHT_SCALE
+  ))
+  unlink(file.path(supp_dir, "FigS6_dynamic_mobile_scatter_matrix.png"))
+  unlink(file.path(supp_pdf_dir, "FigS6_dynamic_mobile_scatter_matrix.pdf"))
 }
 
 # supplementary ec-vs-ca chs relationship plots
@@ -601,30 +972,36 @@ if (file.exists(ec_ca_pairs_file)) {
       )
 
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSX_chs_ec_vs_ca_by_site.png"),
+      file.path(supp_explore_dir, "FigSX_chs_ec_vs_ca_by_site.png"),
       p_ec_ca_site,
       width = 9.6 * FIG_WIDTH_SCALE,
       height = 8.2 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_by_site.pdf"),
+      file.path(supp_explore_pdf_dir, "FigSX_chs_ec_vs_ca_by_site.pdf"),
       p_ec_ca_site,
       width = 9.6 * FIG_WIDTH_SCALE,
       height = 8.2 * FIG_HEIGHT_SCALE
     ))
     invisible(safe_ggsave(
-      file.path(supp_dir, "FigSX_chs_ec_vs_ca_overall.png"),
+      file.path(supp_explore_dir, "FigSX_chs_ec_vs_ca_overall.png"),
       p_ec_ca_overall,
       width = 7.2 * FIG_WIDTH_SCALE,
       height = 6.4 * FIG_HEIGHT_SCALE,
       dpi = 300
     ))
     invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_overall.pdf"),
+      file.path(supp_explore_pdf_dir, "FigSX_chs_ec_vs_ca_overall.pdf"),
       p_ec_ca_overall,
       width = 7.2 * FIG_WIDTH_SCALE,
       height = 6.4 * FIG_HEIGHT_SCALE
     ))
+
+    # keep SI output directory clean by removing older copies from ms_materials/supp.
+    unlink(file.path(supp_dir, "FigSX_chs_ec_vs_ca_by_site.png"))
+    unlink(file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_by_site.pdf"))
+    unlink(file.path(supp_dir, "FigSX_chs_ec_vs_ca_overall.png"))
+    unlink(file.path(supp_pdf_dir, "FigSX_chs_ec_vs_ca_overall.pdf"))
   }
 }

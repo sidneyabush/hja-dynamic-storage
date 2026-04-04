@@ -1,4 +1,5 @@
-# create figure showing monthly climatology (median with iqr; jan–dec).
+# create figure showing monthly climatology of monthly aggregates
+# (median with iqr; jan-dec).
 # inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv.
 # author: sidney bush
 # date: 2026-01-30
@@ -89,32 +90,46 @@ swe_data <- read_csv(
   filter(water_year >= wy_start & water_year <= wy_end) %>%
   select(month, water_year, SWE_mm = CENMET)
 
-# monthly climatology (median + iqr), ordered by calendar month
+# monthly aggregates by water year and calendar month:
+# precipitation = monthly total, temperature = monthly mean,
+# swe = monthly mean.
+temp_monthly_agg <- temp_data %>%
+  group_by(water_year, month) %>%
+  summarise(T_month_mean = mean(T_C, na.rm = TRUE), .groups = "drop")
 
-temp_monthly <- temp_data %>%
+precip_monthly_agg <- precip_data %>%
+  group_by(water_year, month) %>%
+  summarise(P_month_total = sum(P_mm, na.rm = TRUE), .groups = "drop")
+
+swe_monthly_agg <- swe_data %>%
+  group_by(water_year, month) %>%
+  summarise(SWE_month_mean = mean(SWE_mm, na.rm = TRUE), .groups = "drop")
+
+# monthly climatology (median + iqr) of monthly aggregates
+temp_monthly <- temp_monthly_agg %>%
   group_by(month) %>%
   summarise(
-    med = median(T_C, na.rm = TRUE),
-    q25 = quantile(T_C, 0.25, na.rm = TRUE),
-    q75 = quantile(T_C, 0.75, na.rm = TRUE),
+    med = median(T_month_mean, na.rm = TRUE),
+    q25 = quantile(T_month_mean, 0.25, na.rm = TRUE),
+    q75 = quantile(T_month_mean, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
-precip_monthly <- precip_data %>%
+precip_monthly <- precip_monthly_agg %>%
   group_by(month) %>%
   summarise(
-    med = median(P_mm, na.rm = TRUE),
-    q25 = quantile(P_mm, 0.25, na.rm = TRUE),
-    q75 = quantile(P_mm, 0.75, na.rm = TRUE),
+    med = median(P_month_total, na.rm = TRUE),
+    q25 = quantile(P_month_total, 0.25, na.rm = TRUE),
+    q75 = quantile(P_month_total, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
-swe_monthly <- swe_data %>%
+swe_monthly <- swe_monthly_agg %>%
   group_by(month) %>%
   summarise(
-    med = median(SWE_mm, na.rm = TRUE),
-    q25 = quantile(SWE_mm, 0.25, na.rm = TRUE),
-    q75 = quantile(SWE_mm, 0.75, na.rm = TRUE),
+    med = median(SWE_month_mean, na.rm = TRUE),
+    q25 = quantile(SWE_month_mean, 0.25, na.rm = TRUE),
+    q75 = quantile(SWE_month_mean, 0.75, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -168,24 +183,24 @@ swe_annual <- swe_data %>%
 
 # plots
 
-# top row: monthly climatology (median + iqr)
+# top row: monthly climatology of monthly aggregates (median + iqr)
 p1 <- ggplot(precip_monthly, aes(month, med)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(y = "Precipitation (mm)", x = NULL) +
+  labs(y = "Monthly Precipitation (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p2 <- ggplot(temp_monthly, aes(month, med)) +
   geom_col(fill = col_temp, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(y = "Temperature (°C)", x = NULL) +
+  labs(y = "Monthly Mean Air Temperature (°C)", x = NULL) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 p3 <- ggplot(swe_monthly, aes(month, med)) +
   geom_col(fill = col_swe, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
-  labs(y = "SWE (mm)", x = NULL) +
+  labs(y = "Monthly Mean SWE (mm)", x = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 

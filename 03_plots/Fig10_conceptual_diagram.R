@@ -400,8 +400,9 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     linetype = "dashed"
   ) +
   geom_point(
-    aes(shape = site, fill = pc1, color = pc1, size = pc2),
-    stroke = 0.35 * FIG9_ELEMENT_SCALE,
+    aes(fill = pc1, color = pc1, size = pc2),
+    shape = 21,
+    stroke = 0.50 * FIG9_ELEMENT_SCALE,
     alpha = 0.96
   ) +
   geom_text_repel(
@@ -443,11 +444,10 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     midpoint = 0,
     guide = "none"
   ) +
-  scale_shape_manual(values = SITE_SHAPES, guide = "none", drop = FALSE) +
   scale_size_continuous(
     name = "PC2",
-    breaks = c(-2, -1, 0, 1),
-    range = c(3.5, 9) * FIG9_ELEMENT_SCALE
+    breaks = c(-2, -1, 0, 1, 2),
+    range = c(5.0, 14.0) * FIG9_ELEMENT_SCALE
   ) +
   labs(
     x = "Dynamic Storage",

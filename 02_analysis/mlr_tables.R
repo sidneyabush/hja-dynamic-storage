@@ -274,3 +274,77 @@ write_csv(
   eco_summary_table,
   file.path(MS_TABLES_MAIN_DIR, "Table5_mlr_all_models_listed.csv")
 )
+
+# ---- supplementary alternative-model tables (deduplicated predictor sets, delta AICc <= 2) ----
+dir.create(MS_TABLES_SUPP_DIR, recursive = TRUE, showWarnings = FALSE)
+
+catch_alt_file <- file.path(ws_dir, "catchment_char_storage_mlr_aicc_lt2.csv")
+if (file.exists(catch_alt_file)) {
+  catch_alt <- read_csv(catch_alt_file, show_col_types = FALSE) %>%
+    transmute(
+      Response = gsub("_mean$", "", as.character(Outcome)),
+      Predictors = clean_predictor_labels(as.character(Predictors_Final)),
+      AICc = suppressWarnings(as.numeric(AICc)),
+      delta_AICc = suppressWarnings(as.numeric(delta_AICc)),
+      R2 = suppressWarnings(as.numeric(R2)),
+      Adj_R2 = suppressWarnings(as.numeric(R2_adj)),
+      RMSE = suppressWarnings(as.numeric(RMSE)),
+      LOOCV_RMSE = suppressWarnings(as.numeric(RMSE_LOOCV)),
+      n = suppressWarnings(as.integer(N))
+    ) %>%
+    mutate(Response = ifelse(Response == "CHS", "BF", Response)) %>%
+    group_by(Response, Predictors) %>%
+    summarise(
+      AICc = first(AICc),
+      delta_AICc = first(delta_AICc),
+      R2 = first(R2),
+      Adj_R2 = first(Adj_R2),
+      RMSE = first(RMSE),
+      LOOCV_RMSE = first(LOOCV_RMSE),
+      n = first(n),
+      .groups = "drop"
+    ) %>%
+    mutate(Response = factor(Response, levels = c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT"))) %>%
+    arrange(Response, delta_AICc, Predictors) %>%
+    mutate(Response = as.character(Response))
+
+  write_csv(
+    catch_alt,
+    file.path(MS_TABLES_SUPP_DIR, "TableS5_catchment_alt_models_unique_deltaAICc_le2_BF.csv")
+  )
+}
+
+eco_alt_file <- file.path(eco_dir, "storage_eco_response_mlr_aicc_lt2.csv")
+if (file.exists(eco_alt_file)) {
+  eco_alt <- read_csv(eco_alt_file, show_col_types = FALSE) %>%
+    transmute(
+      Response = as.character(Response),
+      Predictors = clean_predictor_labels(as.character(Predictors_Final)),
+      AICc = suppressWarnings(as.numeric(AICc)),
+      delta_AICc = suppressWarnings(as.numeric(delta_AICc)),
+      R2 = suppressWarnings(as.numeric(R2)),
+      Adj_R2 = suppressWarnings(as.numeric(R2_adj)),
+      RMSE = suppressWarnings(as.numeric(RMSE)),
+      LOOCV_RMSE = suppressWarnings(as.numeric(RMSE_LOOCV)),
+      n = suppressWarnings(as.integer(n))
+    ) %>%
+    group_by(Response, Predictors) %>%
+    summarise(
+      AICc = first(AICc),
+      delta_AICc = first(delta_AICc),
+      R2 = first(R2),
+      Adj_R2 = first(Adj_R2),
+      RMSE = first(RMSE),
+      LOOCV_RMSE = first(LOOCV_RMSE),
+      n = first(n),
+      .groups = "drop"
+    ) %>%
+    mutate(Response = factor(Response, levels = ECO_ORDER)) %>%
+    arrange(Response, delta_AICc, Predictors) %>%
+    mutate(Response = as.character(Response))
+
+  write_csv(
+    eco_alt,
+    file.path(MS_TABLES_SUPP_DIR, "TableS6_eco_alt_models_unique_deltaAICc_le2_BF.csv")
+  )
+}

@@ -75,7 +75,18 @@ norm_predictor <- function(x) {
 response_order <- c("Q7Q5", "T7DMax")
 predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
 response_axis_labels <- stats::setNames(response_order, response_order)
-predictor_axis_labels <- stats::setNames(label_metric_abbrev(predictor_order), predictor_order)
+predictor_axis_labels_plotmath <- c(
+  Pws = "plain(P)[ws]",
+  RBI = "plain(RBI)",
+  RCS = "plain(RCS)",
+  FDC = "plain(FDC)",
+  SD = "plain(SD)",
+  WB = "plain(WB)",
+  CHS = "plain(BF)",
+  DR = "plain(DR)",
+  Fyw = "plain(F)[yw]",
+  MTT = "plain(MTT)"
+)
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
@@ -147,7 +158,13 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
     name = expression(italic(beta))
   ) +
   scale_x_discrete(labels = response_axis_labels) +
-  scale_y_discrete(labels = predictor_axis_labels) +
+  scale_y_discrete(
+    labels = function(x) {
+      parsed <- predictor_axis_labels_plotmath[x]
+      parsed[is.na(parsed)] <- x[is.na(parsed)]
+      parse(text = unname(parsed))
+    }
+  ) +
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(

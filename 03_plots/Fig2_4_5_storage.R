@@ -352,10 +352,10 @@ fig5_df <- site_summary %>%
   filter(is.finite(value)) %>%
   mutate(metric = factor(metric, levels = names(fig5_map)))
 
-fig5_titles <- c(
-  DR = "a) Damping Ratio (DR)",
-  Fyw = "b) Young Water Fraction (Fyw)",
-  MTT = "c) Mean Transit Time (MTT)"
+fig5_titles <- list(
+  DR = expression("a) Damping Ratio (DR)"),
+  Fyw = expression("b) Young Water Fraction (" * F[yw] * ")"),
+  MTT = expression("c) Mean Transit Time (MTT)")
 )
 fig5_y_labels <- c(
   DR = "Unitless",
@@ -365,7 +365,8 @@ fig5_y_labels <- c(
 
 build_fig5_panel <- function(metric_key) {
   dat <- fig5_df %>% filter(metric == metric_key)
-  show_x <- !identical(metric_key, "DR")
+  # Match Fig2 behavior: hide panel a labels; keep panel b and c labels visible.
+  show_x <- metric_key %in% c("Fyw", "MTT")
   y_lim <- calc_ylim(
     c(dat$value, dat$value - dat$err, dat$value + dat$err),
     numeric()
@@ -385,13 +386,13 @@ build_fig5_panel <- function(metric_key) {
     coord_cartesian(ylim = y_lim, clip = "off") +
     labs(
       x = NULL,
-      y = fig5_y_labels[[metric_key]],
-      title = fig5_titles[[metric_key]]
+      y = fig5_y_labels[[metric_key]]
     ) +
+    ggtitle(fig5_titles[[metric_key]]) +
     theme_storage_panel() +
     theme(
       axis.text.x = if (show_x) {
-        element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE)
+        element_text(angle = 35, hjust = 1, vjust = 1, size = FIG_AXIS_TEXT_SIZE - 1)
       } else {
         element_blank()
       },
@@ -400,11 +401,14 @@ build_fig5_panel <- function(metric_key) {
 }
 
 fig5_plots <- lapply(names(fig5_map), build_fig5_panel)
-p_fig5 <- wrap_plots(
-  c(fig5_plots, list(plot_spacer())),
-  ncol = 2,
-  byrow = TRUE
-)
+# Build columns separately (same strategy as Fig2) so x-axis labels in panel b
+# do not force extra blank space beneath panel a.
+p_fig5_left <- fig5_plots[[1]] / fig5_plots[[3]] +
+  plot_layout(heights = c(1, 1))
+p_fig5_right <- fig5_plots[[2]] / patchwork::plot_spacer() +
+  plot_layout(heights = c(1, 1))
+
+p_fig5 <- p_fig5_left | p_fig5_right
 
 ggsave(
   file.path(main_dir, "Fig2_ds_annual_boxplots.png"),

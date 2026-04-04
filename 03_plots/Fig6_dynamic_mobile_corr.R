@@ -75,8 +75,19 @@ if (length(dynamic_map) == 0 || length(mobile_map) == 0) {
   stop("Required dynamic/mobile metric columns are missing from master_site.csv")
 }
 
-dynamic_axis_labels <- stats::setNames(label_metric_abbrev(names(dynamic_map)), names(dynamic_map))
-mobile_axis_labels <- stats::setNames(label_metric_abbrev(names(mobile_map)), names(mobile_map))
+dynamic_axis_labels_plotmath <- c(
+  RBI = "plain(RBI)",
+  RCS = "plain(RCS)",
+  FDC = "plain(FDC)",
+  SD = "plain(SD)",
+  WB = "plain(WB)"
+)
+mobile_axis_labels_plotmath <- c(
+  CHS = "plain(BF)",
+  DR = "plain(DR)",
+  Fyw = "plain(F)[yw]",
+  MTT = "plain(MTT)"
+)
 
 corr_df <- tidyr::expand_grid(
   Mobile = names(mobile_map),
@@ -106,8 +117,20 @@ corr_df <- tidyr::expand_grid(
 p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE) +
-  scale_x_discrete(labels = dynamic_axis_labels) +
-  scale_y_discrete(labels = mobile_axis_labels) +
+  scale_x_discrete(
+    labels = function(x) {
+      parsed <- dynamic_axis_labels_plotmath[x]
+      parsed[is.na(parsed)] <- x[is.na(parsed)]
+      parse(text = unname(parsed))
+    }
+  ) +
+  scale_y_discrete(
+    labels = function(x) {
+      parsed <- mobile_axis_labels_plotmath[x]
+      parsed[is.na(parsed)] <- x[is.na(parsed)]
+      parse(text = unname(parsed))
+    }
+  ) +
   scale_fill_gradient2(
     low = "firebrick3",
     mid = "white",
@@ -145,8 +168,20 @@ invisible(safe_ggsave(
 p_abs <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = abs_r)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = label_abs), size = FIG_TILE_TEXT_SIZE) +
-  scale_x_discrete(labels = dynamic_axis_labels) +
-  scale_y_discrete(labels = mobile_axis_labels) +
+  scale_x_discrete(
+    labels = function(x) {
+      parsed <- dynamic_axis_labels_plotmath[x]
+      parsed[is.na(parsed)] <- x[is.na(parsed)]
+      parse(text = unname(parsed))
+    }
+  ) +
+  scale_y_discrete(
+    labels = function(x) {
+      parsed <- mobile_axis_labels_plotmath[x]
+      parsed[is.na(parsed)] <- x[is.na(parsed)]
+      parse(text = unname(parsed))
+    }
+  ) +
   scale_fill_gradient(
     low = "white",
     high = "dodgerblue3",
