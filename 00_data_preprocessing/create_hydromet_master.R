@@ -1,10 +1,10 @@
-# build catchment-scale daily met + discharge inputs for wy 1997-2020.
+# build catchment-scale daily met + discharge inputs for wy 1997-2020
 # inputs:
 # met_dir/ms00102_v9.csv
 # met_dir/ms05025_v3.csv
 # discharge_dir/hf00402_v14.csv
 
-# author: sidney bush
+# author: Sidney Bush
 # date: 2026-02-13
 
 library(readr)
@@ -68,7 +68,7 @@ site_mapping <- list(
     netrad = c("PRIMET")
   ),
 
-  # mack creek - use cenmet/uplmet blend
+  # mack creek - use cenmet/uplmet
   "GSMACK" = list(
     temp = c("CENMET", "UPLMET"),
     precip = c("GSMACK", "UPLMET"),
@@ -76,7 +76,7 @@ site_mapping <- list(
     netrad = c("VANMET")
   ),
 
-  # upper elevation catchments - use h15met/vanmet blend
+  # upper elevation catchments - use h15met/vanmet
   "GSWS06" = list(
     temp = c("H15MET", "VANMET"),
     precip = c("H15MET"),

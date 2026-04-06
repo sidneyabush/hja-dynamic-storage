@@ -2,17 +2,29 @@
 # author: sidney bush
 # date: 2026-02-13
 
-# default project paths (single supported layout)
+# default project paths
 REPO_DIR <- normalizePath(getwd(), mustWork = FALSE)
 default_box_base_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
 BOX_BASE_DIR <- Sys.getenv("HJA_BOX_BASE_DIR", unset = default_box_base_dir)
 
 # allow local overrides for sandboxed/batch comparison runs.
 default_final_workflow_root <- file.path(BOX_BASE_DIR, "final_workflow")
-FINAL_WORKFLOW_ROOT <- Sys.getenv("HJA_FINAL_WORKFLOW_ROOT", unset = default_final_workflow_root)
-BASE_DATA_DIR <- Sys.getenv("HJA_BASE_DATA_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "inputs"))
-OUTPUT_DIR <- Sys.getenv("HJA_OUTPUT_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "outputs"))
-MS_MATERIALS_DIR <- Sys.getenv("HJA_MS_MATERIALS_DIR", unset = file.path(FINAL_WORKFLOW_ROOT, "ms_materials"))
+FINAL_WORKFLOW_ROOT <- Sys.getenv(
+  "HJA_FINAL_WORKFLOW_ROOT",
+  unset = default_final_workflow_root
+)
+BASE_DATA_DIR <- Sys.getenv(
+  "HJA_BASE_DATA_DIR",
+  unset = file.path(FINAL_WORKFLOW_ROOT, "inputs")
+)
+OUTPUT_DIR <- Sys.getenv(
+  "HJA_OUTPUT_DIR",
+  unset = file.path(FINAL_WORKFLOW_ROOT, "outputs")
+)
+MS_MATERIALS_DIR <- Sys.getenv(
+  "HJA_MS_MATERIALS_DIR",
+  unset = file.path(FINAL_WORKFLOW_ROOT, "ms_materials")
+)
 EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
 CONCEPTUAL_DIAGRAM_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "conceptual_diagram")
 SUPP_EXPLORATORY_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "supp")
@@ -21,8 +33,8 @@ SUPP_EXPLORATORY_PDF_DIR <- SUPP_EXPLORATORY_DIR
 SUPP_LEGACY_DIR <- SUPP_EXPLORATORY_DIR
 SUPP_LEGACY_PDF_DIR <- SUPP_EXPLORATORY_PDF_DIR
 
-# manuscript-facing outputs.
-# figures and tables now write directly to main/supp.
+# manuscript-facing outputs
+# figures and tables write directly to main/supp
 FIGURES_DIR <- MS_MATERIALS_DIR
 MS_MAIN_DIR <- file.path(MS_MATERIALS_DIR, "main")
 MS_SUPP_DIR <- file.path(MS_MATERIALS_DIR, "supp")
@@ -192,28 +204,50 @@ CHS_EXCLUDE_SITES <- character(0)
 
 # default storage-metric order across figures/tables:
 # rbi, rcs, fdc, sd, wb, chs, dr, fyw, mtt
-STORAGE_METRIC_ORDER <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
+STORAGE_METRIC_ORDER <- c(
+  "RBI",
+  "RCS",
+  "FDC",
+  "SD",
+  "WB",
+  "CHS",
+  "DR",
+  "Fyw",
+  "MTT"
+)
 
 # dynamic storage metrics
 # rbi = richards-baker index, rcs = recession curve slope
 # fdc = full-period site-level flow duration curve slope
 #       (annual site-year fdc is used only for figure 2 / anova-tukey display)
 # sd = storage-discharge
-DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD")]
+DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD")
+]
 
 # mobile storage metrics
 # chs = chemical hydrograph separation (mean baseflow fraction)
 # mtt = mean transit time (single entity), fyw = young water fraction, dr = damping ratio
-MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS")]
-MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT")] # Site-level from isotopes
+MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("CHS")
+]
+MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT")
+] # Site-level from isotopes
 
 # extended dynamic storage metrics (from water balance - annual)
 # wb = water balance (extended dynamic storage)
-EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("WB")]
+EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("WB")
+]
 
 # shared metric display order for plotting.
-PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")]
-PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT")]
+PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
+]
+PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[
+  STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT")
+]
 PLOT_MOBILE_STORAGE_SITE_COLS <- c(
   "CHS" = "CHS_mean",
   "DR" = "DR",
@@ -239,7 +273,7 @@ SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 
-# color palette
+# color palette and plot aesthetics ----
 
 # global plot text size (used across plotting scripts).
 FIG_BASE_SIZE <- 18
@@ -475,10 +509,14 @@ label_catchment_predictor_list <- function(x, sep = ";") {
   vapply(
     x_chr,
     function(val) {
-      if (is.na(val) || !nzchar(val)) return(val)
+      if (is.na(val) || !nzchar(val)) {
+        return(val)
+      }
       parts <- trimws(strsplit(val, sep, fixed = TRUE)[[1]])
       parts <- parts[nzchar(parts)]
-      if (length(parts) == 0) return(val)
+      if (length(parts) == 0) {
+        return(val)
+      }
       paste(label_catchment_predictor(parts), collapse = "; ")
     },
     FUN.VALUE = character(1)
