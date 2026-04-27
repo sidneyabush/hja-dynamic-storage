@@ -523,66 +523,15 @@ if (file.exists(site_file) && file.exists(annual_corr_file)) {
     MTT = "MTT"
   )
 
-  p_dynamic_corr <- build_corr_triangle_plot(
-    annual_corr,
-    dynamic_map,
-    legend_title = "Pearson's r",
-    metric_labels = c(
-      RBI = "plain(RBI)",
-      RCS = "plain(RCS)",
-      FDC = "plain(FDC)",
-      SD = "plain(SD)",
-      WB = "plain(WB)"
-    ),
-    parse_metric_labels = TRUE
-  )
-  if (!is.null(p_dynamic_corr)) {
-    invisible(safe_ggsave(
-      file.path(supp_dir, "FigS2_dynamic_storage_corr.png"),
-      p_dynamic_corr,
-      width = 7.8 * FIG_WIDTH_SCALE,
-      height = 6.6 * FIG_HEIGHT_SCALE,
-      dpi = 300
-    ))
-    invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigS2_dynamic_storage_corr.pdf"),
-      p_dynamic_corr,
-      width = 7.8 * FIG_WIDTH_SCALE,
-      height = 6.6 * FIG_HEIGHT_SCALE
-    ))
-    unlink(file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"))
-    unlink(file.path(supp_pdf_dir, "FigSX_dynamic_metrics_corr.pdf"))
-  }
+  unlink(file.path(supp_dir, "FigS2_dynamic_storage_corr.png"))
+  unlink(file.path(supp_pdf_dir, "FigS2_dynamic_storage_corr.pdf"))
+  unlink(file.path(supp_dir, "FigSX_dynamic_metrics_corr.png"))
+  unlink(file.path(supp_pdf_dir, "FigSX_dynamic_metrics_corr.pdf"))
 
-  p_mobile_corr <- build_corr_triangle_plot(
-    site_df,
-    mobile_map,
-    legend_title = "Pearson's r",
-    metric_labels = c(
-      CHS = "plain(BF)",
-      DR = "plain(DR)",
-      Fyw = "plain(F)[yw]",
-      MTT = "plain(MTT)"
-    ),
-    parse_metric_labels = TRUE
-  )
-  if (!is.null(p_mobile_corr)) {
-    invisible(safe_ggsave(
-      file.path(supp_dir, "FigS3_mobile_storage_corr.png"),
-      p_mobile_corr,
-      width = 7.8 * FIG_WIDTH_SCALE,
-      height = 6.6 * FIG_HEIGHT_SCALE,
-      dpi = 300
-    ))
-    invisible(safe_ggsave(
-      file.path(supp_pdf_dir, "FigS3_mobile_storage_corr.pdf"),
-      p_mobile_corr,
-      width = 7.8 * FIG_WIDTH_SCALE,
-      height = 6.6 * FIG_HEIGHT_SCALE
-    ))
-    unlink(file.path(supp_dir, "FigSX_mobile_metrics_corr.png"))
-    unlink(file.path(supp_pdf_dir, "FigSX_mobile_metrics_corr.pdf"))
-  }
+  unlink(file.path(supp_dir, "FigS3_mobile_storage_corr.png"))
+  unlink(file.path(supp_pdf_dir, "FigS3_mobile_storage_corr.pdf"))
+  unlink(file.path(supp_dir, "FigSX_mobile_metrics_corr.png"))
+  unlink(file.path(supp_pdf_dir, "FigSX_mobile_metrics_corr.pdf"))
 }
 
 # supplementary diagnostics summary for reported residual tests (table only)

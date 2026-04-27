@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(ggplot2)
   library(patchwork)
+  library(cowplot)
 })
 
 rm(list = ls())
@@ -115,6 +116,220 @@ theme_storage_panel <- function() {
     )
 }
 
+build_corr_triangle_panel <- function(
+  data_df,
+  metric_map,
+  metric_labels,
+  title,
+  legend_mode = c("inset", "side", "side_inner", "bottom", "left"),
+  axis_text_size = FIG_AXIS_TEXT_SIZE + 1,
+  title_margin_bottom = 9,
+  legend_scale = 1.32
+) {
+  legend_mode <- match.arg(legend_mode)
+  corr_input <- data_df %>%
+    select(any_of(unname(metric_map))) %>%
+    mutate(across(everything(), ~ suppressWarnings(as.numeric(.x))))
+
+  if (ncol(corr_input) < 2) {
+    return(patchwork::plot_spacer())
+  }
+
+  colnames(corr_input) <- names(metric_map)
+  corr_mat <- suppressWarnings(cor(corr_input, use = "pairwise.complete.obs"))
+  idx <- which(lower.tri(corr_mat), arr.ind = TRUE)
+  if (nrow(idx) == 0) {
+    return(patchwork::plot_spacer())
+  }
+
+  x_levels <- names(metric_map)[-length(metric_map)]
+  y_levels <- names(metric_map)[-1]
+
+  corr_pvals <- apply(idx, 1, function(rc) {
+    x <- corr_input[[rc[2]]]
+    y <- corr_input[[rc[1]]]
+    keep <- is.finite(x) & is.finite(y)
+
+    if (sum(keep) < 3) {
+      return(NA_real_)
+    }
+
+    suppressWarnings(
+      tryCatch(
+        cor.test(x[keep], y[keep], method = "pearson")$p.value,
+        error = function(e) NA_real_
+      )
+    )
+  })
+
+  corr_tri <- tibble(
+    row_metric = rownames(corr_mat)[idx[, 1]],
+    col_metric = colnames(corr_mat)[idx[, 2]],
+    r = corr_mat[idx],
+    p_value = as.numeric(corr_pvals)
+  ) %>%
+    mutate(
+      row_metric = factor(row_metric, levels = y_levels),
+      col_metric = factor(col_metric, levels = x_levels),
+      r_label = ifelse(abs(r) < 0.005, 0, r),
+      fontface = ifelse(is.finite(p_value) & p_value < 0.05, "bold", "plain"),
+      label = ifelse(
+        is.finite(r_label),
+        sprintf("%.2f", r_label),
+        ""
+      )
+    )
+
+  p_corr <- ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
+    geom_tile(color = "white", linewidth = 0.3) +
+    geom_text(aes(label = label, fontface = fontface), size = FIG_TILE_TEXT_SIZE * 1.15) +
+    scale_fill_gradient2(
+      low = "firebrick3",
+      mid = "white",
+      high = "dodgerblue3",
+      midpoint = 0,
+      limits = c(-1, 1),
+      na.value = "grey85",
+      name = "Pearson's r"
+    ) +
+    scale_x_discrete(
+      labels = function(x) {
+        parsed <- metric_labels[x]
+        parsed[is.na(parsed)] <- x[is.na(parsed)]
+        parse(text = unname(parsed))
+      }
+    ) +
+    scale_y_discrete(
+      labels = function(x) {
+        parsed <- metric_labels[x]
+        parsed[is.na(parsed)] <- x[is.na(parsed)]
+        parse(text = unname(parsed))
+      }
+    ) +
+    labs(x = NULL, y = NULL, title = title) +
+    theme_storage_panel() +
+    theme(
+      aspect.ratio = 1,
+      plot.title = element_text(
+        size = FIG_STRIP_TEXT_SIZE + 2,
+        hjust = 0,
+        margin = margin(t = 1, r = 0, b = title_margin_bottom, l = 0)
+      ),
+      plot.title.position = "plot",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = axis_text_size),
+      axis.text.y = element_text(size = axis_text_size),
+      legend.title = element_text(size = FIG_AXIS_TEXT_SIZE),
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
+      legend.box.margin = margin(0, 0, 0, 0),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.key.height = grid::unit(10, "pt"),
+      legend.key.width = grid::unit(8, "pt"),
+      plot.margin = margin(11, 0, 5.5, 5.5)
+    )
+
+  if (identical(legend_mode, "inset")) {
+    return(
+      p_corr +
+        theme(
+          legend.position = c(0.9, 0.35),
+          legend.justification = c(1, 0.5),
+          legend.background = element_rect(fill = scales::alpha("white", 0.85), color = NA)
+        )
+    )
+  }
+
+  if (identical(legend_mode, "bottom")) {
+    return(
+      p_corr +
+        guides(
+          fill = guide_colorbar(
+            title.position = "top",
+            direction = "horizontal",
+            barwidth = grid::unit(48, "pt"),
+            barheight = grid::unit(8, "pt")
+          )
+        ) +
+        theme(
+          legend.position = "bottom",
+          legend.justification = c(0.5, 0.5),
+          legend.direction = "horizontal",
+          legend.background = element_blank()
+        )
+    )
+  }
+
+  if (identical(legend_mode, "left")) {
+    corr_grob <- ggplotGrob(
+      p_corr +
+        theme(
+          legend.position = "left",
+          legend.justification = c(0.5, 0.5),
+          legend.background = element_blank()
+        )
+    )
+    guide_idx <- which(vapply(corr_grob$grobs, function(x) x$name, character(1)) == "guide-box")
+
+    if (length(guide_idx) == 0) {
+      return(p_corr + theme(legend.position = "none"))
+    }
+
+    legend_grob <- corr_grob$grobs[[guide_idx[1]]]
+    p_corr_main <- p_corr + theme(legend.position = "none")
+
+    return(
+      (patchwork::wrap_elements(legend_grob) | p_corr_main) +
+        plot_layout(widths = c(0.22, 1))
+    )
+  }
+
+  corr_grob <- ggplotGrob(
+    p_corr +
+      theme(
+        legend.position = "right",
+        legend.justification = c(0.5, 0.5),
+        legend.background = element_blank()
+      )
+  )
+  guide_idx <- which(vapply(corr_grob$grobs, function(x) x$name, character(1)) == "guide-box")
+
+  if (length(guide_idx) == 0) {
+    return(p_corr + theme(legend.position = "none"))
+  }
+
+  legend_grob <- corr_grob$grobs[[guide_idx[1]]]
+  legend_grob$widths <- legend_grob$widths * legend_scale
+  legend_grob$heights <- legend_grob$heights * legend_scale
+  p_corr_main <- p_corr + theme(legend.position = "none")
+
+  if (identical(legend_mode, "side_inner")) {
+    return(
+      (p_corr_main + theme(plot.margin = margin(4, 0, 0, 0)) |
+         patchwork::wrap_elements(legend_grob)) +
+        plot_layout(widths = c(1, 0.07))
+    )
+  }
+
+  (p_corr_main + theme(plot.margin = margin(4, 0, 0, 0)) |
+     patchwork::wrap_elements(legend_grob)) +
+    plot_layout(widths = c(1, 0.15))
+}
+
+equalize_plot_widths <- function(plot_list) {
+  grobs <- lapply(plot_list, function(p) {
+    if (inherits(p, "ggplot")) {
+      ggplotGrob(p)
+    } else {
+      patchwork::patchworkGrob(p)
+    }
+  })
+  max_widths <- Reduce(grid::unit.pmax, lapply(grobs, function(g) g$widths))
+
+  lapply(grobs, function(g) {
+    g$widths <- max_widths
+    patchwork::wrap_elements(full = g)
+  })
+}
+
 # fig2 dynamic annual boxplots
 metric_map_fig2 <- c(
   RBI = "RBI",
@@ -166,7 +381,8 @@ build_fig2_panel <- function(metric_key) {
   dat <- fig2_long %>% filter(metric == metric_key)
   let <- letters_fig2 %>% filter(metric == metric_key)
   y_lim <- calc_ylim(dat$value, let$y)
-  show_x <- metric_key %in% c("SD", "WB")
+  show_x <- TRUE
+  reserve_x_space <- FALSE
   panel_margin <- if (identical(metric_key, "FDC")) {
     margin(5.5, 5.5, -7, 5.5)
   } else if (identical(metric_key, "WB")) {
@@ -199,10 +415,19 @@ build_fig2_panel <- function(metric_key) {
     theme(
       axis.text.x = if (show_x) {
         element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE)
+      } else if (reserve_x_space) {
+        element_text(angle = 45, hjust = 1, size = FIG_AXIS_TEXT_SIZE, colour = NA)
       } else {
         element_blank()
       },
-      axis.ticks.x = if (show_x) element_line() else element_blank(),
+      axis.ticks.x = if (show_x) {
+        element_line(colour = "grey35", linewidth = 0.7)
+      } else if (reserve_x_space) {
+        element_line(colour = NA)
+      } else {
+        element_blank()
+      },
+      axis.ticks.length.x = grid::unit(4.5, "pt"),
       plot.margin = panel_margin
     )
 }
@@ -212,17 +437,35 @@ p_fig2_b <- build_fig2_panel("RCS")
 p_fig2_c <- build_fig2_panel("FDC")
 p_fig2_d <- build_fig2_panel("SD")
 p_fig2_e <- build_fig2_panel("WB")
+p_fig2_f <- build_corr_triangle_panel(
+  annual,
+  metric_map_fig2,
+  metric_labels = c(
+    RBI = "plain(RBI)",
+    RCS = "plain(RCS)",
+    FDC = "plain(FDC)",
+    SD = "plain(SD)",
+    WB = "plain(WB)"
+  ),
+  title = "f) Dynamic Storage Metric Correlations",
+  legend_mode = "side",
+  axis_text_size = FIG_AXIS_TEXT_SIZE,
+  title_margin_bottom = 12,
+  legend_scale = 1.18
+)
 
 # Build columns separately so panel d x-axis labels do not force extra blank
 # space beneath panel c and push panel e downward.
 p_fig2_left <- p_fig2_a / p_fig2_c / p_fig2_e +
   plot_layout(heights = c(1, 1, 1))
-p_fig2_right <- p_fig2_b / p_fig2_d / patchwork::plot_spacer() +
+p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
   plot_layout(heights = c(1, 1, 1))
 
-p_fig2 <- p_fig2_left | p_fig2_right
+p_fig2 <- (p_fig2_left | p_fig2_right) +
+  plot_layout(widths = c(1, 1))
 
-# fig4 chs boxplot
+# legacy standalone Fig4 CHS boxplot content retained only to reuse the BF panel
+# inside the consolidated mobile-storage figure (current Fig4).
 fig4_df <- annual %>%
   select(site, year, CHS) %>%
   filter(is.finite(CHS))
@@ -244,12 +487,9 @@ chs_counts <- tibble(site = factor(SITE_ORDER_HYDROMETRIC, levels = SITE_ORDER_H
   ) %>%
   mutate(n = ifelse(is.na(n), 0L, as.integer(n)))
 
-fig4_x_labels <- setNames(
-  paste0(as.character(chs_counts$site), "\n(n=", chs_counts$n, ")"),
-  as.character(chs_counts$site)
-)
+fig4_x_labels <- setNames(as.character(chs_counts$site), as.character(chs_counts$site))
 
-p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
+p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
   geom_boxplot(width = 0.65, outlier.shape = NA, alpha = BOX_FILL_ALPHA, linewidth = 0.8) +
   geom_jitter(width = 0.13, alpha = POINT_ALPHA, size = FIG_POINT_SIZE_SMALL + 0.2) +
   geom_text(
@@ -274,8 +514,8 @@ p_fig4 <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1)
   )
 
-# fig5 isotope metrics
-fig5_map <- c(
+# current Fig4 mobile storage panels
+fig4_mobile_map <- c(
   DR = "DR",
   Fyw = "Fyw",
   MTT = "MTT"
@@ -345,28 +585,68 @@ fig5_err_long <- isotope_err %>%
   ) %>%
   mutate(metric = sub("_err$", "", metric))
 
-fig5_df <- site_summary %>%
-  select(site, any_of(unname(fig5_map))) %>%
-  pivot_longer(cols = all_of(unname(fig5_map)), names_to = "metric", values_to = "value") %>%
+fig4_mobile_df <- site_summary %>%
+  select(site, any_of(unname(fig4_mobile_map))) %>%
+  pivot_longer(cols = all_of(unname(fig4_mobile_map)), names_to = "metric", values_to = "value") %>%
   left_join(fig5_err_long, by = c("site", "metric")) %>%
   filter(is.finite(value)) %>%
-  mutate(metric = factor(metric, levels = names(fig5_map)))
+  mutate(metric = factor(metric, levels = names(fig4_mobile_map)))
 
-fig5_titles <- list(
-  DR = expression("a) Damping Ratio (DR)"),
-  Fyw = expression("b) Young Water Fraction (" * F[yw] * ")"),
-  MTT = expression("c) Mean Transit Time (MTT)")
+fig4_titles <- list(
+  BF = expression("a) Baseflow Fraction (BF)"),
+  DR = expression("b) Damping Ratio (DR)"),
+  Fyw = expression("c) Young Water Fraction (" * F[yw] * ")"),
+  MTT = expression("d) Mean Transit Time (MTT)")
 )
-fig5_y_labels <- c(
+fig4_y_labels <- c(
+  BF = "Unitless",
   DR = "Unitless",
   Fyw = "Unitless",
   MTT = "Years"
 )
 
-build_fig5_panel <- function(metric_key) {
-  dat <- fig5_df %>% filter(metric == metric_key)
-  # Match Fig2 behavior: hide panel a labels; keep panel b and c labels visible.
-  show_x <- metric_key %in% c("Fyw", "MTT")
+build_fig4_panel <- function(metric_key) {
+  if (identical(metric_key, "BF")) {
+    return(
+      ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
+        geom_boxplot(width = 0.65, outlier.shape = NA, alpha = BOX_FILL_ALPHA, linewidth = 0.8) +
+        geom_jitter(width = 0.13, alpha = POINT_ALPHA, size = FIG_POINT_SIZE_SMALL + 0.2) +
+        geom_text(
+          data = letters_fig4,
+          aes(x = site, y = y, label = group_letter),
+          inherit.aes = FALSE,
+          size = FIG_ANNOT_TEXT_SIZE + 0.2,
+          color = "grey35"
+        ) +
+        scale_fill_manual(values = SITE_COLORS, drop = FALSE) +
+        scale_color_manual(values = SITE_COLORS, drop = FALSE) +
+        scale_x_discrete(
+          limits = SITE_ORDER_HYDROMETRIC,
+          labels = fig4_x_labels,
+          drop = FALSE
+        ) +
+        coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
+        labs(x = NULL, y = fig4_y_labels[[metric_key]]) +
+        ggtitle(fig4_titles[[metric_key]]) +
+        theme_storage_panel() +
+        theme(
+          aspect.ratio = 0.6,
+          axis.text.x = element_text(
+            angle = 45, hjust = 1, vjust = 1,
+            size = FIG_AXIS_TEXT_SIZE
+          ),
+          axis.ticks.x = element_line(colour = "grey35", linewidth = 0.7),
+          axis.ticks.length.x = grid::unit(4.5, "pt"),
+          plot.margin = margin(5.5, 5.5, 5.5, 5.5)
+        )
+    )
+  }
+
+  dat <- fig4_mobile_df %>% filter(metric == metric_key)
+  # Match panel layout: keep x-axis labels only on bottom row.
+  show_x <- TRUE
+  reserve_x_space <- metric_key %in% c("DR")
+  panel_margin <- margin(5.5, 5.5, 5.5, 5.5)
   y_lim <- calc_ylim(
     c(dat$value, dat$value - dat$err, dat$value + dat$err),
     numeric()
@@ -386,35 +666,100 @@ build_fig5_panel <- function(metric_key) {
     coord_cartesian(ylim = y_lim, clip = "off") +
     labs(
       x = NULL,
-      y = fig5_y_labels[[metric_key]]
+      y = fig4_y_labels[[metric_key]]
     ) +
-    ggtitle(fig5_titles[[metric_key]]) +
+    ggtitle(fig4_titles[[metric_key]]) +
     theme_storage_panel() +
     theme(
+      axis.title.y = if (identical(metric_key, "MTT")) {
+        element_text(size = FIG_AXIS_TITLE_SIZE, margin = margin(r = 22))
+      } else {
+        element_text(size = FIG_AXIS_TITLE_SIZE)
+      },
+      aspect.ratio = 0.6,
       axis.text.x = if (show_x) {
-        element_text(angle = 35, hjust = 1, vjust = 1, size = FIG_AXIS_TEXT_SIZE - 1)
+        element_text(angle = 45, hjust = 1, vjust = 1, size = FIG_AXIS_TEXT_SIZE)
+      } else if (reserve_x_space) {
+        element_text(angle = 45, hjust = 1, vjust = 1, size = FIG_AXIS_TEXT_SIZE, colour = NA)
       } else {
         element_blank()
       },
-      axis.ticks.x = if (show_x) element_line() else element_blank()
+      axis.ticks.x = if (show_x) {
+        element_line(colour = "grey35", linewidth = 0.7)
+      } else if (reserve_x_space) {
+        element_line(colour = NA)
+      } else {
+        element_blank()
+      },
+      axis.ticks.length.x = grid::unit(4.5, "pt"),
+      plot.margin = panel_margin
     )
 }
 
-fig5_plots <- lapply(names(fig5_map), build_fig5_panel)
-# Build columns separately (same strategy as Fig2) so x-axis labels in panel b
-# do not force extra blank space beneath panel a.
-p_fig5_left <- fig5_plots[[1]] / fig5_plots[[3]] +
-  plot_layout(heights = c(1, 1))
-p_fig5_right <- fig5_plots[[2]] / patchwork::plot_spacer() +
-  plot_layout(heights = c(1, 1))
+fig4_order <- c("BF", names(fig4_mobile_map))
+fig4_raw_plots <- lapply(fig4_order, build_fig4_panel)
+p_fig4_e <- build_corr_triangle_panel(
+  site_summary,
+  c(
+    BF = "CHS_mean",
+    DR = "DR",
+    Fyw = "Fyw",
+    MTT = "MTT"
+  ),
+  metric_labels = c(
+    BF = "plain(BF)",
+    DR = "plain(DR)",
+    Fyw = "plain(F)[yw]",
+    MTT = "plain(MTT)"
+  ),
+  title = "e) Mobile Storage Metric Correlations",
+  legend_mode = "side_inner",
+  axis_text_size = FIG_AXIS_TEXT_SIZE + 2,
+  title_margin_bottom = 9,
+  legend_scale = 1.65
+)
 
-p_fig5 <- p_fig5_left | p_fig5_right
+left_aligned <- equalize_plot_widths(list(
+  p_fig2_a, p_fig2_c, p_fig2_e
+))
+p_fig2_a <- left_aligned[[1]]
+p_fig2_c <- left_aligned[[2]]
+p_fig2_e <- left_aligned[[3]]
+
+right_aligned <- equalize_plot_widths(list(
+  p_fig2_b, p_fig2_d
+))
+p_fig2_b <- right_aligned[[1]]
+p_fig2_d <- right_aligned[[2]]
+
+p_fig4_top <- cowplot::plot_grid(
+  fig4_raw_plots[[1]], fig4_raw_plots[[2]],
+  fig4_raw_plots[[3]], fig4_raw_plots[[4]],
+  ncol = 2,
+  align = "hv",
+  axis = "tblr",
+  rel_widths = c(1, 1),
+  rel_heights = c(1, 1)
+)
+
+p_fig4_bottom <- cowplot::plot_grid(
+  NULL, p_fig4_e, NULL,
+  ncol = 3,
+  rel_widths = c(0.32, 1, 0.32)
+)
+
+p_fig4 <- cowplot::plot_grid(
+  p_fig4_top,
+  p_fig4_bottom,
+  ncol = 1,
+  rel_heights = c(1.8, 1)
+)
 
 ggsave(
   file.path(main_dir, "Fig2_ds_annual_boxplots.png"),
   p_fig2,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 10.2 * FIG_HEIGHT_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = 300
 )
@@ -422,38 +767,22 @@ ggsave(
   file.path(main_pdf_dir, "Fig2_ds_annual_boxplots.pdf"),
   p_fig2,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 10.2 * FIG_HEIGHT_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
 
 ggsave(
-  file.path(main_dir, "Fig4_chs_boxplots.png"),
+  file.path(main_dir, "Fig4_mobile_storage.png"),
   p_fig4,
-  width = 10.0 * FIG_WIDTH_SCALE,
-  height = 6.2 * FIG_HEIGHT_SCALE,
+  width = 10.4 * FIG_WIDTH_SCALE,
+  height = 11.8 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = 300
 )
 ggsave(
-  file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"),
+  file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"),
   p_fig4,
-  width = 10.0 * FIG_WIDTH_SCALE,
-  height = 6.2 * FIG_HEIGHT_SCALE,
-  bg = "white"
-)
-
-ggsave(
-  file.path(main_dir, "Fig5_iso_annual.png"),
-  p_fig5,
-  width = 8.4 * FIG_WIDTH_SCALE,
-  height = 8.4 * FIG_HEIGHT_SCALE,
-  bg = "white",
-  dpi = 300
-)
-ggsave(
-  file.path(main_pdf_dir, "Fig5_iso_annual.pdf"),
-  p_fig5,
-  width = 8.4 * FIG_WIDTH_SCALE,
-  height = 8.4 * FIG_HEIGHT_SCALE,
+  width = 10.4 * FIG_WIDTH_SCALE,
+  height = 11.8 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
