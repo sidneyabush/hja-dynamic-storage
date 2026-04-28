@@ -224,7 +224,7 @@ build_corr_triangle_panel <- function(
       legend.margin = margin(0, 0, 0, 0),
       legend.key.height = grid::unit(10, "pt"),
       legend.key.width = grid::unit(8, "pt"),
-      plot.margin = margin(11, 0, 5.5, 5.5)
+      plot.margin = margin(5.5, 0, 1.5, 5.5)
     )
 
   if (identical(legend_mode, "inset")) {
@@ -309,9 +309,12 @@ build_corr_triangle_panel <- function(
     )
   }
 
-  (p_corr_main + theme(plot.margin = margin(4, 0, 0, 0)) |
-     patchwork::wrap_elements(legend_grob)) +
-    plot_layout(widths = c(1, 0.15))
+  (
+    p_corr_main + theme(plot.margin = margin(5.5, 0, 0, 0)) |
+      patchwork::plot_spacer() |
+      patchwork::wrap_elements(legend_grob)
+  ) +
+    plot_layout(widths = c(1, 0.10, 0.30))
 }
 
 equalize_plot_widths <- function(plot_list) {
@@ -630,7 +633,6 @@ build_fig4_panel <- function(metric_key) {
         ggtitle(fig4_titles[[metric_key]]) +
         theme_storage_panel() +
         theme(
-          aspect.ratio = 0.6,
           axis.text.x = element_text(
             angle = 45, hjust = 1, vjust = 1,
             size = FIG_AXIS_TEXT_SIZE
@@ -676,7 +678,6 @@ build_fig4_panel <- function(metric_key) {
       } else {
         element_text(size = FIG_AXIS_TITLE_SIZE)
       },
-      aspect.ratio = 0.6,
       axis.text.x = if (show_x) {
         element_text(angle = 45, hjust = 1, vjust = 1, size = FIG_AXIS_TEXT_SIZE)
       } else if (reserve_x_space) {
@@ -715,7 +716,7 @@ p_fig4_e <- build_corr_triangle_panel(
   title = "e) Mobile Storage Metric Correlations",
   legend_mode = "side",
   axis_text_size = FIG_AXIS_TEXT_SIZE + 2,
-  title_margin_bottom = 9,
+  title_margin_bottom = 5,
   legend_scale = 1.65
 )
 
@@ -732,14 +733,20 @@ right_aligned <- equalize_plot_widths(list(
 p_fig2_b <- right_aligned[[1]]
 p_fig2_d <- right_aligned[[2]]
 
-p_fig4 <- (
-  (fig4_raw_plots[[1]] | fig4_raw_plots[[2]]) /
-  (fig4_raw_plots[[3]] | fig4_raw_plots[[4]]) /
-  (patchwork::wrap_elements(full = patchwork::patchworkGrob(p_fig4_e)) | patchwork::plot_spacer())
+p_fig4 <- patchwork::wrap_plots(
+  A = fig4_raw_plots[[1]],
+  B = fig4_raw_plots[[2]],
+  C = fig4_raw_plots[[3]],
+  D = fig4_raw_plots[[4]],
+  E = patchwork::wrap_elements(full = patchwork::patchworkGrob(p_fig4_e)),
+  design = "
+  AAABBB
+  CCCDDD
+  EEE###
+  "
 ) +
   patchwork::plot_layout(
-    widths = c(1, 1),
-    heights = c(1, 1, 1.1)
+    heights = c(1, 1, 1.45)
   )
 
 ggsave(
@@ -762,7 +769,7 @@ ggsave(
   file.path(main_dir, "Fig4_mobile_storage.png"),
   p_fig4,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 11.8 * FIG_HEIGHT_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = 300
 )
@@ -770,6 +777,6 @@ ggsave(
   file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"),
   p_fig4,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 11.8 * FIG_HEIGHT_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
