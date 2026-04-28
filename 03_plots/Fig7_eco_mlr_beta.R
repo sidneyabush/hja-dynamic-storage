@@ -176,7 +176,7 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig8_eco_mlr_beta.png"),
+  file.path(main_dir, "Fig7_eco_mlr_beta.png"),
   p,
   width = 5.4 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE,
@@ -184,7 +184,7 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig8_eco_mlr_beta.pdf"),
+  file.path(main_pdf_dir, "Fig7_eco_mlr_beta.pdf"),
   p,
   width = 5.4 * FIG_WIDTH_SCALE,
   height = 5.4 * FIG_HEIGHT_SCALE

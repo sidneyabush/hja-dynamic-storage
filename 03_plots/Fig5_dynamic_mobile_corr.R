@@ -151,7 +151,7 @@ p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig6_dynamic_mobile_corr.png"),
+  file.path(main_dir, "Fig5_dynamic_mobile_corr.png"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
@@ -159,7 +159,7 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig6_dynamic_mobile_corr.pdf"),
+  file.path(main_pdf_dir, "Fig5_dynamic_mobile_corr.pdf"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
@@ -200,7 +200,7 @@ p_abs <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = abs_r)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig6_dynamic_mobile_corr_abs.png"),
+  file.path(main_dir, "Fig5_dynamic_mobile_corr_abs.png"),
   p_abs,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
@@ -208,7 +208,7 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig6_dynamic_mobile_corr_abs.pdf"),
+  file.path(main_pdf_dir, "Fig5_dynamic_mobile_corr_abs.pdf"),
   p_abs,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE

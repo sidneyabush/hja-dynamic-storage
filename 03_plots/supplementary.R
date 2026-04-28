@@ -343,14 +343,14 @@ if (!is.na(pred_file) && nzchar(pred_file) && file.exists(pred_file)) {
     )
 
   invisible(safe_ggsave(
-    file.path(main_dir, "Fig9_eco_observed_v_predicted.png"),
+    file.path(main_dir, "Fig8_eco_observed_v_predicted.png"),
     p_pred,
     width = 8.8 * FIG_WIDTH_SCALE,
     height = 8.4 * FIG_HEIGHT_SCALE,
     dpi = 300
   ))
   invisible(safe_ggsave(
-    file.path(main_pdf_dir, "Fig9_eco_observed_v_predicted.pdf"),
+    file.path(main_pdf_dir, "Fig8_eco_observed_v_predicted.pdf"),
     p_pred,
     width = 8.8 * FIG_WIDTH_SCALE,
     height = 8.4 * FIG_HEIGHT_SCALE
@@ -604,7 +604,7 @@ unlink(file.path(supp_pdf_dir, "FigS4_catchment_mlr_diagnostics.pdf"))
 unlink(file.path(supp_dir, "FigS5_eco_mlr_diagnostics.png"))
 unlink(file.path(supp_pdf_dir, "FigS5_eco_mlr_diagnostics.pdf"))
 
-# supplementary dynamic-mobile scatter matrix supporting Figure 6 interpretation
+# supplementary dynamic-mobile scatter matrix supporting Figure 5 interpretation
 if (file.exists(site_file)) {
   site_df_scatter <- read_csv(site_file, show_col_types = FALSE) %>%
     mutate(

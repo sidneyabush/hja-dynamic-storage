@@ -303,7 +303,7 @@ build_corr_triangle_panel <- function(
 
   if (identical(legend_mode, "side_inner")) {
     return(
-      (p_corr_main + theme(plot.margin = margin(4, 0, 0, 0)) |
+      (p_corr_main + theme(plot.margin = margin(4, 0, 0, 5.5)) |
          patchwork::wrap_elements(legend_grob)) +
         plot_layout(widths = c(1, 0.07))
     )
@@ -713,7 +713,7 @@ p_fig4_e <- build_corr_triangle_panel(
     MTT = "plain(MTT)"
   ),
   title = "e) Mobile Storage Metric Correlations",
-  legend_mode = "side_inner",
+  legend_mode = "side",
   axis_text_size = FIG_AXIS_TEXT_SIZE + 2,
   title_margin_bottom = 9,
   legend_scale = 1.65
@@ -732,28 +732,15 @@ right_aligned <- equalize_plot_widths(list(
 p_fig2_b <- right_aligned[[1]]
 p_fig2_d <- right_aligned[[2]]
 
-p_fig4_top <- cowplot::plot_grid(
-  fig4_raw_plots[[1]], fig4_raw_plots[[2]],
-  fig4_raw_plots[[3]], fig4_raw_plots[[4]],
-  ncol = 2,
-  align = "hv",
-  axis = "tblr",
-  rel_widths = c(1, 1),
-  rel_heights = c(1, 1)
-)
-
-p_fig4_bottom <- cowplot::plot_grid(
-  NULL, p_fig4_e, NULL,
-  ncol = 3,
-  rel_widths = c(0.32, 1, 0.32)
-)
-
-p_fig4 <- cowplot::plot_grid(
-  p_fig4_top,
-  p_fig4_bottom,
-  ncol = 1,
-  rel_heights = c(1.8, 1)
-)
+p_fig4 <- (
+  (fig4_raw_plots[[1]] | fig4_raw_plots[[2]]) /
+  (fig4_raw_plots[[3]] | fig4_raw_plots[[4]]) /
+  (patchwork::wrap_elements(full = patchwork::patchworkGrob(p_fig4_e)) | patchwork::plot_spacer())
+) +
+  patchwork::plot_layout(
+    widths = c(1, 1),
+    heights = c(1, 1, 1.1)
+  )
 
 ggsave(
   file.path(main_dir, "Fig2_ds_annual_boxplots.png"),

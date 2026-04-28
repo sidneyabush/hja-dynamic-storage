@@ -503,7 +503,7 @@ fig10 <- p_geo / p_state +
 fig9_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
 fig9_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
 
-nm <- "Fig10_conceptual_diagram"
+nm <- "Fig9_conceptual_diagram"
 invisible(safe_ggsave(
   file.path(main_dir, paste0(nm, ".png")),
   fig10,

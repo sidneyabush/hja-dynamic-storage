@@ -205,7 +205,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
 invisible(safe_ggsave(
-  file.path(plot_dir, "Fig7_catch_char_mlr_beta.png"),
+  file.path(plot_dir, "Fig6_catch_char_mlr_beta.png"),
   p_beta,
   width = 10.2 * FIG_WIDTH_SCALE,
   height = 6.8 * FIG_HEIGHT_SCALE,
@@ -213,7 +213,7 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(plot_pdf_dir, "Fig7_catch_char_mlr_beta.pdf"),
+  file.path(plot_pdf_dir, "Fig6_catch_char_mlr_beta.pdf"),
   p_beta,
   width = 10.2 * FIG_WIDTH_SCALE,
   height = 6.8 * FIG_HEIGHT_SCALE
