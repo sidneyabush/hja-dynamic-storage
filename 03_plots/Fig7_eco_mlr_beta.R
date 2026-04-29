@@ -135,8 +135,8 @@ plot_df <- expand_grid(
   mutate(
     Response = factor(Response, levels = response_order),
     Predictor = factor(Predictor, levels = rev(predictor_order)),
-    sig = ifelse(is.finite(p_value) & p_value <= 0.05, "*", ""),
-    label = ifelse(is.finite(Beta_Std), paste0(sprintf("%.2f", Beta_Std), sig), "")
+    sig_fontface = ifelse(is.finite(p_value) & p_value <= 0.05, "bold", "plain"),
+    label = ifelse(is.finite(Beta_Std), sprintf("%.2f", Beta_Std), "")
   )
 
 p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
@@ -147,7 +147,7 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
     color = "white",
     linewidth = 0.3
   ) +
-  geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE) +
+  geom_text(aes(label = label, fontface = sig_fontface), size = FIG_TILE_TEXT_SIZE * 0.62) +
   scale_fill_gradient2(
     low = "firebrick3",
     mid = "white",
@@ -168,24 +168,24 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
-    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
-    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
+    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE - 5),
+    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE - 5),
+    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE - 3),
+    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE - 4),
+    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 4)
   )
 
 invisible(safe_ggsave(
   file.path(main_dir, "Fig7_eco_mlr_beta.png"),
   p,
-  width = 5.4 * FIG_WIDTH_SCALE,
-  height = 5.4 * FIG_HEIGHT_SCALE,
+  width = 3.9 * FIG_WIDTH_SCALE,
+  height = 4.1 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))
 
 invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig7_eco_mlr_beta.pdf"),
   p,
-  width = 5.4 * FIG_WIDTH_SCALE,
-  height = 5.4 * FIG_HEIGHT_SCALE
+  width = 3.9 * FIG_WIDTH_SCALE,
+  height = 4.1 * FIG_HEIGHT_SCALE
 ))

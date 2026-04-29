@@ -130,8 +130,8 @@ beta_plot_df <- mlr_results %>%
     Outcome_clean = gsub("_mean$", "", Outcome),
     Predictor = label_catchment_predictor(Predictor),
     p_value = suppressWarnings(as.numeric(p_value)),
-    sig_label = ifelse(is.finite(p_value) & p_value <= ALPHA, "*", ""),
-    beta_label = paste0(sprintf("%.2f", Beta_Std), sig_label)
+    beta_label = sprintf("%.2f", Beta_Std),
+    sig_fontface = ifelse(is.finite(p_value) & p_value <= ALPHA, "bold", "plain")
   )
 
 adj_r2_lookup <- mlr_summary %>%
@@ -165,7 +165,7 @@ beta_plot_df <- beta_plot_df %>%
     Outcome_label = factor(Outcome_label, levels = outcome_order)
   )
 
-FIG7_TEXT_SCALE <- 1.25
+FIG7_TEXT_SCALE <- 1.0
 fig7_tile_text <- FIG_TILE_TEXT_SIZE * FIG7_TEXT_SCALE
 fig7_axis_text <- (FIG_AXIS_TEXT_SIZE + 1) * FIG7_TEXT_SCALE
 fig7_axis_title <- (FIG_AXIS_TITLE_SIZE + 1) * FIG7_TEXT_SCALE
@@ -174,7 +174,7 @@ fig7_legend_text <- (FIG_AXIS_TEXT_SIZE + 1) * FIG7_TEXT_SCALE
 
 p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta_Std)) +
   geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = beta_label), size = fig7_tile_text) +
+  geom_text(aes(label = beta_label, fontface = sig_fontface), size = fig7_tile_text) +
   scale_x_discrete(
     labels = function(x) {
       parsed <- outcome_axis_labels_plotmath[x]
@@ -207,14 +207,14 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
 invisible(safe_ggsave(
   file.path(plot_dir, "Fig6_catch_char_mlr_beta.png"),
   p_beta,
-  width = 10.2 * FIG_WIDTH_SCALE,
-  height = 6.8 * FIG_HEIGHT_SCALE,
+  width = 8.6 * FIG_WIDTH_SCALE,
+  height = 5.8 * FIG_HEIGHT_SCALE,
   dpi = 300
 ))
 
 invisible(safe_ggsave(
   file.path(plot_pdf_dir, "Fig6_catch_char_mlr_beta.pdf"),
   p_beta,
-  width = 10.2 * FIG_WIDTH_SCALE,
-  height = 6.8 * FIG_HEIGHT_SCALE
+  width = 8.6 * FIG_WIDTH_SCALE,
+  height = 5.8 * FIG_HEIGHT_SCALE
 ))

@@ -104,19 +104,31 @@ corr_df <- tidyr::expand_grid(
       },
       mobile_col,
       dynamic_col
+    ),
+    p = mapply(
+      function(m_col, d_col) {
+        x <- suppressWarnings(as.numeric(site_df[[m_col]]))
+        y <- suppressWarnings(as.numeric(site_df[[d_col]]))
+        ok <- is.finite(x) & is.finite(y)
+        if (sum(ok) < 3) {
+          return(NA_real_)
+        }
+        suppressWarnings(cor.test(x[ok], y[ok], method = "pearson")$p.value)
+      },
+      mobile_col,
+      dynamic_col
     )
   ) %>%
   mutate(
     Mobile = factor(Mobile, levels = rev(names(mobile_map))),
     Dynamic = factor(Dynamic, levels = names(dynamic_map)),
     label = ifelse(is.finite(r), sprintf("%.2f", r), ""),
-    abs_r = abs(r),
-    label_abs = ifelse(is.finite(abs_r), sprintf("%.2f", abs_r), "")
+    sig_fontface = ifelse(!is.na(p) & p < 0.05, "bold", "plain")
   )
 
 p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = label), size = FIG_TILE_TEXT_SIZE) +
+  geom_text(aes(label = label, fontface = sig_fontface), size = FIG_TILE_TEXT_SIZE) +
   scale_x_discrete(
     labels = function(x) {
       parsed <- dynamic_axis_labels_plotmath[x]
@@ -161,55 +173,6 @@ invisible(safe_ggsave(
 invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig5_dynamic_mobile_corr.pdf"),
   p,
-  width = 7.2 * FIG_WIDTH_SCALE,
-  height = 5.8 * FIG_HEIGHT_SCALE
-))
-
-p_abs <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = abs_r)) +
-  geom_tile(color = "white", linewidth = 0.3) +
-  geom_text(aes(label = label_abs), size = FIG_TILE_TEXT_SIZE) +
-  scale_x_discrete(
-    labels = function(x) {
-      parsed <- dynamic_axis_labels_plotmath[x]
-      parsed[is.na(parsed)] <- x[is.na(parsed)]
-      parse(text = unname(parsed))
-    }
-  ) +
-  scale_y_discrete(
-    labels = function(x) {
-      parsed <- mobile_axis_labels_plotmath[x]
-      parsed[is.na(parsed)] <- x[is.na(parsed)]
-      parse(text = unname(parsed))
-    }
-  ) +
-  scale_fill_gradient(
-    low = "white",
-    high = "dodgerblue3",
-    limits = c(0, 1),
-    na.value = "grey85",
-    name = "|r|"
-  ) +
-  labs(x = "Dynamic Storage Metrics", y = "Mobile Storage Metrics") +
-  theme_pub() +
-  theme(
-    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE, angle = 0, hjust = 0.5),
-    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1),
-    legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
-  )
-
-invisible(safe_ggsave(
-  file.path(main_dir, "Fig5_dynamic_mobile_corr_abs.png"),
-  p_abs,
-  width = 7.2 * FIG_WIDTH_SCALE,
-  height = 5.8 * FIG_HEIGHT_SCALE,
-  dpi = 300
-))
-
-invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig5_dynamic_mobile_corr_abs.pdf"),
-  p_abs,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
