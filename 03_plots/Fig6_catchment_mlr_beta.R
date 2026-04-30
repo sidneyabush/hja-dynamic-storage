@@ -197,6 +197,8 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
     axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
     axis.text = element_text(size = fig7_axis_text),
     axis.title = element_text(size = fig7_axis_title),
+    axis.line = element_line(linewidth = 0.3),
+    axis.ticks = element_line(linewidth = 0.3),
     legend.title = element_text(size = fig7_legend_title),
     legend.text = element_text(size = fig7_legend_text),
     legend.position = "right",

@@ -168,9 +168,10 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
   labs(x = NULL, y = NULL) +
   theme_pub() +
   theme(
-    axis.text.x = element_text(size = FIG_AXIS_TEXT_SIZE - 5),
-    axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE - 5),
+    axis.text = element_text(size = FIG_AXIS_TEXT_SIZE - 5),
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE - 3),
+    axis.line = element_line(linewidth = 0.3),
+    axis.ticks = element_line(linewidth = 0.3),
     legend.title = element_text(size = FIG_AXIS_TITLE_SIZE - 4),
     legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 4)
   )
