@@ -46,9 +46,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-supp_dir <- SUPP_LEGACY_DIR
-supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
-for (d in c(main_dir, main_pdf_dir, supp_dir, supp_pdf_dir)) {
+for (d in c(main_dir, main_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -171,21 +169,4 @@ p_scree <- vexp %>%
     axis.line = element_blank()
   )
 
-invisible(safe_ggsave(
-  file.path(supp_dir, "FigSX_pca_scree.png"),
-  p_scree,
-  width = 7 * FIG_WIDTH_SCALE,
-  height = 4.5 * FIG_HEIGHT_SCALE,
-  dpi = 300
-))
-invisible(safe_ggsave(
-  file.path(supp_pdf_dir, "FigSX_pca_scree.pdf"),
-  p_scree,
-  width = 7 * FIG_WIDTH_SCALE,
-  height = 4.5 * FIG_HEIGHT_SCALE
-))
-
-unlink(file.path(supp_dir, "pca_scree.png"))
-unlink(file.path(supp_pdf_dir, "pca_scree.pdf"))
-
-# catchment-characteristics and eco-model pca companion plots removed by design.
+# scree output removed from the core manuscript workflow.

@@ -140,6 +140,7 @@ plot_scripts_core <- c(
   "03_plots/Fig9_conceptual_diagram.R",
   "03_plots/Fig6_catchment_mlr_beta.R",
   "03_plots/Fig7_eco_mlr_beta.R",
+  "03_plots/Fig8_eco_observed_v_predicted.R",
   "03_plots/Fig2_4_storage.R"
 )
 for (s in plot_scripts_core) {

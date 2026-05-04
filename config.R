@@ -226,7 +226,7 @@ DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
 ]
 
 # mobile storage metrics
-# chs = chemical hydrograph separation (mean baseflow fraction)
+# bf = baseflow fraction estimated from chemical hydrograph separation
 # mtt = mean transit time (single entity), fyw = young water fraction, dr = damping ratio
 MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("CHS")

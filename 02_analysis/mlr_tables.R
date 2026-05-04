@@ -203,7 +203,7 @@ ws_models <- ws_sum %>%
 # ---- main-text catchment summary table ----
 ws_summary_table <- ws_models %>%
   transmute(
-    `Response Variable` = factor(
+    `Storage metric` = factor(
       label_metric_abbrev(response_variable),
       levels = label_metric_abbrev(WS_TABLE_ORDER)
     ),
@@ -214,8 +214,8 @@ ws_summary_table <- ws_models %>%
     `LOOCV RMSE` = rmse_loocv,
     `AICc` = aicc
   ) %>%
-  arrange(`Response Variable`) %>%
-  mutate(`Response Variable` = as.character(`Response Variable`))
+  arrange(`Storage metric`) %>%
+  mutate(`Storage metric` = as.character(`Storage metric`))
 
 write_csv(ws_summary_table, file.path(ws_dir, "catchment_char_storage_mlr_model_stats_table.csv"))
 dir.create(MS_TABLES_MAIN_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -227,7 +227,7 @@ write_csv(
 # ---- table 5: eco-response summary in same format as table 4 ----
 eco_summary_table <- eco_models %>%
   transmute(
-    `Response Variable` = factor(response_variable, levels = ECO_ORDER),
+    `Eco-response variable` = factor(response_variable, levels = ECO_ORDER),
     `Selected Predictor(s)` = clean_predictor_labels(selected_predictors),
     `R2` = r2,
     `Adj R2` = adj_r2_marked,
@@ -235,8 +235,8 @@ eco_summary_table <- eco_models %>%
     `LOOCV RMSE` = rmse_loocv,
     `AICc` = aicc
   ) %>%
-  arrange(`Response Variable`) %>%
-  mutate(`Response Variable` = as.character(`Response Variable`))
+  arrange(`Eco-response variable`) %>%
+  mutate(`Eco-response variable` = as.character(`Eco-response variable`))
 
 # ---- single all-models csv (eco + catchment) ----
 dir.create(OUT_STATS_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -282,8 +282,8 @@ catch_alt_file <- file.path(ws_dir, "catchment_char_storage_mlr_aicc_lt2.csv")
 if (file.exists(catch_alt_file)) {
   catch_alt <- read_csv(catch_alt_file, show_col_types = FALSE) %>%
     transmute(
-      Response = gsub("_mean$", "", as.character(Outcome)),
-      Predictors = clean_predictor_labels(as.character(Predictors_Final)),
+      `Response Variable` = gsub("_mean$", "", as.character(Outcome)),
+      `Selected Predictor(s)` = clean_predictor_labels(as.character(Predictors_Final)),
       AICc = suppressWarnings(as.numeric(AICc)),
       delta_AICc = suppressWarnings(as.numeric(delta_AICc)),
       R2 = suppressWarnings(as.numeric(R2)),
@@ -292,8 +292,8 @@ if (file.exists(catch_alt_file)) {
       LOOCV_RMSE = suppressWarnings(as.numeric(RMSE_LOOCV)),
       n = suppressWarnings(as.integer(N))
     ) %>%
-    mutate(Response = ifelse(Response == "CHS", "BF", Response)) %>%
-    group_by(Response, Predictors) %>%
+    mutate(`Response Variable` = ifelse(`Response Variable` == "CHS", "BF", `Response Variable`)) %>%
+    group_by(`Response Variable`, `Selected Predictor(s)`) %>%
     summarise(
       AICc = first(AICc),
       delta_AICc = first(delta_AICc),
@@ -304,13 +304,22 @@ if (file.exists(catch_alt_file)) {
       n = first(n),
       .groups = "drop"
     ) %>%
-    mutate(Response = factor(Response, levels = c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT"))) %>%
-    arrange(Response, delta_AICc, Predictors) %>%
-    mutate(Response = as.character(Response))
+    mutate(`Response Variable` = factor(`Response Variable`, levels = c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT"))) %>%
+    arrange(`Response Variable`, delta_AICc, `Selected Predictor(s)`) %>%
+    mutate(`Response Variable` = as.character(`Response Variable`)) %>%
+    transmute(
+      `Response Variable`,
+      `Selected Predictor(s)`,
+      `R2` = R2,
+      `Adj R2` = Adj_R2,
+      `RMSE` = RMSE,
+      `LOOCV RMSE` = LOOCV_RMSE,
+      `AICc` = AICc
+    )
 
   write_csv(
     catch_alt,
-    file.path(MS_TABLES_SUPP_DIR, "TableS5_catchment_alt_models_unique_deltaAICc_le2_BF.csv")
+    file.path(MS_TABLES_SUPP_DIR, "TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.csv")
   )
 }
 
@@ -318,8 +327,8 @@ eco_alt_file <- file.path(eco_dir, "storage_eco_response_mlr_aicc_lt2.csv")
 if (file.exists(eco_alt_file)) {
   eco_alt <- read_csv(eco_alt_file, show_col_types = FALSE) %>%
     transmute(
-      Response = as.character(Response),
-      Predictors = clean_predictor_labels(as.character(Predictors_Final)),
+      `Response Variable` = as.character(Response),
+      `Selected Predictor(s)` = clean_predictor_labels(as.character(Predictors_Final)),
       AICc = suppressWarnings(as.numeric(AICc)),
       delta_AICc = suppressWarnings(as.numeric(delta_AICc)),
       R2 = suppressWarnings(as.numeric(R2)),
@@ -328,7 +337,7 @@ if (file.exists(eco_alt_file)) {
       LOOCV_RMSE = suppressWarnings(as.numeric(RMSE_LOOCV)),
       n = suppressWarnings(as.integer(n))
     ) %>%
-    group_by(Response, Predictors) %>%
+    group_by(`Response Variable`, `Selected Predictor(s)`) %>%
     summarise(
       AICc = first(AICc),
       delta_AICc = first(delta_AICc),
@@ -339,12 +348,21 @@ if (file.exists(eco_alt_file)) {
       n = first(n),
       .groups = "drop"
     ) %>%
-    mutate(Response = factor(Response, levels = ECO_ORDER)) %>%
-    arrange(Response, delta_AICc, Predictors) %>%
-    mutate(Response = as.character(Response))
+    mutate(`Response Variable` = factor(`Response Variable`, levels = ECO_ORDER)) %>%
+    arrange(`Response Variable`, delta_AICc, `Selected Predictor(s)`) %>%
+    mutate(`Response Variable` = as.character(`Response Variable`)) %>%
+    transmute(
+      `Response Variable`,
+      `Selected Predictor(s)`,
+      `R2` = R2,
+      `Adj R2` = Adj_R2,
+      `RMSE` = RMSE,
+      `LOOCV RMSE` = LOOCV_RMSE,
+      `AICc` = AICc
+    )
 
   write_csv(
     eco_alt,
-    file.path(MS_TABLES_SUPP_DIR, "TableS6_eco_alt_models_unique_deltaAICc_le2_BF.csv")
+    file.path(MS_TABLES_SUPP_DIR, "TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv")
   )
 }

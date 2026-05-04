@@ -62,7 +62,7 @@ dynamic_map <- c(
   WB = "WB_mean"
 )
 mobile_map <- c(
-  CHS = "CHS_mean",
+  BF = "CHS_mean",
   DR = "DR",
   Fyw = "Fyw",
   MTT = "MTT"
@@ -83,7 +83,7 @@ dynamic_axis_labels_plotmath <- c(
   WB = "plain(WB)"
 )
 mobile_axis_labels_plotmath <- c(
-  CHS = "plain(BF)",
+  BF = "plain(BF)",
   DR = "plain(DR)",
   Fyw = "plain(F)[yw]",
   MTT = "plain(MTT)"
@@ -176,3 +176,7 @@ invisible(safe_ggsave(
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
+
+# remove stale legacy isotope-only correlation exports that are not part of the final main text.
+unlink(file.path(main_dir, "Fig5_iso_annual.png"))
+unlink(file.path(main_pdf_dir, "Fig5_iso_annual.pdf"))

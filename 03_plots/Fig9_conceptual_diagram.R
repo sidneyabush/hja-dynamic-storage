@@ -1,4 +1,4 @@
-# figure 10 conceptual diagram
+# figure 9 conceptual diagram
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -44,8 +44,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-explore_dir <- CONCEPTUAL_DIAGRAM_DIR
-for (d in c(main_dir, main_pdf_dir, explore_dir)) {
+for (d in c(main_dir, main_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 

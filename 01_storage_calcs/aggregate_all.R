@@ -102,7 +102,7 @@ storage_fdc <- storage_fdc %>%
 
 # mobile storage metric (annual chs)
 
-# chs = annual mean baseflow fraction from calcium-based chs
+# bf = annual mean baseflow fraction from calcium-based chemical hydrograph separation
 chs_path <- file.path(mobile_dir, "annual_gw_prop_ca.csv")
 baseflow <- read_csv(
   chs_path,
@@ -395,7 +395,7 @@ metrics_info <- tribble(
   "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "FDC"                   , "hydrometric" ,
   "Dynamic"          , "Storage-Discharge"        , "SD"          , "SD"                    , "hydrometric" ,
   "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric" ,
-  "Mobile"           , "Baseflow Fraction (CHS)"  , "BF"          , "CHS"                   , "chemistry"   ,
+  "Mobile"           , "Baseflow Fraction (BF)"   , "BF"          , "CHS"                   , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
   "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"

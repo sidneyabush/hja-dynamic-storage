@@ -780,3 +780,7 @@ ggsave(
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
+
+# remove stale legacy standalone BF panel exports that are not part of the final main text.
+unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
+unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))
