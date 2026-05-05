@@ -1,4 +1,4 @@
-# pooled eco response mlr models
+# pooled eco response MLR models
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -25,9 +25,10 @@ if (!file.exists(annual_file)) {
 }
 
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC)
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  { if ("CHS" %in% names(.)) dplyr::rename(., BF = CHS) else . }
 
-# use site-level isotope means (DR, Fyw, MTT) as eco-model predictors.
+# Use site-level isotope means (DR, Fyw, MTT) as eco-model predictors
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
   stop("Missing required isotope site mean file: ", isotope_site_mean_file)
@@ -93,7 +94,7 @@ if (length(missing_responses) > 0) {
 }
 
 mandatory_predictors <- c("Pws")
-storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
+storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT")
 storage_predictors <- storage_predictors[storage_predictors %in% names(data_all)]
 if (!("Pws" %in% names(data_all))) {
   stop("Missing required predictor: Pws")

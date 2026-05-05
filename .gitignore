@@ -53,6 +53,7 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 Rplots.pdf
+*.pdf
 
 # IDE settings
 .vscode/

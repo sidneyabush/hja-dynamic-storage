@@ -1,4 +1,4 @@
-# catchment characteristics mlr
+# catchment characteristics MLR
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -28,7 +28,7 @@ site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
 # enforce combined site-level MTT values (legacy MTT1+MTT2 collapsed)
-# regardless of other isotope mode settings.
+# regardless of other isotope mode settings
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
   stop("Missing required isotope site mean file: ", isotope_site_mean_file)
@@ -65,7 +65,7 @@ outcome_map <- c(
   "FDC" = "FDC_mean",
   "SD" = "SD_mean",
   "WB" = "WB_mean",
-  "CHS" = "CHS_mean",
+  "BF" = "BF_mean",
   "DR" = "DR",
   "Fyw" = "Fyw",
   "MTT" = "MTT"
@@ -91,8 +91,8 @@ candidate_sets <- unlist(
 
 fit_candidate <- function(df_in, outcome, predictors) {
   model_input <- df_in
-  if (identical(outcome, "CHS_mean") && "site" %in% names(model_input)) {
-    model_input <- model_input %>% filter(!(site %in% CHS_EXCLUDE_SITES))
+  if (identical(outcome, "BF_mean") && "site" %in% names(model_input)) {
+    model_input <- model_input %>% filter(!(site %in% BF_EXCLUDE_SITES))
   }
 
   predictors <- predictors[predictors %in% names(model_input)]

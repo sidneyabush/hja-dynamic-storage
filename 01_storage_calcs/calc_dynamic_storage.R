@@ -1,6 +1,6 @@
-# calculate hydrometric dynamic-storage metrics (rbi/rcs + sd/fdc) by site and water year.
-# inputs: discharge_dir/hf00402_v14.csv; catchment_characteristics_dir/drainage_area.csv; out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv.
-# author: sidney bush
+# calculate hydrometric dynamic-storage metrics (RBI/RCS + SD/FDC) by site and water year
+# inputs: discharge_dir/HF00402_v14.csv; catchment_characteristics_dir/drainage_area.csv; out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
+# author: Sidney Bush
 # date: 2026-02-14
 
 library(dplyr)
@@ -22,7 +22,7 @@ sites_keep <- SITE_ORDER_HYDROMETRIC
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_ed, recursive = TRUE, showWarnings = FALSE)
 
-# ---- part 1: rbi and recession slope (rcs) from discharge ----
+# part 1: RBI and recession slope (RCS) from discharge
 
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = standardize_site_code(SITECODE))
@@ -292,7 +292,7 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
-# site-level full-period fdc slope used in downstream analyses.
+# site-level full-period FDC slope used in downstream analyses
 fdc_slopes_site <- fdc_slopes %>%
   transmute(
     site = site,

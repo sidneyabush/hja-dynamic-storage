@@ -1,5 +1,5 @@
-# inputs: no direct csv file reads in this script.
-# author: sidney bush
+# inputs: no direct CSV file reads in this script
+# author: Sidney Bush
 # date: 2026-02-13
 
 find_repo_root <- function(start_dir) {
@@ -20,7 +20,7 @@ find_repo_root <- function(start_dir) {
   return(normalizePath(start_dir, winslash = "/", mustWork = FALSE))
 }
 
-# prefer explicit override when launched from ide with unusual cwd.
+# Prefer explicit override when launched from IDE with unusual cwd
 env_repo_root <- Sys.getenv("HJA_REPO_DIR", unset = "")
 if (nzchar(env_repo_root)) {
   repo_root <- normalizePath(env_repo_root, winslash = "/", mustWork = FALSE)
@@ -89,10 +89,10 @@ run_script <- function(path) {
   }
 }
 
-# preflight.
+# Preflight
 run_script("helpers/check_inputs.R")
 
-# metrics preprocessing (daily met+q and et support tables).
+# Metrics preprocessing (daily met+q and ET support tables)
 metric_preprocess_scripts <- c(
   "00_data_preprocessing/create_hydromet_master.R",
   "00_data_preprocessing/prep_PT_methods.R",
@@ -102,7 +102,7 @@ for (s in metric_preprocess_scripts) {
   run_script(s)
 }
 
-# metrics.
+# Metrics
 metric_scripts <- c(
   "01_storage_calcs/calc_dynamic_storage.R",
   "01_storage_calcs/calc_mobile_storage.R",
@@ -113,12 +113,12 @@ for (s in metric_scripts) {
   run_script(s)
 }
 
-# strict unit-consistency gate (fail fast before stats/plots).
+# Strict unit-consistency gate (fail fast before stats/plots)
 run_script("helpers/check_units_consistency.R")
 
-# stats.
-# deprecated unified-framework climate/sensitivity scripts are kept under
-# deprecated/02_analysis and are intentionally excluded from the core run.
+# Stats
+# Deprecated unified-framework climate/sensitivity scripts are kept under
+# deprecated/02_analysis and are intentionally excluded from the core run
 stats_scripts <- c(
   "02_analysis/storage_sum_stats.R",
   "02_analysis/pca.R",
@@ -131,9 +131,9 @@ for (s in stats_scripts) {
   run_script(s)
 }
 
-# plots: core manuscript set.
-# deprecated unified-framework climate-variability plotting is kept under
-# deprecated/03_plots and is intentionally excluded from the core run.
+# Plots: core manuscript set
+# Deprecated unified-framework climate-variability plotting is kept under
+# deprecated/03_plots and is intentionally excluded from the core run
 plot_scripts_core <- c(
   "03_plots/Fig3_ds_pca_annual.R",
   "03_plots/Fig5_dynamic_mobile_corr.R",
@@ -147,8 +147,8 @@ for (s in plot_scripts_core) {
   run_script(s)
 }
 
-# supplementary figures are managed in one script for easier triage.
+# Supplementary figures are managed in one script for easier triage
 run_script("03_plots/supplementary.R")
 
-# post-run checks.
+# Post-run checks
 run_script("helpers/verify_outputs.R")

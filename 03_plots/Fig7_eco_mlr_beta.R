@@ -1,4 +1,4 @@
-# figure 8 pooled eco response mlr beta coefficients
+# Figure 7 pooled eco response MLR beta coefficients
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -73,7 +73,7 @@ norm_predictor <- function(x) {
 }
 
 response_order <- c("Q7Q5", "T7DMax")
-predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
+predictor_order <- c("Pws", "RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT")
 response_axis_labels <- stats::setNames(response_order, response_order)
 predictor_axis_labels_plotmath <- c(
   Pws = "plain(P)[ws]",
@@ -82,7 +82,7 @@ predictor_axis_labels_plotmath <- c(
   FDC = "plain(FDC)",
   SD = "plain(SD)",
   WB = "plain(WB)",
-  CHS = "plain(BF)",
+  BF = "plain(BF)",
   DR = "plain(DR)",
   Fyw = "plain(F)[yw]",
   MTT = "plain(MTT)"
@@ -90,7 +90,7 @@ predictor_axis_labels_plotmath <- c(
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
-# retain only the selected candidate set when available.
+# retain only the selected candidate set when available
 if ("Candidate_Set" %in% names(coef_raw) && !is.na(summary_file) && file.exists(summary_file)) {
   selected_sets <- read_csv(summary_file, show_col_types = FALSE) %>%
     transmute(

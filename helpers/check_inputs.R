@@ -1,5 +1,5 @@
-# inputs: no direct csv file reads in this script.
-# author: sidney bush
+# inputs: no direct CSV file reads in this script
+# author: Sidney Bush
 # date: 2026-02-13
 
 suppressPackageStartupMessages({
@@ -72,19 +72,19 @@ if (length(missing_files) > 0) {
   )
 }
 
-# ec file used by the current workflow.
+# EC file used by the current workflow
 ec_file <- file.path(EC_DIR, "CF01201_v4.txt")
 if (!file.exists(ec_file)) {
   stop("Missing required EC input file: ", ec_file)
 }
 
-# chemistry file used for ca/cond chs comparison.
+# chemistry file used for Ca/COND BF comparison
 chem_file <- file.path(EC_DIR, "CF00201_v7.csv")
 if (!file.exists(chem_file)) {
   stop("Missing required chemistry input file: ", chem_file)
 }
 
-# minimal schema checks on key files.
+# minimal schema checks on key files
 check_columns <- function(path, required_cols) {
   cols <- names(suppressMessages(read_csv(
     path,

@@ -1,6 +1,6 @@
-# catchment controls mlr plots.
-# inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv.
-# author: sidney bush
+# Catchment controls MLR plots
+# inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv
+# author: Sidney Bush
 # date: 2026-02-13
 
 library(dplyr)
@@ -69,7 +69,7 @@ outcome_axis_labels_plotmath <- c(
   "FDC" = "plain(FDC)",
   "SD" = "plain(SD)",
   "WB" = "plain(WB)",
-  "CHS" = "plain(BF)",
+  "BF" = "plain(BF)",
   "DR" = "plain(DR)",
   "Fyw" = "plain(F)[yw]",
   "MTT" = "plain(MTT)"

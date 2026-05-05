@@ -1,6 +1,6 @@
-# helper functions for processing meteorological and streamflow data.
-# inputs: no direct csv file reads in this script.
-# author: sidney bush
+# helper functions for processing meteorological and streamflow data
+# inputs: no direct CSV file reads in this script
+# author: Sidney Bush
 # date: 2026-02-13
 
 library(readr)
@@ -19,7 +19,7 @@ parse_my_date <- function(d) {
   is_serial <- grepl("^[0-9]+$", dd)
   out <- rep(as.Date(NA), length(dd))
 
-  # excel serials → date
+  # Excel serials → date
 
   if (any(is_serial)) {
     out[is_serial] <- as_date(

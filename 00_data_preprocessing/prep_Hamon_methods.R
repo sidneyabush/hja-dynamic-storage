@@ -1,4 +1,4 @@
-# calibrate hamon et to pt et methods and produce daily water-balance et inputs
+# calibrate Hamon ET to PT ET methods and produce daily water-balance ET inputs
 # inputs: out_met_support_dir/pt_et_methods_timeseries.csv
 # outputs: out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
 
@@ -11,12 +11,12 @@ library(zoo)
 
 source("config.R")
 
-# --- directories ---
+# directories
 input_dir <- OUT_MET_SUPPORT_DIR
 output_dir <- OUT_MET_SUPPORT_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# --- 1. load pt et timeseries and compute uncalibrated hamon ---
+# load PT ET timeseries and compute uncalibrated Hamon
 pt_file <- file.path(input_dir, "PT_ET_methods_timeseries.csv")
 if (!file.exists(pt_file)) {
   stop("Missing required PT ET timeseries file: ", pt_file)

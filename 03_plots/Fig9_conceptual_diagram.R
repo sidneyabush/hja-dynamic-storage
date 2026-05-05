@@ -1,4 +1,4 @@
-# figure 9 conceptual diagram
+# Figure 9 conceptual diagram
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -99,7 +99,7 @@ pca_scores <- axes %>%
   ) %>%
   filter(is.finite(geology_pc1), is.finite(geology_pc2))
 
-# keep site-shape mapping aligned with Figure 3.
+# keep site-shape mapping aligned with Figure 3
 SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 
 loading_df <- loadings %>%
@@ -125,7 +125,7 @@ pretty_loading <- function(x) {
 
 loading_df <- loading_df %>% mutate(label = pretty_loading(variable))
 
-# scale loading arrows to pca score space
+# scale loading arrows to PCA score space
 score_lim_x <- max(abs(pca_scores$geology_pc1), na.rm = TRUE)
 score_lim_y <- max(abs(pca_scores$geology_pc2), na.rm = TRUE)
 load_lim <- max(abs(c(loading_df$lx, loading_df$ly)), na.rm = TRUE)
@@ -517,7 +517,7 @@ invisible(safe_ggsave(
   height = fig9_height
 ))
 invisible(safe_ggsave(
-  file.path(explore_dir, paste0(nm, ".png")),
+  file.path(CONCEPTUAL_DIAGRAM_DIR, paste0(nm, ".png")),
   fig10,
   width = fig9_width,
   height = fig9_height,

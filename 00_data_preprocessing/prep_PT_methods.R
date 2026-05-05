@@ -1,6 +1,6 @@
-# calculate priestley-taylor et methods from daily catchment met+q support data.
+# calculate Priestley-Taylor ET methods from daily catchment met+Q support data
 # inputs: out_met_support_dir/catchments_met_q.csv
-# outputs: out_met_support_dir/pt_et_methods_timeseries.csv and alpha plots.
+# outputs: out_met_support_dir/pt_et_methods_timeseries.csv and alpha plots
 
 library(readr)
 library(dplyr)

@@ -1,4 +1,4 @@
-# figure 8 pooled ecological response observed vs predicted
+# Figure 8 pooled ecological response observed vs predicted
 
 suppressPackageStartupMessages({
   library(dplyr)

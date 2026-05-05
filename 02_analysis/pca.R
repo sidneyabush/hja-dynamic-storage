@@ -1,6 +1,6 @@
-# perform pca on annual storage metrics to identify dominant.
-# inputs: no direct csv file reads in this script.
-# author: pamela sullivan (original), sidney bush (adapted)
+# perform PCA on annual storage metrics to identify dominant structure
+# inputs: no direct CSV file reads in this script
+# author: Pamela Sullivan (original), Sidney Bush (adapted)
 # date: 2026-01-23
 
 library(dplyr)
@@ -13,7 +13,7 @@ library(scales)
 rm(list = ls())
 
 # source configuration (paths, site definitions, water year range)
-# get script directory (works with source() and rscript)
+# get script directory (works with source() and Rscript)
 # load project config
 source("config.R")
 
@@ -30,8 +30,7 @@ output_dir <- OUT_STATS_PCA_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # load annual storage metrics
-# this file was created by 06_aggregate_all_metrics.r and contains all annual
-# storage metrics, temperature metrics, and catchment characteristics
+# this file contains all annual storage metrics, temperature metrics, and catchment characteristics
 
 master_dir <- file.path(OUTPUT_DIR, "master")
 annual_file <- file.path(master_dir, MASTER_ANNUAL_FILE)
@@ -47,7 +46,7 @@ HJA_Yr <- read_csv(
 
 # core streamflow storage metrics (annual values)
 # using method abbreviations: rbi, rcs, fdc, sd, wb
-# q5norm is an ecological response, so we do not include it in storage-metric pca.
+# Q5norm is an ecological response, so we do not include it in storage-metric PCA
 features <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
 ]
@@ -85,7 +84,7 @@ scaled_features <- HJA_clean %>%
     }
   }))
 
-# drop constant/all-na columns that cannot be scaled by pca.
+# drop constant/all-NA columns that cannot be scaled by PCA
 feature_sds <- scaled_features %>%
   summarise(across(all_of(features), ~ sd(.x, na.rm = TRUE)))
 feature_sds_vec <- as.numeric(feature_sds[1, ])
@@ -136,6 +135,6 @@ write.csv(pca_df %>% select(site, year, PC1, PC2),
           file.path(output_dir, "pca_scores_pc1_pc2.csv"),
           row.names = FALSE)
 
-# catchment-characteristics pca removed by design.
-# catchment characteristics are screened directly in mlr using
-# constrained predictor sets plus iterative vif filtering.
+# Catchment-characteristics PCA removed by design
+# Catchment characteristics are screened directly in MLR using
+# constrained predictor sets plus iterative VIF filtering

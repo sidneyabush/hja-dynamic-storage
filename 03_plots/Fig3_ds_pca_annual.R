@@ -1,6 +1,6 @@
-# pca plots.
-# inputs: out_stats_pca_dir/pca_scores_pc1_pc2.csv; out_stats_pca_dir/pca_loadings.csv; out_stats_pca_dir/pca_variance_explained.csv.
-# author: sidney bush
+# PCA plots
+# inputs: out_stats_pca_dir/pca_scores_pc1_pc2.csv; out_stats_pca_dir/pca_loadings.csv; out_stats_pca_dir/pca_variance_explained.csv
+# author: Sidney Bush
 # date: 2026-02-13
 
 library(dplyr)
@@ -65,13 +65,13 @@ vexp <- read_csv(var_file, show_col_types = FALSE)
 pc1_pct <- ifelse(nrow(vexp) >= 1, 100 * vexp$Variance_Explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(vexp) >= 2, 100 * vexp$Variance_Explained[2], NA_real_)
 PCA_POINT_ALPHA <- 0.65
-# prioritize high-visibility filled symbols for color-blind readability.
+# Prioritize high-visibility filled symbols for color-blind readability
 SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 site_point_sizes <- setNames(rep(FIG_POINT_SIZE_LARGE + 1, length(SITE_ORDER_HYDROMETRIC)), SITE_ORDER_HYDROMETRIC)
 diamond_sites <- names(SITE_SHAPES)[SITE_SHAPES %in% c(18, 23)]
 site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 1.1
 
-# scale loading arrows to score space.
+# Scale loading arrows to score space
 score_lim <- max(abs(c(scores$PC1, scores$PC2)), na.rm = TRUE)
 load_lim <- max(abs(c(loads$PC1, loads$PC2)), na.rm = TRUE)
 arrow_scale <- ifelse(is.finite(score_lim) && is.finite(load_lim) && load_lim > 0, 0.75 * score_lim / load_lim, 1)
@@ -169,4 +169,4 @@ p_scree <- vexp %>%
     axis.line = element_blank()
   )
 
-# scree output removed from the core manuscript workflow.
+# Scree output removed from the core manuscript workflow

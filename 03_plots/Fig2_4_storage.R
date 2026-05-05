@@ -1,4 +1,4 @@
-# figures 2 4 5 main manuscript plots
+# Figures 2 4 5 main manuscript plots
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -33,7 +33,7 @@ annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-# Ensure Fig2 FDC panel uses annual site-year slopes.
+# Ensure Fig2 FDC panel uses annual site-year slopes
 if (file.exists(fdc_wy_file)) {
   fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
     mutate(
@@ -458,7 +458,7 @@ p_fig2_f <- build_corr_triangle_panel(
 )
 
 # Build columns separately so panel d x-axis labels do not force extra blank
-# space beneath panel c and push panel e downward.
+# space beneath panel c and push panel e downward
 p_fig2_left <- p_fig2_a / p_fig2_c / p_fig2_e +
   plot_layout(heights = c(1, 1, 1))
 p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
@@ -467,16 +467,16 @@ p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
 p_fig2 <- (p_fig2_left | p_fig2_right) +
   plot_layout(widths = c(1, 1))
 
-# legacy standalone Fig4 CHS boxplot content retained only to reuse the BF panel
-# inside the consolidated mobile-storage figure (current Fig4).
+# Legacy standalone Fig4 BF boxplot content retained only to reuse the BF panel
+# inside the consolidated mobile-storage figure (current Fig4)
 fig4_df <- annual %>%
-  select(site, year, CHS) %>%
-  filter(is.finite(CHS))
+  select(site, year, BF) %>%
+  filter(is.finite(BF))
 
 letters_fig4 <- letters_df %>%
-  filter(metric == "CHS") %>%
+  filter(metric == "BF") %>%
   left_join(
-    fig4_df %>% group_by(site) %>% summarise(ymax_site = max(CHS, na.rm = TRUE), .groups = "drop"),
+    fig4_df %>% group_by(site) %>% summarise(ymax_site = max(BF, na.rm = TRUE), .groups = "drop"),
     by = "site"
   ) %>%
   mutate(y = ymax_site + 0.04)
@@ -485,14 +485,14 @@ chs_counts <- tibble(site = factor(SITE_ORDER_HYDROMETRIC, levels = SITE_ORDER_H
   left_join(
     annual %>%
       group_by(site) %>%
-      summarise(n = sum(is.finite(CHS)), .groups = "drop"),
+      summarise(n = sum(is.finite(BF)), .groups = "drop"),
     by = "site"
   ) %>%
   mutate(n = ifelse(is.na(n), 0L, as.integer(n)))
 
 fig4_x_labels <- setNames(as.character(chs_counts$site), as.character(chs_counts$site))
 
-p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
+p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site)) +
   geom_boxplot(width = 0.65, outlier.shape = NA, alpha = BOX_FILL_ALPHA, linewidth = 0.8) +
   geom_jitter(width = 0.13, alpha = POINT_ALPHA, size = FIG_POINT_SIZE_SMALL + 0.2) +
   geom_text(
@@ -509,7 +509,7 @@ p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = sit
     labels = fig4_x_labels,
     drop = FALSE
   ) +
-  coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
+  coord_cartesian(ylim = calc_ylim(fig4_df$BF, letters_fig4$y), clip = "off") +
   labs(x = NULL, y = "Baseflow Fraction (BF)") +
   theme_storage_panel() +
   theme(
@@ -611,7 +611,7 @@ fig4_y_labels <- c(
 build_fig4_panel <- function(metric_key) {
   if (identical(metric_key, "BF")) {
     return(
-      ggplot(fig4_df, aes(x = site, y = CHS, fill = site, color = site)) +
+      ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site)) +
         geom_boxplot(width = 0.65, outlier.shape = NA, alpha = BOX_FILL_ALPHA, linewidth = 0.8) +
         geom_jitter(width = 0.13, alpha = POINT_ALPHA, size = FIG_POINT_SIZE_SMALL + 0.2) +
         geom_text(
@@ -628,7 +628,7 @@ build_fig4_panel <- function(metric_key) {
           labels = fig4_x_labels,
           drop = FALSE
         ) +
-        coord_cartesian(ylim = calc_ylim(fig4_df$CHS, letters_fig4$y), clip = "off") +
+        coord_cartesian(ylim = calc_ylim(fig4_df$BF, letters_fig4$y), clip = "off") +
         labs(x = NULL, y = fig4_y_labels[[metric_key]]) +
         ggtitle(fig4_titles[[metric_key]]) +
         theme_storage_panel() +
@@ -781,6 +781,6 @@ ggsave(
   bg = "white"
 )
 
-# remove stale legacy standalone BF panel exports that are not part of the final main text.
+# remove stale legacy standalone BF panel exports that are not part of the final main text
 unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
 unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))

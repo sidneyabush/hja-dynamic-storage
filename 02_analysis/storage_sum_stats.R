@@ -1,6 +1,6 @@
-# test for significant differences among sites in storage metrics.
-# inputs: no direct csv file reads in this script.
-# author: sidney bush
+# test for significant differences among sites in storage metrics
+# inputs: no direct CSV file reads in this script
+# author: Sidney Bush
 # date: 2026-01-23
 
 library(dplyr)
@@ -43,7 +43,7 @@ HJA_annual <- read_csv(
   filter(!site %in% SITE_EXCLUDE_STANDARD) %>%
   mutate(site = factor(site, levels = site_order))
 
-# for anova/tukey only, use annual fdc slopes (site-year) from dynamic metrics output.
+# for ANOVA/Tukey only, use annual FDC slopes (site-year) from dynamic metrics output
 fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
 fdc_annual <- if (file.exists(fdc_wy_file)) {
   fdc_raw <- read_csv(fdc_wy_file, show_col_types = FALSE)
@@ -75,14 +75,14 @@ fdc_annual <- if (file.exists(fdc_wy_file)) {
 }
 
 # select storage metrics for anova
-# q5norm and cv_q5norm are response variables, so they are excluded here.
+# Q5norm and CV_Q5norm are response variables, so they are excluded here
 # storage metrics by type (using method abbreviations):
 #   dynamic: rbi, rcs, fdc, sd
 #   mobile: chs - note: mtt, fyw, dr are site-level only
 #   extended dynamic: wb
 
 storage_metrics <- STORAGE_METRIC_ORDER[
-  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "CHS")
+  STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "BF")
 ]
 
 get_metric_anova_data <- function(metric_name) {

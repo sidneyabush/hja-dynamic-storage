@@ -32,8 +32,8 @@ wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 # make sure the output folder exists
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# site mapping: which met stations feed each catchment variable.
-# one station = direct use, two stations = pair interpolation, three = multivariate interpolation.
+# Site mapping: which MET stations feed each catchment variable
+# One station = direct use, two stations = pair interpolation, three = multivariate interpolation
 
 site_mapping <- list(
   # lower elevation catchments - use primet

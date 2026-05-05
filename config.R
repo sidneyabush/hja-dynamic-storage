@@ -1,5 +1,5 @@
-# hja dynamic storage - configuration file.
-# author: sidney bush
+# HJA dynamic storage configuration file
+# author: Sidney Bush
 # date: 2026-02-13
 
 # default project paths
@@ -7,7 +7,7 @@ REPO_DIR <- normalizePath(getwd(), mustWork = FALSE)
 default_box_base_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
 BOX_BASE_DIR <- Sys.getenv("HJA_BOX_BASE_DIR", unset = default_box_base_dir)
 
-# allow local overrides for sandboxed/batch comparison runs.
+# allow local overrides for sandboxed/batch comparison runs
 default_final_workflow_root <- file.path(BOX_BASE_DIR, "final_workflow")
 FINAL_WORKFLOW_ROOT <- Sys.getenv(
   "HJA_FINAL_WORKFLOW_ROOT",
@@ -46,7 +46,7 @@ MS_TABLES_MAIN_DIR <- MS_MAIN_DIR
 MS_TABLES_SUPP_DIR <- MS_SUPP_DIR
 
 # input subdirectories
-# default input layout keeps small input groups at the inputs root.
+# default input layout keeps small input groups at the inputs root
 DISCHARGE_DIR <- BASE_DATA_DIR
 EC_DIR <- BASE_DATA_DIR
 ISOTOPE_DIR <- BASE_DATA_DIR
@@ -58,7 +58,7 @@ EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
 
 # output controls
 # keep only workflow-essential csvs by default; set true when you need
-# manuscript/helper table exports.
+# manuscript/helper table exports
 WRITE_TABLE_OUTPUTS <- FALSE
 WRITE_AUX_OUTPUTS <- FALSE
 
@@ -187,30 +187,32 @@ SITE_NAMES <- c(
 WY_START <- 1997
 WY_END <- 2020
 
-# minimum number of daily ec+q observations needed to keep a chs water year.
-CHS_MIN_DAYS_PER_WY <- 300
+# minimum number of daily EC+Q observations needed to keep a BF water year
+BF_MIN_DAYS_PER_WY <- 300
+CHS_MIN_DAYS_PER_WY <- BF_MIN_DAYS_PER_WY
 
-# minimum number of chemistry samples per water year for sample-based chs
-# (from cf002 chemistry records, e.g., cond and ca).
-CHS_MIN_OBS_PER_WY_CHEM <- 10
+# minimum number of chemistry samples per water year for sample-based BF
+# (from CF002 chemistry records, e.g., cond and Ca)
+BF_MIN_OBS_PER_WY_CHEM <- 10
+CHS_MIN_OBS_PER_WY_CHEM <- BF_MIN_OBS_PER_WY_CHEM
 
-# isotope metrics are fixed as site averages in the final workflow.
-# no annual isotope-ingestion branch is used in core processing.
+# isotope metrics are fixed as site averages in the final workflow
+# no annual isotope-ingestion branch is used in core processing
 
-# sites intentionally excluded from chs-based modeling summaries.
-CHS_EXCLUDE_SITES <- character(0)
+# sites intentionally excluded from BF-based modeling summaries
+BF_EXCLUDE_SITES <- character(0)
 
 # storage metrics definitions
 
 # default storage-metric order across figures/tables:
-# rbi, rcs, fdc, sd, wb, chs, dr, fyw, mtt
+# rbi, rcs, fdc, sd, wb, bf, dr, fyw, mtt
 STORAGE_METRIC_ORDER <- c(
   "RBI",
   "RCS",
   "FDC",
   "SD",
   "WB",
-  "CHS",
+  "BF",
   "DR",
   "Fyw",
   "MTT"
@@ -229,7 +231,7 @@ DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
 # bf = baseflow fraction estimated from chemical hydrograph separation
 # mtt = mean transit time (single entity), fyw = young water fraction, dr = damping ratio
 MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[
-  STORAGE_METRIC_ORDER %in% c("CHS")
+  STORAGE_METRIC_ORDER %in% c("BF")
 ]
 MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT")
@@ -241,15 +243,15 @@ EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("WB")
 ]
 
-# shared metric display order for plotting.
+# shared metric display order for plotting
 PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
 ]
 PLOT_ORDER_MOBILE_STORAGE <- STORAGE_METRIC_ORDER[
-  STORAGE_METRIC_ORDER %in% c("CHS", "DR", "Fyw", "MTT")
+  STORAGE_METRIC_ORDER %in% c("BF", "DR", "Fyw", "MTT")
 ]
 PLOT_MOBILE_STORAGE_SITE_COLS <- c(
-  "CHS" = "CHS_mean",
+  "BF" = "BF_mean",
   "DR" = "DR",
   "Fyw" = "Fyw",
   "MTT" = "MTT"
@@ -263,19 +265,19 @@ ALL_STORAGE_METRICS <- STORAGE_METRIC_ORDER
 MASTER_ANNUAL_FILE <- "master_annual.csv"
 MASTER_SITE_FILE <- "master_site.csv"
 
-# raw site codes that should be excluded from analysis tables.
+# raw site codes that should be excluded from analysis tables
 SITE_EXCLUDE_RAW <- c("GSWSMA", "GSWSMF")
 
-# site recode map used when bringing met/discharge records into site codes.
+# site recode map used when bringing met/discharge records into site codes
 SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 
-# component sites used to make gslook met composites.
+# component sites used to make GSLOOK met composites
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 
 # color palette and plot aesthetics ----
 
-# global plot text size (used across plotting scripts).
+# global plot text size (used across plotting scripts)
 FIG_BASE_SIZE <- 18
 FIG_AXIS_TEXT_SIZE <- 16
 FIG_AXIS_TITLE_SIZE <- 18
@@ -288,8 +290,8 @@ FIG_POINT_SIZE_LARGE <- 3.0
 FIG_WIDTH_SCALE <- 1.35
 FIG_HEIGHT_SCALE <- 1.35
 
-# global label/annotation behavior.
-# use these in plotting scripts so labels are consistently readable.
+# global label/annotation behavior
+# use these in plotting scripts so labels are consistently readable
 FIG_LABEL_CHECK_OVERLAP <- TRUE
 FIG_LABEL_CLIP <- "off" # "off" prevents annotation clipping at panel bounds
 FIG_LABEL_PLOT_MARGIN_PT <- 18 # extra margin so outer labels are not cut
@@ -322,7 +324,7 @@ SITE_COLORS <- c(
 
 # helper functions
 
-# publication plot theme: no title/subtitle and no grid lines.
+# publication plot theme: no title/subtitle and no grid lines
 theme_pub <- function(base_size = FIG_BASE_SIZE) {
   ggplot2::theme_classic(base_size = base_size) +
     ggplot2::theme(

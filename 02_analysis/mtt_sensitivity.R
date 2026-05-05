@@ -23,8 +23,10 @@ annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
 site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 isotope_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
 damping_file <- file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv")
+main_eco_summary_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv")
+main_eco_results_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_results.csv")
 
-required_files <- c(annual_file, site_file, isotope_file, damping_file)
+required_files <- c(annual_file, site_file, isotope_file, damping_file, main_eco_summary_file, main_eco_results_file)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop("Missing required file(s): ", paste(missing_files, collapse = "; "))
@@ -32,11 +34,57 @@ if (length(missing_files) > 0) {
 
 annual_df <- read_csv(annual_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC)
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  { if ("CHS" %in% names(.)) dplyr::rename(., BF = CHS) else . }
 
 site_df_base <- read_csv(site_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC, !site %in% SITE_EXCLUDE_STANDARD)
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !site %in% SITE_EXCLUDE_STANDARD) %>%
+  { if ("CHS_mean" %in% names(.)) dplyr::rename(., BF_mean = CHS_mean) else . }
+
+isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
+if (!file.exists(isotope_site_mean_file)) {
+  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+}
+
+isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
+  mutate(
+    site = if ("site" %in% names(.)) site else SITECODE,
+    site = standardize_site_code(site),
+    DR_site_mean = suppressWarnings(as.numeric(DR)),
+    Fyw_site_mean = suppressWarnings(as.numeric(Fyw)),
+    MTT_site_mean = suppressWarnings(as.numeric(MTT))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !is.na(site), site != "") %>%
+  group_by(site) %>%
+  summarise(
+    DR_site_mean = ifelse(any(is.finite(DR_site_mean)), mean(DR_site_mean, na.rm = TRUE), NA_real_),
+    Fyw_site_mean = ifelse(any(is.finite(Fyw_site_mean)), mean(Fyw_site_mean, na.rm = TRUE), NA_real_),
+    MTT_site_mean = ifelse(any(is.finite(MTT_site_mean)), mean(MTT_site_mean, na.rm = TRUE), NA_real_),
+    .groups = "drop"
+  )
+
+damping_raw <- read_csv(damping_file, show_col_types = FALSE)
+dr_col <- dplyr::case_when(
+  "DR_Overall" %in% names(damping_raw) ~ "DR_Overall",
+  "DR" %in% names(damping_raw) ~ "DR",
+  TRUE ~ NA_character_
+)
+if (is.na(dr_col)) {
+  stop("No damping-ratio column found in: ", damping_file)
+}
+damping <- damping_raw %>%
+  mutate(
+    site = if ("site" %in% names(.)) site else SITECODE,
+    site = standardize_site_code(site),
+    DR = suppressWarnings(as.numeric(.data[[dr_col]]))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !is.na(site), site != "") %>%
+  group_by(site) %>%
+  summarise(
+    DR = ifelse(any(is.finite(DR)), mean(DR, na.rm = TRUE), NA_real_),
+    .groups = "drop"
+  )
 
 raw_mtt <- read_csv(isotope_file, show_col_types = FALSE) %>%
   mutate(
@@ -48,19 +96,10 @@ raw_mtt <- read_csv(isotope_file, show_col_types = FALSE) %>%
         suppressWarnings(as.numeric(MTT2L)),
         suppressWarnings(as.numeric(MTT2H))
       ), na.rm = TRUE)
-    ),
-    Fyw = suppressWarnings(as.numeric(FYWM))
+    )
   ) %>%
   mutate(MTT_late_mean = ifelse(is.nan(MTT_late_mean), NA_real_, MTT_late_mean)) %>%
-  dplyr::select(site, MTT_early, MTT_late_mean, Fyw) %>%
-  filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
-
-damping <- read_csv(damping_file, show_col_types = FALSE) %>%
-  mutate(
-    site = standardize_site_code(trimws(site)),
-    DR = suppressWarnings(as.numeric(DR_Overall))
-  ) %>%
-  dplyr::select(site, DR) %>%
+  dplyr::select(site, MTT_early, MTT_late_mean) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
 mtt_definitions <- raw_mtt %>%
@@ -68,9 +107,13 @@ mtt_definitions <- raw_mtt %>%
     site,
     early_only = MTT_early,
     late_only = MTT_late_mean,
-    combined_mean = rowMeans(cbind(MTT_early, MTT_late_mean), na.rm = TRUE)
+    combined_mean = NA_real_
   ) %>%
-  mutate(combined_mean = ifelse(is.nan(combined_mean), NA_real_, combined_mean)) %>%
+  left_join(
+    isotope_site_mean %>% dplyr::select(site, MTT_site_mean),
+    by = "site"
+  ) %>%
+  mutate(combined_mean = MTT_site_mean) %>%
   pivot_longer(
     cols = c(early_only, late_only, combined_mean),
     names_to = "mtt_definition",
@@ -116,7 +159,7 @@ metric_map_site <- c(
   "FDC" = "FDC_mean",
   "SD" = "SD_mean",
   "WB" = "WB_mean",
-  "CHS" = "CHS_mean"
+  "BF" = "BF_mean"
 )
 
 pairwise_corr <- function(df, x, y) {
@@ -141,14 +184,15 @@ site_corrs <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(
   iso_tbl <- mtt_definitions %>%
     filter(mtt_definition == defn) %>%
     dplyr::select(site, MTT) %>%
-    left_join(raw_mtt %>% dplyr::select(site, Fyw), by = "site") %>%
+    left_join(isotope_site_mean %>% dplyr::select(site, Fyw_site_mean), by = "site") %>%
+    rename(Fyw = Fyw_site_mean) %>%
     left_join(damping, by = "site")
 
   site_tbl <- site_df_base %>%
     dplyr::select(site, all_of(unname(metric_map_site))) %>%
     left_join(iso_tbl, by = "site")
 
-  bind_rows(lapply(c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw"), function(metric) {
+  bind_rows(lapply(c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw"), function(metric) {
     metric_col <- if (metric %in% names(metric_map_site)) metric_map_site[[metric]] else metric
     pairwise_corr(site_tbl, metric_col, "MTT") %>%
       mutate(
@@ -319,122 +363,9 @@ catchment_coefficients <- bind_rows(lapply(unique(mtt_definitions$mtt_definition
 write_csv(catchment_results, file.path(output_dir, "mtt_catchment_model_summary.csv"))
 write_csv(catchment_coefficients, file.path(output_dir, "mtt_catchment_model_coefficients.csv"))
 
-fit_eco_models <- function(annual_df_in, include_mtt = TRUE) {
-  mandatory_predictors <- "Pws"
-  storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
-  if (!include_mtt) {
-    storage_predictors <- setdiff(storage_predictors, "MTT")
-  }
-
-  candidate_sets <- list(c("Pws"))
-  storage_combos <- unlist(
-    lapply(seq_along(storage_predictors), function(k) combn(storage_predictors, k, simplify = FALSE)),
-    recursive = FALSE
-  )
-  candidate_sets <- c(candidate_sets, lapply(storage_combos, function(x) c("Pws", x)))
-
-  fit_candidate <- function(df_in, response, predictors) {
-    predictors <- unique(predictors[predictors %in% names(df_in)])
-    if (!("Pws" %in% predictors)) {
-      return(NULL)
-    }
-
-    model_df <- df_in %>%
-      dplyr::select(any_of(c("site", "year", response, predictors))) %>%
-      na.omit()
-
-    if (nrow(model_df) < MODEL_MIN_N_ECO) {
-      return(NULL)
-    }
-
-    pred_sd <- sapply(predictors, function(p) suppressWarnings(sd(model_df[[p]], na.rm = TRUE)))
-    predictors <- predictors[is.finite(pred_sd) & pred_sd > 0]
-    if (!("Pws" %in% predictors)) {
-      return(NULL)
-    }
-
-    model_df <- model_df %>%
-      mutate(across(all_of(predictors), ~ as.numeric(scale(.x))))
-
-    fit <- tryCatch(
-      lm(as.formula(paste(response, "~", paste(predictors, collapse = " + "))), data = model_df),
-      error = function(e) NULL
-    )
-    if (is.null(fit)) {
-      return(NULL)
-    }
-    fit <- apply_vif_filter(fit, response, model_df, VIF_THRESHOLD, protected = mandatory_predictors)
-    if (is.null(fit)) {
-      return(NULL)
-    }
-
-    retained <- setdiff(names(coef(fit)), "(Intercept)")
-    if (!("Pws" %in% retained)) {
-      retained <- unique(c("Pws", retained))
-      fit <- tryCatch(
-        lm(as.formula(paste(response, "~", paste(retained, collapse = " + "))), data = model_df),
-        error = function(e) NULL
-      )
-      if (is.null(fit)) return(NULL)
-    }
-
-    retained <- setdiff(names(coef(fit)), "(Intercept)")
-    fit_sum <- summary(fit)
-    loocv <- calc_loocv_stats(formula(fit), model_df)
-    diagnostics <- compute_residual_diagnostics(fit)
-
-    fstat <- suppressWarnings(as.numeric(fit_sum$fstatistic))
-    model_p <- if (!is.null(fstat) && length(fstat) >= 3 && all(is.finite(fstat[1:3]))) {
-      pf(fstat[1], fstat[2], fstat[3], lower.tail = FALSE)
-    } else {
-      NA_real_
-    }
-
-    coef_df <- as.data.frame(fit_sum$coefficients)
-    coef_df$Predictor <- rownames(coef_df)
-    rownames(coef_df) <- NULL
-    coef_df <- coef_df %>% filter(Predictor != "(Intercept)")
-
-    beta_df_data <- model_df
-    beta_df_data[[response]] <- as.numeric(scale(beta_df_data[[response]]))
-    fit_beta <- lm(as.formula(paste(response, "~", paste(retained, collapse = " + "))), data = beta_df_data)
-    beta_df <- tibble(
-      Predictor = names(coef(fit_beta))[-1],
-      Beta_Std = as.numeric(coef(fit_beta)[-1])
-    )
-
-    list(
-      summary = tibble(
-        Response = response,
-        Predictors_Final = paste(retained, collapse = "; "),
-        n = nrow(model_df),
-        R2 = fit_sum$r.squared,
-        R2_adj = fit_sum$adj.r.squared,
-        model_p_global = model_p,
-        RMSE = sqrt(mean(residuals(fit)^2, na.rm = TRUE)),
-        RMSE_LOOCV = loocv$rmse,
-        R2_LOOCV = loocv$r2,
-        AIC = AIC(fit),
-        AICc = calc_aicc(fit, nrow(model_df))
-      ) %>% bind_cols(diagnostics),
-      coefficients = coef_df %>%
-        dplyr::transmute(Response = response, Predictor, estimate = Estimate, p_value = `Pr(>|t|)`) %>%
-        left_join(beta_df, by = "Predictor")
-    )
-  }
-
-  bind_rows(lapply(c("Q_7Q5", "T_7DMax"), function(response) {
-    fits <- lapply(candidate_sets, function(preds) fit_candidate(annual_df_in, response, preds))
-    fits <- Filter(Negate(is.null), fits)
-    if (length(fits) == 0) return(NULL)
-    best_idx <- which.min(vapply(fits, function(x) x$summary$AICc[1], numeric(1)))
-    fits[[best_idx]]$summary
-  }))
-}
-
 fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
   mandatory_predictors <- "Pws"
-  storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "CHS", "DR", "Fyw", "MTT")
+  storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT")
   if (!include_mtt) {
     storage_predictors <- setdiff(storage_predictors, "MTT")
   }
@@ -550,9 +481,8 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
 }
 
 build_annual_model_df <- function(mtt_defn = NULL, include_mtt = TRUE) {
-  iso_tbl <- raw_mtt %>%
-    dplyr::select(site, Fyw) %>%
-    left_join(damping, by = "site")
+  iso_tbl <- isotope_site_mean %>%
+    dplyr::select(site, DR_site_mean, Fyw_site_mean)
 
   if (include_mtt) {
     iso_tbl <- iso_tbl %>%
@@ -565,13 +495,21 @@ build_annual_model_df <- function(mtt_defn = NULL, include_mtt = TRUE) {
   }
 
   annual_df %>%
-    left_join(iso_tbl, by = "site")
+    left_join(iso_tbl, by = "site") %>%
+    mutate(
+      DR = DR_site_mean,
+      Fyw = Fyw_site_mean
+    ) %>%
+    { if (include_mtt) mutate(., MTT = MTT) else . } %>%
+    dplyr::select(-DR_site_mean, -Fyw_site_mean)
 }
 
-eco_with_mtt <- lapply(unique(mtt_definitions$mtt_definition), function(defn) {
+eco_mtt_variants <- setdiff(unique(mtt_definitions$mtt_definition), "combined_mean")
+
+eco_with_mtt <- lapply(eco_mtt_variants, function(defn) {
   fit_eco_models_full(build_annual_model_df(defn, include_mtt = TRUE), include_mtt = TRUE)
 })
-names(eco_with_mtt) <- unique(mtt_definitions$mtt_definition)
+names(eco_with_mtt) <- eco_mtt_variants
 
 eco_without_mtt <- fit_eco_models_full(build_annual_model_df(include_mtt = FALSE), include_mtt = FALSE)
 
@@ -592,6 +530,52 @@ eco_coefficients <- bind_rows(lapply(names(eco_with_mtt), function(defn) {
     eco_without_mtt$coefficients %>%
       mutate(mtt_definition = "none", model_variant = "without_mtt", .before = 1)
   )
+
+main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
+  mutate(Response = as.character(Response)) %>%
+  filter(Response == "T7DMax") %>%
+  mutate(
+    mtt_definition = "combined_mean",
+    model_variant = "with_mtt"
+  ) %>%
+  dplyr::select(
+    mtt_definition,
+    model_variant,
+    Response,
+    Predictors_Final,
+    n,
+    R2,
+    R2_adj,
+    model_p_global,
+    RMSE,
+    RMSE_LOOCV,
+    R2_LOOCV,
+    AIC,
+    AICc
+  )
+
+# Keep the main-text combined-MTT result as the reference row.
+# The sensitivity run only refits the alternate MTT definitions.
+main_eco_results <- read_csv(main_eco_results_file, show_col_types = FALSE) %>%
+  mutate(Response = as.character(Response)) %>%
+  filter(Response == "T7DMax") %>%
+  transmute(
+    mtt_definition = "combined_mean",
+    model_variant = "with_mtt",
+    Response = Response,
+    Predictor = Predictor,
+    estimate = Beta_Std,
+    p_value,
+    Beta_Std
+  )
+
+eco_summaries <- eco_summaries %>%
+  filter(!(mtt_definition == "combined_mean" & Response == "T_7DMax")) %>%
+  bind_rows(main_eco_summary)
+
+eco_coefficients <- eco_coefficients %>%
+  filter(!(mtt_definition == "combined_mean" & Response == "T_7DMax")) %>%
+  bind_rows(main_eco_results)
 
 write_csv(eco_summaries, file.path(output_dir, "mtt_eco_model_summary.csv"))
 write_csv(eco_coefficients, file.path(output_dir, "mtt_eco_model_coefficients.csv"))
@@ -621,9 +605,10 @@ row_mean_min <- function(df_like, min_non_na = 1L) {
 
 conceptual_axis_tbl <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(defn) {
   site_tbl <- site_df_base %>%
-    dplyr::select(site, RBI_mean, RCS_mean, FDC_mean, SD_mean, WB_mean, CHS_mean) %>%
+    dplyr::select(site, RBI_mean, RCS_mean, FDC_mean, SD_mean, WB_mean, BF_mean) %>%
     left_join(damping, by = "site") %>%
-    left_join(raw_mtt %>% dplyr::select(site, Fyw), by = "site") %>%
+    left_join(isotope_site_mean %>% dplyr::select(site, Fyw_site_mean), by = "site") %>%
+    rename(Fyw = Fyw_site_mean) %>%
     left_join(
       mtt_definitions %>% filter(mtt_definition == defn) %>% dplyr::select(site, MTT),
       by = "site"
@@ -640,7 +625,7 @@ conceptual_axis_tbl <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), 
       DR_inv = -DR,
       Fyw_inv = -Fyw,
       MTT = MTT,
-      CHS = CHS_mean
+      BF = BF_mean
     )
 
   metric_z <- metric_oriented %>%
@@ -656,7 +641,7 @@ conceptual_axis_tbl <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), 
       MTT = metric_z$MTT_z,
       DR = metric_z$DR_inv_z,
       Fyw = metric_z$Fyw_inv_z,
-      CHS = metric_z$CHS_z
+      BF = metric_z$BF_z
     ),
     min_non_na = 2L
   )
@@ -665,14 +650,14 @@ conceptual_axis_tbl <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), 
     mtt_definition = defn,
     site = metric_oriented$site,
     dynamic_storage_strength = dynamic_vals$mean,
-    mobile_mixing_with_chs = mobile_vals$mean,
+    mobile_mixing_with_bf = mobile_vals$mean,
     n_mobile_components = mobile_vals$n,
     eligible_panel_b = is.finite(metric_oriented$RBI_inv) &
       is.finite(metric_oriented$RCS) &
       is.finite(metric_oriented$FDC) &
       is.finite(metric_oriented$SD) &
       is.finite(metric_oriented$WB_depletion_mag) &
-      is.finite(metric_oriented$CHS) &
+      is.finite(metric_oriented$BF) &
       is.finite(metric_oriented$DR_inv) &
       is.finite(metric_oriented$Fyw_inv) &
       is.finite(metric_oriented$MTT)
@@ -715,7 +700,7 @@ scope_tbl <- tibble(
   ),
   note = c(
     "PCA uses RBI, RCS, FDC, SD, and WB only.",
-    "ANOVA/Tukey only use annual RBI, RCS, FDC, SD, WB, and CHS.",
+    "ANOVA/Tukey only use annual RBI, RCS, FDC, SD, WB, and BF.",
     "Reported site-level MTT values depend directly on the chosen site-level definition.",
     "Correlations involving MTT change across early, late, and combined definitions.",
     "Selected predictor and model support for MTT vary across definitions.",
@@ -742,9 +727,9 @@ supp_table <- eco_summaries %>%
     `Selected Predictor(s)` = Predictors_Final,
     `n` = n,
     `Adj R2` = R2_adj,
-    `Model p-value` = model_p_global,
     `LOOCV R2` = R2_LOOCV,
-    `LOOCV RMSE` = RMSE_LOOCV
+    `LOOCV RMSE` = RMSE_LOOCV,
+    `Model p-value` = model_p_global
   ) %>%
   mutate(`Selected Predictor(s)` = clean_predictor_labels(`Selected Predictor(s)`)) %>%
   filter(`Section` == "T7DMax") %>%
@@ -760,9 +745,9 @@ catchment_supp_table <- catchment_results %>%
     `Selected Predictor(s)` = Predictors_Final,
     `n` = N,
     `Adj R2` = R2_adj,
-    `Model p-value` = model_p_global,
     `LOOCV R2` = R2_LOOCV,
-    `LOOCV RMSE` = RMSE_LOOCV
+    `LOOCV RMSE` = RMSE_LOOCV,
+    `Model p-value` = model_p_global
   ) %>%
   mutate(`Selected Predictor(s)` = clean_predictor_labels(`Selected Predictor(s)`)) %>%
   mutate(`Section` = "Catchment MTT model") %>%

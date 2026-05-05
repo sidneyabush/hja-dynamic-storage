@@ -39,3 +39,24 @@ Manuscript-ready exports:
 
 - `ms_materials/main`
 - `ms_materials/supp`
+
+## Run
+
+From the repo root, run the full workflow with the local output paths pointed at the checkout:
+
+```bash
+HJA_OUTPUT_DIR="$PWD/outputs" \
+HJA_MS_MATERIALS_DIR="$PWD/outputs/figs" \
+Rscript run_all.R
+```
+
+That writes the workflow outputs into `outputs/` and the manuscript figures/tables into `outputs/figs/main` and `outputs/figs/supp`.
+
+For a fresh clone, set or inherit the input paths defined in `config.R`:
+
+- `HJA_FINAL_WORKFLOW_ROOT`
+- `HJA_BASE_DATA_DIR`
+- `HJA_OUTPUT_DIR`
+- `HJA_MS_MATERIALS_DIR`
+
+If those are not set, the code falls back to the Box-based paths currently listed in `config.R`.

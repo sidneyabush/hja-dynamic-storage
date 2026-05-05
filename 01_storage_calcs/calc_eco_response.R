@@ -1,6 +1,6 @@
-# calculate ecologically-relevant thermal, low-flow, and seasonal-precip metrics.
-# inputs: discharge_dir/hf00402_v14.csv; out_met_support_dir/catchments_met_q.csv.
-# author: sidney bush
+# calculate ecologically relevant thermal, low-flow, and seasonal-precip metrics
+# inputs: discharge_dir/HF00402_v14.csv; out_met_support_dir/catchments_met_q.csv
+# author: Sidney Bush
 # date: 2026-01-23
 
 library(dplyr)
@@ -15,14 +15,14 @@ library(patchwork)
 rm(list = ls())
 
 # source configuration (paths, site definitions, water year range)
-# get script directory (works with source() and rscript)
+# get script directory (works with source() and Rscript)
 # load project config
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# setup: directories and site list (from config.r)
+# setup: directories and site list (from config.R)
 
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
@@ -31,7 +31,7 @@ temp_dir      <- STREAM_TEMP_DIR
 # create output directory if needed
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# target sites and years (from config.r)
+# target sites and years (from config.R)
 sites_keep <- SITE_ORDER_HYDROMETRIC
 target_years <- WY_START:WY_END
 
@@ -90,8 +90,8 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
   )
 }
 
-# ws09 has no stream-temperature records in ht00451 source.
-# keep ws09 in downstream annual masters; temp responses remain na for ws09.
+# WS09 has no stream-temperature records in HT00451 source
+# Keep WS09 in downstream annual masters; temp responses remain NA for WS09
 
 # load & process preprocessed daily met data
 
@@ -114,8 +114,8 @@ met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
   filter(site %in% sites_keep, !is.na(date))
 assert_unique_keys(met_support, c("site", "date"), "met_support")
 
-# use standardized q_mm_d from creation-step support table.
-# no downstream unit conversion should occur in this script.
+# Use standardized Q_mm_d from creation-step support table
+# No downstream unit conversion should occur in this script
 discharge <- met_support %>%
   select(site, date, Q_mm_d, WATERYEAR) %>%
   arrange(site, date)
@@ -123,8 +123,8 @@ discharge <- met_support %>%
 met_daily <- met_support %>%
   select(site, date, P_mm_d)
 
-# wet-season precipitation (nov-may) by season year.
-# example: nov-dec 2019 + jan-may 2020 are assigned to year 2020.
+# Wet-season precipitation (Nov-May) by season year
+# Example: Nov-Dec 2019 + Jan-May 2020 are assigned to year 2020
 precip_nov_may <- met_daily %>%
   mutate(
     month_num = month(date),

@@ -1,5 +1,5 @@
-# inputs: out_stats_anova_dir/tukey_group_letters.csv.
-# author: sidney bush
+# inputs: out_stats_anova_dir/tukey_group_letters.csv
+# author: Sidney Bush
 # date: 2026-02-13
 
 suppressPackageStartupMessages({
@@ -115,14 +115,14 @@ if (!all(c("site", "year") %in% names(annual))) {
 if (nrow(annual) == 0) stop("master_annual has zero rows")
 if (any(!is.finite(annual$year))) stop("master_annual has non-finite years")
 
-# site checks.
+# site checks
 annual_sites <- unique(as.character(annual$site))
 unknown_sites <- setdiff(annual_sites, SITE_ORDER_ALL)
 if (length(unknown_sites) > 0) {
   stop(paste0("Unknown site code(s) in master_annual: ", paste(unknown_sites, collapse = ", ")))
 }
 
-# enforce configured site order in tukey group letters.
+# enforce configured site order in Tukey group letters
 letters_path <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
 letters_df <- read_csv(letters_path, show_col_types = FALSE)
 if (!all(c("metric", "site") %in% names(letters_df))) {

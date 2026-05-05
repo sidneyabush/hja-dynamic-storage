@@ -1,7 +1,7 @@
 # create figure showing monthly climatology of monthly aggregates
-# (median with iqr; jan-dec).
-# inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv.
-# author: sidney bush
+# (median with IQR; Jan-Dec)
+# inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv
+# author: Sidney Bush
 # date: 2026-01-30
 
 library(dplyr)
@@ -92,7 +92,7 @@ swe_data <- read_csv(
 
 # monthly aggregates by water year and calendar month:
 # precipitation = monthly total, temperature = monthly mean,
-# swe = monthly mean.
+# SWE = monthly mean
 temp_monthly_agg <- temp_data %>%
   group_by(water_year, month) %>%
   summarise(T_month_mean = mean(T_C, na.rm = TRUE), .groups = "drop")

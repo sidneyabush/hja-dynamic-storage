@@ -1,10 +1,10 @@
-# export model-stats tables for pooled eco-response and catchment mlr models.
+# export model-stats tables for pooled eco-response and catchment MLR models
 # inputs:
 # - out_models_storage_eco_response_mlr_dir/storage_eco_response_mlr_results.csv
 # - out_models_storage_eco_response_mlr_dir/storage_eco_response_mlr_summary.csv
 # - out_models_catchment_char_storage_mlr_dir/catchment_char_storage_mlr_results.csv
 # - out_models_catchment_char_storage_mlr_dir/catchment_char_storage_mlr_summary.csv
-# author: sidney bush
+# author: Sidney Bush
 # date: 2026-02-24
 
 library(dplyr)
@@ -292,7 +292,6 @@ if (file.exists(catch_alt_file)) {
       LOOCV_RMSE = suppressWarnings(as.numeric(RMSE_LOOCV)),
       n = suppressWarnings(as.integer(N))
     ) %>%
-    mutate(`Response Variable` = ifelse(`Response Variable` == "CHS", "BF", `Response Variable`)) %>%
     group_by(`Response Variable`, `Selected Predictor(s)`) %>%
     summarise(
       AICc = first(AICc),

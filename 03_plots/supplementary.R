@@ -16,7 +16,7 @@ for (d in c(supp_dir, supp_pdf_dir)) {
 
 # ---- Figure S1 ----
 # kept in a dedicated script but dispatched from here so the SI workflow
-# has a single entry point for supplementary figure/table generation.
+# has a single entry point for supplementary figure/table generation
 figs1_script <- file.path(REPO_DIR, "03_plots", "FigS1_met_context.R")
 if (file.exists(figs1_script)) {
   status <- system2("Rscript", shQuote(figs1_script), stdout = "", stderr = "")
@@ -26,7 +26,7 @@ if (file.exists(figs1_script)) {
 }
 
 # ---- Table S8 ----
-# residual diagnostics table used in the final SI.
+# residual diagnostics table used in the final SI
 catch_diag_file <- file.path(
   OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
   "catchment_char_storage_mlr_diagnostics.csv"

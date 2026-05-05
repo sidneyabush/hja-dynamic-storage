@@ -1,6 +1,6 @@
-# assemble all annual/site-level metrics into master analysis tables.
-# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop_ca.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; mobile_dir/isotope_metrics_site.csv; +1 more csv files.
-# author: sidney bush
+# assemble all annual/site-level metrics into master analysis tables
+# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop_ca.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; mobile_dir/isotope_metrics_site.csv; +1 more CSV files
+# author: Sidney Bush
 # date: 2026-02-13
 
 library(dplyr)
@@ -13,7 +13,7 @@ library(ggcorrplot)
 # start clean
 rm(list = ls())
 
-# load config (works from rscript or source)
+# load config (works from Rscript or source)
 # load project config
 source("config.R")
 
@@ -74,8 +74,8 @@ storage_fdc <- read_csv(
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
 
-# enforce full-period (site-level) FDC for all downstream analyses.
-# annual site-year FDC is only used in figure 2 / ANOVA-Tukey scripts.
+# Enforce full-period (site-level) FDC for all downstream analyses
+# Annual site-year FDC is only used in Figure 2 / ANOVA-Tukey scripts
 fdc_site_path <- file.path(dynamic_dir, "fdc_slopes_overall.csv")
 if (!file.exists(fdc_site_path)) {
   stop("Missing required full-period FDC file: ", fdc_site_path)
@@ -100,9 +100,9 @@ storage_fdc <- storage_fdc %>%
   mutate(FDC = dplyr::coalesce(FDC_site, FDC)) %>%
   select(-FDC_site)
 
-# mobile storage metric (annual chs)
+# mobile storage metric (annual BF)
 
-# bf = annual mean baseflow fraction from calcium-based chemical hydrograph separation
+# BF = annual mean baseflow fraction from calcium-based chemical hydrograph separation
 chs_path <- file.path(mobile_dir, "annual_gw_prop_ca.csv")
 baseflow <- read_csv(
   chs_path,
@@ -113,10 +113,10 @@ baseflow <- read_csv(
   mutate(site = standardize_site_code(site)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   mutate(
-    CHS = suppressWarnings(as.numeric(CHS)),
-    CHS = ifelse(site %in% CHS_EXCLUDE_SITES, NA_real_, CHS)
+    BF = suppressWarnings(as.numeric(BF)),
+    BF = ifelse(site %in% BF_EXCLUDE_SITES, NA_real_, BF)
   ) %>%
-  select(site, year, CHS)
+  select(site, year, BF)
 assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
 # extended dynamic storage metric (annual wb)
@@ -285,7 +285,7 @@ annual_sample_sizes <- HJA_annual %>%
     n_RCS = sum(!is.na(RCS)),
     n_FDC = sum(!is.na(FDC)),
     n_SD = sum(!is.na(SD)),
-    n_CHS = sum(!is.na(CHS)),
+    n_BF = sum(!is.na(BF)),
     n_WB = sum(!is.na(WB)),
     n_t_7dmax = sum(!is.na(T_7DMax)),
     n_q_7q5 = sum(!is.na(Q_7Q5)),
@@ -395,7 +395,7 @@ metrics_info <- tribble(
   "Dynamic"          , "Flow Duration Curve"      , "FDC"         , "FDC"                   , "hydrometric" ,
   "Dynamic"          , "Storage-Discharge"        , "SD"          , "SD"                    , "hydrometric" ,
   "Extended Dynamic" , "Water Balance"            , "WB"          , "WB"                    , "hydrometric" ,
-  "Mobile"           , "Baseflow Fraction (BF)"   , "BF"          , "CHS"                   , "chemistry"   ,
+  "Mobile"           , "Baseflow Fraction (BF)"   , "BF"          , "BF"                    , "chemistry"   ,
   "Mobile"           , "Isotopic Damping Ratio"   , "DR"          , "DR"                    , "isotopes"    ,
   "Mobile"           , "Young Water Fraction"     , "Fyw"         , "Fyw"                   , "isotopes"    ,
   "Mobile"           , "Mean Transit Time"        , "MTT"         , "MTT"                   , "isotopes"
@@ -409,7 +409,7 @@ annual_metric_presence <- HJA_annual %>%
     RCS = any(is.finite(RCS)),
     FDC = any(is.finite(FDC)),
     SD = any(is.finite(SD)),
-    CHS = any(is.finite(CHS)),
+    BF = any(is.finite(BF)),
     WB = any(is.finite(WB)),
     .groups = "drop"
   )

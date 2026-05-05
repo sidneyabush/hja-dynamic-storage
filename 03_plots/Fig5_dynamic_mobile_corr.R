@@ -1,4 +1,4 @@
-# figure 6 dynamic mobile storage correlation matrix
+# Figure 6 dynamic mobile storage correlation matrix
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -177,6 +177,6 @@ invisible(safe_ggsave(
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
 
-# remove stale legacy isotope-only correlation exports that are not part of the final main text.
+# remove stale legacy isotope-only correlation exports that are not part of the final main text
 unlink(file.path(main_dir, "Fig5_iso_annual.png"))
 unlink(file.path(main_pdf_dir, "Fig5_iso_annual.pdf"))

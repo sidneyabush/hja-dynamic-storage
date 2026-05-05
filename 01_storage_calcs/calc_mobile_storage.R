@@ -1,6 +1,6 @@
-# calculate mobile-storage metrics (chs + isotope metrics).
-# inputs: discharge_dir/hf00402_v14.csv; ec_dir/cf01201_v4.txt; ec_dir/cf00201_v7.csv; isotope_dir/mtt_fyw.csv; isotope_dir/dampingratios_2025-07-07.csv.
-# author: keira johnson (original chs), sidney bush
+# calculate mobile-storage metrics (BF + isotope metrics)
+# inputs: discharge_dir/HF00402_v14.csv; ec_dir/CF01201_v4.txt; ec_dir/CF00201_v7.csv; isotope_dir/MTT_FYW.csv; isotope_dir/dampingratios_2025-07-07.csv
+# author: Keira Johnson (original BF), Sidney Bush
 # date: 2026-03-09
 
 library(dplyr)
@@ -19,7 +19,7 @@ isotope_dir <- ISOTOPE_DIR
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# ---- part 1: chs from chemistry tracers and discharge ----
+# part 1: BF from chemistry tracers and discharge
 
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
@@ -52,7 +52,7 @@ calc_chs_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
     annual <- tibble(
       SITECODE = character(),
       waterYear = integer(),
-      CHS = numeric(),
+      BF = numeric(),
       median_bf = numeric(),
       sd_bf = numeric(),
       n_obs = integer()
@@ -81,14 +81,14 @@ calc_chs_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
   annual <- tracer_q_kept %>%
     group_by(SITECODE, waterYear) %>%
     summarise(
-      CHS = mean(GW_prop, na.rm = TRUE),
+      BF = mean(GW_prop, na.rm = TRUE),
       median_bf = median(GW_prop, na.rm = TRUE),
       sd_bf = sd(GW_prop, na.rm = TRUE),
       n_obs = n(),
       .groups = "drop"
     ) %>%
     mutate(
-      CHS = ifelse(is.nan(CHS), NA_real_, CHS),
+      BF = ifelse(is.nan(BF), NA_real_, BF),
       median_bf = ifelse(is.nan(median_bf), NA_real_, median_bf),
       sd_bf = ifelse(is.nan(sd_bf), NA_real_, sd_bf)
     )
@@ -194,7 +194,7 @@ comparison <- annual_bf_prop %>%
   select(
     SITECODE,
     waterYear,
-    CHS_EC = CHS,
+    BF_EC = BF,
     n_days_ec = n_days
   ) %>%
   full_join(
@@ -202,13 +202,13 @@ comparison <- annual_bf_prop %>%
       select(
         SITECODE,
         waterYear,
-        CHS_CA = CHS,
+        BF_CA = BF,
         n_obs_ca = n_obs
       ),
     by = c("SITECODE", "waterYear")
   ) %>%
   mutate(
-    diff_ca_minus_ec = CHS_CA - CHS_EC
+    diff_ca_minus_ec = BF_CA - BF_EC
   ) %>%
   arrange(SITECODE, waterYear)
 
