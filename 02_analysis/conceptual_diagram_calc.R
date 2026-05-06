@@ -161,7 +161,7 @@ metric_oriented <- site_df %>%
     DR_inv = -DR,
     Fyw_inv = -Fyw,
     MTT = MTT,
-    CHS = CHS_mean
+    BF = BF_mean
   )
 
 metric_z <- metric_oriented %>%
@@ -172,16 +172,16 @@ dynamic_vals <- row_mean_min(
   min_non_na = 4L
 )
 
-mobile_with_chs_vals <- row_mean_min(
+mobile_with_bf_vals <- row_mean_min(
   tibble(
     MTT = metric_z$MTT_z,
     DR = metric_z$DR_inv_z,
     Fyw = metric_z$Fyw_inv_z,
-    CHS = metric_z$CHS_z
+    BF = metric_z$BF_z
   ),
   min_non_na = 2L
 )
-mobile_no_chs_vals <- row_mean_min(
+mobile_no_bf_vals <- row_mean_min(
   tibble(
     MTT = metric_z$MTT_z,
     DR = metric_z$DR_inv_z,
@@ -193,24 +193,24 @@ mobile_no_chs_vals <- row_mean_min(
 axes_site <- tibble(
   site = metric_oriented$site,
   dynamic_storage_strength = dynamic_vals$mean,
-  mobile_mixing = mobile_with_chs_vals$mean,
-  mobile_mixing_with_chs = mobile_with_chs_vals$mean,
-  mobile_mixing_no_chs = mobile_no_chs_vals$mean,
-  CHS_mean = metric_oriented$CHS,
+  mobile_mixing = mobile_with_bf_vals$mean,
+  mobile_mixing_with_bf = mobile_with_bf_vals$mean,
+  mobile_mixing_no_bf = mobile_no_bf_vals$mean,
+  BF_mean = metric_oriented$BF,
   n_dynamic_components = dynamic_vals$n,
-  n_mobile_components_with_chs = mobile_with_chs_vals$n,
-  n_mobile_components_no_chs = mobile_no_chs_vals$n
+  n_mobile_components_with_bf = mobile_with_bf_vals$n,
+  n_mobile_components_no_bf = mobile_no_bf_vals$n
 ) %>%
   mutate(
     dynamic_storage_strength_z = safe_z(dynamic_storage_strength),
     mobile_mixing_z = safe_z(mobile_mixing),
-    mobile_mixing_with_chs_z = safe_z(mobile_mixing_with_chs),
-    mobile_mixing_no_chs_z = safe_z(mobile_mixing_no_chs),
-    flow_path_partitioning_z = safe_z(CHS_mean),
-    n_axes_available = rowSums(is.finite(cbind(dynamic_storage_strength_z, mobile_mixing_with_chs_z))),
+    mobile_mixing_with_bf_z = safe_z(mobile_mixing_with_bf),
+    mobile_mixing_no_bf_z = safe_z(mobile_mixing_no_bf),
+    flow_path_partitioning_z = safe_z(BF_mean),
+    n_axes_available = rowSums(is.finite(cbind(dynamic_storage_strength_z, mobile_mixing_with_bf_z))),
     unified_state_index = ifelse(
       n_axes_available >= 2,
-      rowMeans(cbind(dynamic_storage_strength_z, mobile_mixing_with_chs_z), na.rm = TRUE),
+      rowMeans(cbind(dynamic_storage_strength_z, mobile_mixing_with_bf_z), na.rm = TRUE),
       NA_real_
     )
   ) %>%

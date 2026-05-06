@@ -1,6 +1,12 @@
-# inputs: no direct CSV file reads in this script
+# inputs: no direct csv file reads in this script.
 # author: Sidney Bush
 # date: 2026-02-13
+
+# Route any accidental base graphics into a temporary PNG device so an
+# implicit Rplots.pdf is never written in the repository root.
+options(device = function(...) {
+  grDevices::png(filename = tempfile(pattern = "Rplot_", fileext = ".png"))
+})
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
@@ -20,7 +26,7 @@ find_repo_root <- function(start_dir) {
   return(normalizePath(start_dir, winslash = "/", mustWork = FALSE))
 }
 
-# Prefer explicit override when launched from IDE with unusual cwd
+# prefer explicit override when launched from ide with unusual cwd.
 env_repo_root <- Sys.getenv("HJA_REPO_DIR", unset = "")
 if (nzchar(env_repo_root)) {
   repo_root <- normalizePath(env_repo_root, winslash = "/", mustWork = FALSE)
@@ -89,10 +95,10 @@ run_script <- function(path) {
   }
 }
 
-# Preflight
+# preflight.
 run_script("helpers/check_inputs.R")
 
-# Metrics preprocessing (daily met+q and ET support tables)
+# metrics preprocessing (daily met+q and et support tables).
 metric_preprocess_scripts <- c(
   "00_data_preprocessing/create_hydromet_master.R",
   "00_data_preprocessing/prep_PT_methods.R",
@@ -102,7 +108,7 @@ for (s in metric_preprocess_scripts) {
   run_script(s)
 }
 
-# Metrics
+# metrics.
 metric_scripts <- c(
   "01_storage_calcs/calc_dynamic_storage.R",
   "01_storage_calcs/calc_mobile_storage.R",
@@ -113,12 +119,12 @@ for (s in metric_scripts) {
   run_script(s)
 }
 
-# Strict unit-consistency gate (fail fast before stats/plots)
+# strict unit-consistency gate (fail fast before stats/plots).
 run_script("helpers/check_units_consistency.R")
 
-# Stats
-# Deprecated unified-framework climate/sensitivity scripts are kept under
-# deprecated/02_analysis and are intentionally excluded from the core run
+# stats.
+# deprecated unified-framework climate/sensitivity scripts are kept under
+# deprecated/02_analysis and are intentionally excluded from the core run.
 stats_scripts <- c(
   "02_analysis/storage_sum_stats.R",
   "02_analysis/pca.R",
@@ -131,9 +137,9 @@ for (s in stats_scripts) {
   run_script(s)
 }
 
-# Plots: core manuscript set
-# Deprecated unified-framework climate-variability plotting is kept under
-# deprecated/03_plots and is intentionally excluded from the core run
+# plots: core manuscript set.
+# deprecated unified-framework climate-variability plotting is kept under
+# deprecated/03_plots and is intentionally excluded from the core run.
 plot_scripts_core <- c(
   "03_plots/Fig3_ds_pca_annual.R",
   "03_plots/Fig5_dynamic_mobile_corr.R",
@@ -147,8 +153,16 @@ for (s in plot_scripts_core) {
   run_script(s)
 }
 
-# Supplementary figures are managed in one script for easier triage
+# supplementary figures are managed in one script
 run_script("03_plots/supplementary.R")
 
-# Post-run checks
+# post-run checks.
 run_script("helpers/verify_outputs.R")
+
+# Close any stray graphics devices opened by legacy code paths.
+try(grDevices::graphics.off(), silent = TRUE)
+
+# Clean up any implicit Rscript graphics artifact.
+if (file.exists("Rplots.pdf")) {
+  unlink("Rplots.pdf")
+}

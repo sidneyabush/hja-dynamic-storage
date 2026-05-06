@@ -25,8 +25,7 @@ if (!file.exists(annual_file)) {
 }
 
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-  { if ("CHS" %in% names(.)) dplyr::rename(., BF = CHS) else . }
+  filter(site %in% SITE_ORDER_HYDROMETRIC)
 
 # Use site-level isotope means (DR, Fyw, MTT) as eco-model predictors
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")

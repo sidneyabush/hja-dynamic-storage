@@ -33,7 +33,7 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   ) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
-calc_chs_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
+calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
   tracer_q <- tracer_daily %>%
     left_join(discharge_tbl %>% select(SITECODE, date, MEAN_Q), by = c("SITECODE", "date")) %>%
     filter(is.finite(tracer_value), is.finite(MEAN_Q), MEAN_Q > 0) %>%
@@ -116,8 +116,8 @@ ec_daily <- ec_inst %>%
   summarise(tracer_value = mean(tracer_value, na.rm = TRUE), .groups = "drop") %>%
   filter(is.finite(tracer_value))
 
-ec_chs <- calc_chs_from_tracer(ec_daily, discharge, CHS_MIN_DAYS_PER_WY)
-annual_bf_prop <- ec_chs$annual %>%
+ec_bf <- calc_bf_from_tracer(ec_daily, discharge, CHS_MIN_DAYS_PER_WY)
+annual_bf_prop <- ec_bf$annual %>%
   rename(n_days = n_obs)
 
 write.csv(
@@ -127,8 +127,8 @@ write.csv(
 )
 
 write.csv(
-  ec_chs$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "chs_wy_day_counts_kept.csv"),
+  ec_bf$goodyears %>% arrange(SITECODE, waterYear),
+  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_day_counts_kept.csv"),
   row.names = FALSE
 )
 
@@ -160,11 +160,11 @@ chem_ca_daily <- chem %>%
   summarise(tracer_value = mean(CA, na.rm = TRUE), .groups = "drop") %>%
   filter(is.finite(tracer_value))
 
-ec_chem_chs <- calc_chs_from_tracer(chem_ec_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
-ca_chs <- calc_chs_from_tracer(chem_ca_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
+ec_chem_bf <- calc_bf_from_tracer(chem_ec_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
+ca_bf <- calc_bf_from_tracer(chem_ca_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
 
-annual_bf_prop_ec_chem <- ec_chem_chs$annual
-annual_bf_prop_ca <- ca_chs$annual
+annual_bf_prop_ec_chem <- ec_chem_bf$annual
+annual_bf_prop_ca <- ca_bf$annual
 
 write.csv(
   annual_bf_prop_ec_chem,
@@ -179,14 +179,14 @@ write.csv(
 )
 
 write.csv(
-  ec_chem_chs$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "chs_wy_obs_counts_ec_chem_kept.csv"),
+  ec_chem_bf$goodyears %>% arrange(SITECODE, waterYear),
+  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_obs_counts_ec_chem_kept.csv"),
   row.names = FALSE
 )
 
 write.csv(
-  ca_chs$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "chs_wy_obs_counts_ca_kept.csv"),
+  ca_bf$goodyears %>% arrange(SITECODE, waterYear),
+  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_obs_counts_ca_kept.csv"),
   row.names = FALSE
 )
 
@@ -263,34 +263,34 @@ safe_lm_slope <- function(x, y) {
 site_summary <- comparison %>%
   group_by(SITECODE) %>%
   summarise(
-    n_years_ec_ca = sum(is.finite(CHS_EC) & is.finite(CHS_CA)),
-    corr_ec_vs_ca = safe_cor(CHS_EC, CHS_CA),
+    n_years_ec_ca = sum(is.finite(BF_EC) & is.finite(BF_CA)),
+    corr_ec_vs_ca = safe_cor(BF_EC, BF_CA),
     mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
-    rmse_ca_vs_ec = safe_rmse(CHS_CA, CHS_EC),
+    rmse_ca_vs_ec = safe_rmse(BF_CA, BF_EC),
     .groups = "drop"
   )
 
-overall_n_years_ec_ca <- sum(is.finite(comparison$CHS_EC) & is.finite(comparison$CHS_CA))
+overall_n_years_ec_ca <- sum(is.finite(comparison$BF_EC) & is.finite(comparison$BF_CA))
 
 overall_summary <- tibble(
   n_years_ec_ca = overall_n_years_ec_ca,
-  corr_ec_vs_ca = safe_cor(comparison$CHS_EC, comparison$CHS_CA),
+  corr_ec_vs_ca = safe_cor(comparison$BF_EC, comparison$BF_CA),
   mean_diff_ca_minus_ec = safe_mean(comparison$diff_ca_minus_ec),
-  rmse_ca_vs_ec = safe_rmse(comparison$CHS_CA, comparison$CHS_EC)
+  rmse_ca_vs_ec = safe_rmse(comparison$BF_CA, comparison$BF_EC)
 )
 
 site_year_pairs_ec_ca <- comparison %>%
-  filter(is.finite(CHS_EC), is.finite(CHS_CA)) %>%
+  filter(is.finite(BF_EC), is.finite(BF_CA)) %>%
   transmute(
     SITECODE,
     waterYear,
-    CHS_EC,
-    CHS_CA,
-    diff_ca_minus_ec = CHS_CA - CHS_EC,
-    abs_diff_ca_minus_ec = abs(CHS_CA - CHS_EC),
+    BF_EC,
+    BF_CA,
+    diff_ca_minus_ec = BF_CA - BF_EC,
+    abs_diff_ca_minus_ec = abs(BF_CA - BF_EC),
     pct_diff_ca_vs_ec = ifelse(
-      abs(CHS_EC) > 0,
-      100 * (CHS_CA - CHS_EC) / CHS_EC,
+      abs(BF_EC) > 0,
+      100 * (BF_CA - BF_EC) / BF_EC,
       NA_real_
     )
   ) %>%
@@ -300,13 +300,13 @@ site_by_site_stats <- site_year_pairs_ec_ca %>%
   group_by(SITECODE) %>%
   summarise(
     n_years_paired = n(),
-    corr_pearson = safe_cor(CHS_EC, CHS_CA),
-    corr_spearman = safe_cor_spearman(CHS_EC, CHS_CA),
+    corr_pearson = safe_cor(BF_EC, BF_CA),
+    corr_spearman = safe_cor_spearman(BF_EC, BF_CA),
     mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
     median_diff_ca_minus_ec = median(diff_ca_minus_ec, na.rm = TRUE),
-    rmse_ca_vs_ec = safe_rmse(CHS_CA, CHS_EC),
-    lm_intercept_ca_on_ec = safe_lm_intercept(CHS_EC, CHS_CA),
-    lm_slope_ca_on_ec = safe_lm_slope(CHS_EC, CHS_CA),
+    rmse_ca_vs_ec = safe_rmse(BF_CA, BF_EC),
+    lm_intercept_ca_on_ec = safe_lm_intercept(BF_EC, BF_CA),
+    lm_slope_ca_on_ec = safe_lm_slope(BF_EC, BF_CA),
     .groups = "drop"
   ) %>%
   arrange(SITECODE)

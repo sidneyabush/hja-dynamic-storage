@@ -62,7 +62,7 @@ dynamic_map <- c(
   WB = "WB_mean"
 )
 mobile_map <- c(
-  BF = "CHS_mean",
+  BF = "BF_mean",
   DR = "DR",
   Fyw = "Fyw",
   MTT = "MTT"

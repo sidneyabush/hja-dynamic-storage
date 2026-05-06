@@ -305,7 +305,7 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
 
 required_mobile_dynamic_cols <- c(
   "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean",
-  "CHS_mean", "DR", "Fyw", "MTT"
+  "BF_mean", "DR", "Fyw", "MTT"
 )
 missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
 if (length(missing_required_cols) > 0) {
@@ -319,7 +319,7 @@ eligible_sites_panel_b <- master_site %>%
   transmute(
     site = as.character(site),
     eligible = if_all(
-      all_of(c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean", "CHS_mean", "DR", "Fyw")),
+      all_of(c("RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "WB_mean", "BF_mean", "DR", "Fyw")),
       ~ is.finite(.x)
     ) & is.finite(MTT)
   ) %>%
@@ -331,7 +331,7 @@ plot_b <- axes %>%
   transmute(
     site,
     dynamic = as.numeric(dynamic_storage_strength_z),
-    mobile = as.numeric(mobile_mixing_with_chs_z),
+    mobile = as.numeric(mobile_mixing_with_bf_z),
     pc1 = as.numeric(geology_pc1),
     pc2 = as.numeric(geology_pc2)
   ) %>%

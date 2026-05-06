@@ -702,7 +702,7 @@ fig4_raw_plots <- lapply(fig4_order, build_fig4_panel)
 p_fig4_e <- build_corr_triangle_panel(
   site_summary,
   c(
-    BF = "CHS_mean",
+    BF = "BF_mean",
     DR = "DR",
     Fyw = "Fyw",
     MTT = "MTT"

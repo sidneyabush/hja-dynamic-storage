@@ -342,12 +342,12 @@ check_required_columns(
 )
 check_required_columns(
   master_annual,
-  c("site", "year", "RBI", "RCS", "FDC", "SD", "CHS", "WB"),
+  c("site", "year", "RBI", "RCS", "FDC", "SD", "BF", "WB"),
   "master_annual"
 )
 check_required_columns(
   master_site,
-  c("site", "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "CHS_mean", "WB_mean"),
+  c("site", "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "BF_mean", "WB_mean"),
   "master_site"
 )
 check_required_columns(
@@ -377,7 +377,7 @@ check_nonnegative(wb_daily, "Q_mm_d", "daily_water_balance")
 check_nonnegative(wb_daily, "ET_mm_d", "daily_water_balance")
 check_range(wb_daily, "T_C", low = -40, high = 60, table_name = "daily_water_balance", fatal = TRUE)
 
-check_range(master_site, "CHS_mean", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
+check_range(master_site, "BF_mean", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
 check_range(master_site, "Fyw", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
 check_nonnegative(master_site, "RBI_mean", "master_site")
 

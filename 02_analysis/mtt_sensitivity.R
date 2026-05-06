@@ -34,13 +34,11 @@ if (length(missing_files) > 0) {
 
 annual_df <- read_csv(annual_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-  { if ("CHS" %in% names(.)) dplyr::rename(., BF = CHS) else . }
+  filter(site %in% SITE_ORDER_HYDROMETRIC)
 
 site_df_base <- read_csv(site_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
-  filter(site %in% SITE_ORDER_HYDROMETRIC, !site %in% SITE_EXCLUDE_STANDARD) %>%
-  { if ("CHS_mean" %in% names(.)) dplyr::rename(., BF_mean = CHS_mean) else . }
+  filter(site %in% SITE_ORDER_HYDROMETRIC, !site %in% SITE_EXCLUDE_STANDARD)
 
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
