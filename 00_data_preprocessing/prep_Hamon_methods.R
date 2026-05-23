@@ -2,12 +2,7 @@
 # inputs: out_met_support_dir/pt_et_methods_timeseries.csv
 # outputs: out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
 
-library(readr)
-library(dplyr)
-library(lubridate)
-library(purrr)
-library(tidyr)
-library(zoo)
+librarian::shelf(readr, dplyr, lubridate, purrr, tidyr, zoo, cran_repo = "https://cloud.r-project.org")
 
 source("config.R")
 

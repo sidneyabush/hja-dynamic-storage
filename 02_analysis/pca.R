@@ -3,11 +3,7 @@
 # author: Pamela Sullivan (original), Sidney Bush (adapted)
 # date: 2026-01-23
 
-library(dplyr)
-library(readr)
-library(tidyr)
-library(ggplot2)
-library(scales)
+librarian::shelf(dplyr, readr, tidyr, ggplot2, scales, cran_repo = "https://cloud.r-project.org")
 
 # clear environment
 rm(list = ls())

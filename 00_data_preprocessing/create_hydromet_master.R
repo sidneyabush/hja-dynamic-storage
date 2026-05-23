@@ -1,4 +1,4 @@
-# build catchment-scale daily met + discharge inputs for wy 1997-2020
+# build daily catchment met and discharge inputs for WY 1997-2020
 # inputs:
 # met_dir/ms00102_v9.csv
 # met_dir/ms05025_v3.csv
@@ -7,19 +7,15 @@
 # author: Sidney Bush
 # date: 2026-02-13
 
-library(readr)
-library(dplyr)
-library(lubridate)
-library(tidyr)
-library(ggplot2)
+librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
-# setup: load helpers and config
+# load helpers and settings
 source("helpers/hydromet_utils.R")
 source("config.R")
 
-# paths and water-year date bounds
+# paths and water-year dates
 
 met_dir <- MET_DIR
 discharge_dir <- DISCHARGE_DIR
@@ -32,11 +28,11 @@ wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 # make sure the output folder exists
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Site mapping: which MET stations feed each catchment variable
-# One station = direct use, two stations = pair interpolation, three = multivariate interpolation
+# site mapping for the MET stations used by each catchment variable
+# one station = direct use, two stations = pair interpolation, three = multiple regression
 
 site_mapping <- list(
-  # lower elevation catchments - use primet
+  # lower-elevation catchments use PRIMET
   "GSWS09" = list(
     temp = c("PRIMET"),
     precip = c("PRIMET"),
@@ -68,7 +64,7 @@ site_mapping <- list(
     netrad = c("PRIMET")
   ),
 
-  # mack creek - use cenmet/uplmet
+  # Mack Creek uses CENMET and UPLMET
   "GSMACK" = list(
     temp = c("CENMET", "UPLMET"),
     precip = c("GSMACK", "UPLMET"),
@@ -76,7 +72,7 @@ site_mapping <- list(
     netrad = c("VANMET")
   ),
 
-  # upper elevation catchments - use h15met/vanmet
+  # upper-elevation catchments use H15MET and VANMET
   "GSWS06" = list(
     temp = c("H15MET", "VANMET"),
     precip = c("H15MET"),
@@ -96,7 +92,7 @@ site_mapping <- list(
     netrad = c("VANMET")
   ),
 
-  # lookout creek tributaries
+  # Lookout Creek tributaries
   "LONGER" = list(
     temp = c("CENMET"),
     precip = c("CENMET"),
@@ -111,7 +107,7 @@ site_mapping <- list(
   )
 )
 
-# load daily met inputs
+# load the daily met inputs
 
 # temperature
 Temp <- make_inter_long(
@@ -135,7 +131,7 @@ Precip <- make_inter_long(
   select(DATE, SITECODE, Precip) %>%
   rename(P_mm_d = Precip)
 
-# add mack creek precipitation from its dedicated file
+# add Mack Creek precipitation from its own file
 MACK_Precip <- read_mack_precip(
   "MS00403_v2.csv",
   met_dir,
@@ -160,7 +156,7 @@ NetRad <- read_csv(
   select(SITECODE, DATE, NR_TOT_MEAN_DAY) %>%
   rename(NR_Wm2_d = NR_TOT_MEAN_DAY)
 
-# join met variables into one daily table and keep target dates
+# join the met variables into one daily table and keep the target dates
 
 combined_met <- Temp %>%
   full_join(Precip, by = c("DATE", "SITECODE")) %>%
@@ -169,9 +165,9 @@ combined_met <- Temp %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   arrange(SITECODE, DATE)
 
-# fill gaps using the station-group interpolation rules above
+# fill gaps using the station-group rules above
 
-# pull pair/triplet groups used by the interpolation helper
+# pull the pair and triplet groups used by the interpolation helper
 station_groups <- extract_station_groups(site_mapping)
 
 for (pair_name in names(station_groups$pairs)) {
@@ -195,10 +191,11 @@ combined_met_clean <- combined_met %>%
   group_by(DATE, SITECODE) %>%
   summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
-# variables passed to interpolation (vpd is computed inside helper)
+# variables passed to interpolation
+# VPD is calculated inside the helper
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")
 
-# run interpolation and keep filled output
+# run the interpolation and keep the filled output
 results <- process_station_groups(
   combined_met_clean,
   station_groups,
@@ -208,12 +205,12 @@ results <- process_station_groups(
 
 interpolated_data <- results$data
 
-# build per-catchment daily met datasets
+# build the daily met series for each catchment
 
-# include vpd in catchment outputs
+# include VPD in the catchment outputs
 catchment_variables <- c(variables, "VPD_kPa")
 
-# aggregate station-level data to catchment-level series
+# average station-level data to the catchment level
 catchment_datasets <- create_catchment_datasets(
   interpolated_data,
   site_mapping,
@@ -223,13 +220,13 @@ catchment_datasets <- create_catchment_datasets(
 # combine all catchment tables into one master table
 all_catchments_data <- bind_rows(catchment_datasets)
 
-# add discharge (and area-normalized q) to each catchment
+# add discharge and area-normalized Q to each catchment
 
 # drainage area lookup
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = recode(SITECODE, !!!as.list(SITECODE_RECODE_TO_GSMACK)))
 
-# load discharge, standardize site codes, and keep target dates/sites
+# load discharge, standardize site codes, and keep the target dates and sites
 discharge <- read_csv(
   file.path(discharge_dir, "HF00402_v14.csv"),
   show_col_types = FALSE
@@ -253,7 +250,7 @@ catchment_datasets <- add_discharge_to_catchments(
 # rebuild the combined table after adding discharge
 all_catchments_data <- bind_rows(catchment_datasets)
 
-# clean up join artifact column names
+# clean up column names left over from joins
 if ("SITECODE.x" %in% names(all_catchments_data)) {
   all_catchments_data <- all_catchments_data %>%
     select(-any_of(c("SITECODE", "SITECODE.y"))) %>%
@@ -261,12 +258,12 @@ if ("SITECODE.x" %in% names(all_catchments_data)) {
     select(DATE, SITECODE, everything())
 }
 
-# build gslook composite from configured component catchments
+# build the GSLOOK composite from the configured component catchments
 
-# component catchments used for gslook
+# component catchments used for GSLOOK
 gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
 
-# average component met variables by date to create gslook met series
+# average the component met variables by date to make the GSLOOK series
 gslook_full_df <- all_catchments_data %>%
   filter(SITECODE %in% gslook_components) %>%
   group_by(DATE) %>%
@@ -277,7 +274,7 @@ gslook_full_df <- all_catchments_data %>%
   mutate(SITECODE = "GSLOOK") %>%
   select(DATE, SITECODE, everything())
 
-# pull gslook discharge and convert to mm/day
+# pull GSLOOK discharge and convert it to mm/day
 gslook_q_full <- discharge %>%
   filter(SITECODE == "GSLOOK") %>%
   left_join(da_df, by = "SITECODE") %>%
@@ -287,28 +284,28 @@ gslook_q_full <- discharge %>%
   ) %>%
   select(DATE, SITECODE, Q_mm_d)
 
-# attach discharge to the gslook composite table
+# attach discharge to the GSLOOK composite table
 gslook_full_df <- gslook_full_df %>%
   select(-any_of("Q_mm_d")) %>%
   left_join(gslook_q_full, by = c("DATE", "SITECODE"))
 
-# replace any existing gslook rows with the composite rows
+# replace any existing GSLOOK rows with the composite rows
 all_catchments_data <- bind_rows(
   all_catchments_data %>% filter(SITECODE != "GSLOOK"),
   gslook_full_df
 )
 
-# resolve any duplicate q_mm_d columns after join/bind steps
+# resolve any duplicate q_mm_d columns after joins and binds
 if ("Q_mm_d.x" %in% names(all_catchments_data)) {
   all_catchments_data <- all_catchments_data %>%
     mutate(Q_mm_d = coalesce(Q_mm_d.x, Q_mm_d)) %>%
     select(-any_of(c("Q_mm_d.x", "Q_mm_d.y")))
 }
 
-# keep gslook in the per-catchment list for downstream use
+# keep GSLOOK in the per-catchment list for later steps
 catchment_datasets[["GSLOOK"]] <- gslook_full_df
 
-# save the final daily catchment met+q table
+# save the final daily catchment met and Q table
 
 output_file <- file.path(output_dir, "catchments_met_q.csv")
 write_csv(all_catchments_data, output_file)

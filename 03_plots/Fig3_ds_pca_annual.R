@@ -1,16 +1,13 @@
-# PCA plots
+# Figure 3 PCA plot
 # inputs: out_stats_pca_dir/pca_scores_pc1_pc2.csv; out_stats_pca_dir/pca_loadings.csv; out_stats_pca_dir/pca_variance_explained.csv
 # author: Sidney Bush
 # date: 2026-02-13
 
-library(dplyr)
-library(readr)
-library(ggplot2)
-library(scales)
+librarian::shelf(dplyr, readr, ggplot2, scales, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
-# load project config
+# load the project settings
 source("config.R")
 
 safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
@@ -65,13 +62,13 @@ vexp <- read_csv(var_file, show_col_types = FALSE)
 pc1_pct <- ifelse(nrow(vexp) >= 1, 100 * vexp$Variance_Explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(vexp) >= 2, 100 * vexp$Variance_Explained[2], NA_real_)
 PCA_POINT_ALPHA <- 0.65
-# Prioritize high-visibility filled symbols for color-blind readability
+# use filled symbols that stay easy to tell apart
 SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 site_point_sizes <- setNames(rep(FIG_POINT_SIZE_LARGE + 1, length(SITE_ORDER_HYDROMETRIC)), SITE_ORDER_HYDROMETRIC)
 diamond_sites <- names(SITE_SHAPES)[SITE_SHAPES %in% c(18, 23)]
 site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 1.1
 
-# Scale loading arrows to score space
+# scale the loading arrows to the score space
 score_lim <- max(abs(c(scores$PC1, scores$PC2)), na.rm = TRUE)
 load_lim <- max(abs(c(loads$PC1, loads$PC2)), na.rm = TRUE)
 arrow_scale <- ifelse(is.finite(score_lim) && is.finite(load_lim) && load_lim > 0, 0.75 * score_lim / load_lim, 1)
@@ -169,4 +166,4 @@ p_scree <- vexp %>%
     axis.line = element_blank()
   )
 
-# Scree output removed from the core manuscript workflow
+# the scree plot is not part of the final paper

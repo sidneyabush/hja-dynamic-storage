@@ -1,9 +1,6 @@
 # calculate conceptual diagram axes and geology landslide pca outputs
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-})
+librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")

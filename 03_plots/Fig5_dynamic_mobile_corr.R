@@ -1,11 +1,6 @@
-# Figure 6 dynamic mobile storage correlation matrix
+# Figure 5 dynamic and mobile storage correlation matrix
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(tidyr)
-  library(ggplot2)
-})
+librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -122,7 +117,11 @@ corr_df <- tidyr::expand_grid(
   mutate(
     Mobile = factor(Mobile, levels = rev(names(mobile_map))),
     Dynamic = factor(Dynamic, levels = names(dynamic_map)),
-    label = ifelse(is.finite(r), sprintf("%.2f", r), ""),
+    label = ifelse(
+      is.finite(r),
+      ifelse(abs(r) < 0.05, "|r| < 0.05", sprintf("%.2f", r)),
+      ""
+    ),
     sig_fontface = ifelse(!is.na(p) & p < 0.05, "bold", "plain")
   )
 
@@ -177,6 +176,6 @@ invisible(safe_ggsave(
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
 
-# remove stale legacy isotope-only correlation exports that are not part of the final main text
+# remove older isotope-only correlation files not used in the final paper
 unlink(file.path(main_dir, "Fig5_iso_annual.png"))
 unlink(file.path(main_pdf_dir, "Fig5_iso_annual.pdf"))

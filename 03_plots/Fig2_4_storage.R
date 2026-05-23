@@ -1,13 +1,6 @@
-# Figures 2 4 5 main manuscript plots
+# Figures 2 and 4
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(tidyr)
-  library(ggplot2)
-  library(patchwork)
-  library(cowplot)
-})
+librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, cowplot, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -33,7 +26,7 @@ annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-# Ensure Fig2 FDC panel uses annual site-year slopes
+# use annual site-year FDC slopes in Figure 2
 if (file.exists(fdc_wy_file)) {
   fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
     mutate(
@@ -171,11 +164,10 @@ build_corr_triangle_panel <- function(
     mutate(
       row_metric = factor(row_metric, levels = y_levels),
       col_metric = factor(col_metric, levels = x_levels),
-      r_label = ifelse(abs(r) < 0.005, 0, r),
       fontface = ifelse(is.finite(p_value) & p_value < 0.05, "bold", "plain"),
       label = ifelse(
-        is.finite(r_label),
-        sprintf("%.2f", r_label),
+        is.finite(r),
+        ifelse(abs(r) < 0.05, "|r| < 0.05", sprintf("%.2f", r)),
         ""
       )
     )
@@ -333,7 +325,7 @@ equalize_plot_widths <- function(plot_list) {
   })
 }
 
-# fig2 dynamic annual boxplots
+# Figure 2 annual dynamic storage boxplots
 metric_map_fig2 <- c(
   RBI = "RBI",
   RCS = "RCS",
@@ -389,7 +381,7 @@ build_fig2_panel <- function(metric_key) {
   panel_margin <- if (identical(metric_key, "FDC")) {
     margin(5.5, 5.5, -7, 5.5)
   } else if (identical(metric_key, "WB")) {
-    # Add extra top spacing so panel e title does not crowd panel c above.
+    # add top spacing so panel e does not crowd panel c
     margin(11, 5.5, 5.5, 5.5)
   } else {
     margin(5.5, 5.5, 5.5, 5.5)
@@ -457,8 +449,7 @@ p_fig2_f <- build_corr_triangle_panel(
   legend_scale = 1.18
 )
 
-# Build columns separately so panel d x-axis labels do not force extra blank
-# space beneath panel c and push panel e downward
+# build the columns separately so panel d labels do not push panel e down
 p_fig2_left <- p_fig2_a / p_fig2_c / p_fig2_e +
   plot_layout(heights = c(1, 1, 1))
 p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
@@ -467,8 +458,7 @@ p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
 p_fig2 <- (p_fig2_left | p_fig2_right) +
   plot_layout(widths = c(1, 1))
 
-# Legacy standalone Fig4 BF boxplot content retained only to reuse the BF panel
-# inside the consolidated mobile-storage figure (current Fig4)
+# keep the older BF boxplot code because the BF panel is reused in Figure 4
 fig4_df <- annual %>%
   select(site, year, BF) %>%
   filter(is.finite(BF))
@@ -517,7 +507,7 @@ p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1)
   )
 
-# current Fig4 mobile storage panels
+# Figure 4 mobile storage panels
 fig4_mobile_map <- c(
   DR = "DR",
   Fyw = "Fyw",
@@ -645,7 +635,7 @@ build_fig4_panel <- function(metric_key) {
   }
 
   dat <- fig4_mobile_df %>% filter(metric == metric_key)
-  # Match panel layout: keep x-axis labels only on bottom row.
+  # keep x-axis labels only on the bottom row
   show_x <- TRUE
   reserve_x_space <- metric_key %in% c("DR")
   panel_margin <- margin(5.5, 5.5, 5.5, 5.5)
@@ -781,6 +771,6 @@ ggsave(
   bg = "white"
 )
 
-# remove stale legacy standalone BF panel exports that are not part of the final main text
+# remove older BF-only files not used in the final paper
 unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
 unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))

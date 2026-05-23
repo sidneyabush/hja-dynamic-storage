@@ -1,18 +1,11 @@
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(tidyr)
-  library(tibble)
-  library(MASS)
-  library(car)
-})
+librarian::shelf(dplyr, readr, tidyr, tibble, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
 source("config.R")
 source("helpers/mlr_utils.R")
 
-output_dir <- file.path(REPO_DIR, "outputs", "MTT_sensitivity")
+output_dir <- file.path(OUTPUT_DIR, "MTT_sensitivity")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 VIF_THRESHOLD <- 10
@@ -552,8 +545,8 @@ main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
     AICc
   )
 
-# Keep the main-text combined-MTT result as the reference row.
-# The sensitivity run only refits the alternate MTT definitions.
+# Keep the main-text combined-MTT result as the reference row
+# The sensitivity run only refits the alternate MTT definitions
 main_eco_results <- read_csv(main_eco_results_file, show_col_types = FALSE) %>%
   mutate(Response = as.character(Response)) %>%
   filter(Response == "T7DMax") %>%
@@ -814,3 +807,6 @@ summary_lines <- c(
 )
 
 writeLines(summary_lines, file.path(output_dir, "README_MTT_sensitivity.md"))
+
+try(grDevices::graphics.off(), silent = TRUE)
+quit(save = "no", status = 0, runLast = FALSE)

@@ -1,11 +1,6 @@
 # catchment characteristics MLR
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(MASS)
-  library(car)
-})
+librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -27,7 +22,7 @@ if (!file.exists(site_file)) {
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
-# enforce combined site-level MTT values (legacy MTT1+MTT2 collapsed)
+# use the combined site-level MTT values
 # regardless of other isotope mode settings
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {

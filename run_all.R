@@ -1,9 +1,9 @@
-# inputs: no direct csv file reads in this script.
+# this script runs the full analysis and does not read the data files directly
 # author: Sidney Bush
 # date: 2026-02-13
 
-# Route any accidental base graphics into a temporary PNG device so an
-# implicit Rplots.pdf is never written in the repository root.
+# send any accidental base graphics to a temporary PNG
+# this keeps Rplots.pdf out of the repo root
 options(device = function(...) {
   grDevices::png(filename = tempfile(pattern = "Rplot_", fileext = ".png"))
 })
@@ -26,15 +26,15 @@ find_repo_root <- function(start_dir) {
   return(normalizePath(start_dir, winslash = "/", mustWork = FALSE))
 }
 
-# prefer explicit override when launched from ide with unusual cwd.
+# use HJA_REPO_DIR if it is already set
 env_repo_root <- Sys.getenv("HJA_REPO_DIR", unset = "")
 if (nzchar(env_repo_root)) {
   repo_root <- normalizePath(env_repo_root, winslash = "/", mustWork = FALSE)
 } else {
-  # try to discover this script path robustly across rscript/source/ide run modes.
+  # try to find this script path across Rscript, source(), and IDE runs
   script_path <- NA_character_
 
-  # look through call frames for an ofile ending in run_all.r
+  # look through call frames for run_all.R
   frame_ofiles <- unlist(lapply(sys.frames(), function(fr) {
     tryCatch(fr$ofile, error = function(e) NA_character_)
   }))
@@ -52,7 +52,7 @@ if (nzchar(env_repo_root)) {
     }
   }
 
-  # fall back to --file if running via rscript
+  # fall back to --file for Rscript runs
   if (is.na(script_path) || script_path == "") {
     args <- commandArgs(trailingOnly = FALSE)
     file_arg <- grep("^--file=", args, value = TRUE)
@@ -95,10 +95,10 @@ run_script <- function(path) {
   }
 }
 
-# preflight.
+# check that the required inputs are present before starting
 run_script("helpers/check_inputs.R")
 
-# metrics preprocessing (daily met+q and et support tables).
+# build the daily catchment forcing and ET tables
 metric_preprocess_scripts <- c(
   "00_data_preprocessing/create_hydromet_master.R",
   "00_data_preprocessing/prep_PT_methods.R",
@@ -108,7 +108,7 @@ for (s in metric_preprocess_scripts) {
   run_script(s)
 }
 
-# metrics.
+# calculate annual storage and ecological response metrics
 metric_scripts <- c(
   "01_storage_calcs/calc_dynamic_storage.R",
   "01_storage_calcs/calc_mobile_storage.R",
@@ -119,27 +119,23 @@ for (s in metric_scripts) {
   run_script(s)
 }
 
-# strict unit-consistency gate (fail fast before stats/plots).
+# stop here if the units do not line up
 run_script("helpers/check_units_consistency.R")
 
-# stats.
-# deprecated unified-framework climate/sensitivity scripts are kept under
-# deprecated/02_analysis and are intentionally excluded from the core run.
+# run summary stats, PCA, regression models, and MTT sensitivity
 stats_scripts <- c(
   "02_analysis/storage_sum_stats.R",
   "02_analysis/pca.R",
   "02_analysis/conceptual_diagram_calc.R",
   "02_analysis/mlr_catchment_char.R",
   "02_analysis/mlr_eco_response.R",
-  "02_analysis/mlr_tables.R"
+  "02_analysis/mtt_sensitivity.R"
 )
 for (s in stats_scripts) {
   run_script(s)
 }
 
-# plots: core manuscript set.
-# deprecated unified-framework climate-variability plotting is kept under
-# deprecated/03_plots and is intentionally excluded from the core run.
+# make the main-text figures
 plot_scripts_core <- c(
   "03_plots/Fig3_ds_pca_annual.R",
   "03_plots/Fig5_dynamic_mobile_corr.R",
@@ -153,16 +149,29 @@ for (s in plot_scripts_core) {
   run_script(s)
 }
 
-# supplementary figures are managed in one script
+# make the code-generated supplement outputs
 run_script("03_plots/supplementary.R")
 
-# post-run checks.
+# write the main-text and supplement tables
+table_scripts <- c(
+  "04_tables/Table4_catchment_char_storage_mlr_model_stats.R",
+  "04_tables/Table5_storage_eco_response_mlr_model_stats.R",
+  "04_tables/TableS5_MTT_sensitivity.R",
+  "04_tables/TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.R",
+  "04_tables/TableS7_eco_alt_models_unique_deltaAICc_le2_BF.R",
+  "04_tables/TableS8_mlr_model_diagnostics.R"
+)
+for (s in table_scripts) {
+  run_script(s)
+}
+
+# check that the expected outputs were written
 run_script("helpers/verify_outputs.R")
 
-# Close any stray graphics devices opened by legacy code paths.
+# close any stray graphics devices left open by older scripts
 try(grDevices::graphics.off(), silent = TRUE)
 
-# Clean up any implicit Rscript graphics artifact.
+# remove any accidental Rplots.pdf
 if (file.exists("Rplots.pdf")) {
   unlink("Rplots.pdf")
 }

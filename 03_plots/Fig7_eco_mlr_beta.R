@@ -1,11 +1,6 @@
-# Figure 7 pooled eco response MLR beta coefficients
+# Figure 7 storage metrics and ecological responses
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(tidyr)
-  library(ggplot2)
-})
+librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -90,7 +85,7 @@ predictor_axis_labels_plotmath <- c(
 
 coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
-# retain only the selected candidate set when available
+# keep only the selected model set when it is available
 if ("Candidate_Set" %in% names(coef_raw) && !is.na(summary_file) && file.exists(summary_file)) {
   selected_sets <- read_csv(summary_file, show_col_types = FALSE) %>%
     transmute(

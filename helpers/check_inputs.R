@@ -1,10 +1,8 @@
-# inputs: no direct CSV file reads in this script
+# check that all required input files are present
 # author: Sidney Bush
 # date: 2026-02-13
 
-suppressPackageStartupMessages({
-  library(readr)
-})
+librarian::shelf(readr, cran_repo = "https://cloud.r-project.org")
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
@@ -50,6 +48,7 @@ source(file.path(repo_root, "config.R"))
 required_files <- c(
   file.path(MET_DIR, "Temperature_original_&_filled_1979_2023_v2.csv"),
   file.path(MET_DIR, "Precipitation_original_&_filled_1979_2023.csv"),
+  file.path(MET_DIR, "SWE_original_&_filled_1997_2023_v5.csv"),
   file.path(MET_DIR, "MS00102_v9.csv"),
   file.path(MET_DIR, "MS05025_v3.csv"),
   file.path(MET_DIR, "MS00403_v2.csv"),
@@ -72,19 +71,19 @@ if (length(missing_files) > 0) {
   )
 }
 
-# EC file used by the current workflow
+# specific conductance file used in this run
 ec_file <- file.path(EC_DIR, "CF01201_v4.txt")
 if (!file.exists(ec_file)) {
   stop("Missing required EC input file: ", ec_file)
 }
 
-# chemistry file used for Ca/COND BF comparison
+# chemistry file used for the Ca and conductance comparison
 chem_file <- file.path(EC_DIR, "CF00201_v7.csv")
 if (!file.exists(chem_file)) {
   stop("Missing required chemistry input file: ", chem_file)
 }
 
-# minimal schema checks on key files
+# basic column checks on key files
 check_columns <- function(path, required_cols) {
   cols <- names(suppressMessages(read_csv(
     path,

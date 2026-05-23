@@ -3,11 +3,7 @@
 # author: Sidney Bush
 # date: 2026-02-14
 
-library(dplyr)
-library(lubridate)
-library(readr)
-library(tidyr)
-library(tibble)
+librarian::shelf(dplyr, lubridate, readr, tidyr, tibble, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
@@ -292,7 +288,7 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
-# site-level full-period FDC slope used in downstream analyses
+# site-level full-period FDC slope used in later analysis steps
 fdc_slopes_site <- fdc_slopes %>%
   transmute(
     site = site,

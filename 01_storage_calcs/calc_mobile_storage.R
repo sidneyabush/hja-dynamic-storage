@@ -3,9 +3,7 @@
 # author: Keira Johnson (original BF), Sidney Bush
 # date: 2026-03-09
 
-library(dplyr)
-library(readr)
-library(lubridate)
+librarian::shelf(dplyr, readr, lubridate, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
@@ -366,7 +364,7 @@ mtt_fyw <- read_csv(
       ), na.rm = TRUE)
     ))),
     MTT_late = ifelse(is.nan(MTT_late), NA_real_, MTT_late),
-    # collapse period-specific legacy labels into one MTT entity.
+    # collapse older period-specific labels into one MTT value
     MTT = rowMeans(cbind(MTT_early, MTT_late), na.rm = TRUE),
     MTT = ifelse(is.nan(MTT), NA_real_, MTT),
     Fyw = suppressWarnings(as.numeric(FYWM))

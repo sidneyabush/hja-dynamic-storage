@@ -1,13 +1,9 @@
-# helper functions for processing meteorological and streamflow data
-# inputs: no direct CSV file reads in this script
+# helper functions used to build daily meteorological and streamflow inputs
+# this file does not read the study data on its own
 # author: Sidney Bush
 # date: 2026-02-13
 
-library(readr)
-library(dplyr)
-library(lubridate)
-library(tidyr)
-library(ggplot2)
+librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 # date parsing
 
@@ -105,7 +101,7 @@ calculate_vpd <- function(temp_celsius, rh_percent) {
   return(vpd)
 }
 
-# legacy-style pairwise relationship plot for interpolation diagnostics
+# pairwise relationship plot for interpolation checks
 create_relationship_plot <- function(data, site1, site2, variable, r_squared, complete_count) {
   site1_col <- site1
   site2_col <- site2
@@ -136,7 +132,7 @@ create_relationship_plot <- function(data, site1, site2, variable, r_squared, co
     )
 }
 
-# legacy-style model summary panel for triplet interpolation diagnostics
+# model summary panel for triplet interpolation checks
 create_multiple_regression_plot <- function(target_site, predictor_sites, variable, model_summary, complete_count) {
   title <- paste("Multiple Regression Model for", variable)
   subtitle <- paste(target_site, "predicted from", paste(predictor_sites, collapse = ", "))
@@ -678,7 +674,7 @@ add_discharge_to_catchments <- function(catchment_datasets, discharge, da_df) {
   return(catchment_datasets)
 }
 
-# legacy triplet rh diagnostics (ws7met, vanmet, h15met)
+# triplet RH diagnostics for WS7MET, VANMET, and H15MET
 plot_triplet_station_comparisons <- function(interpolated_data, plot_dir) {
   triplet_stations <- c("WS7MET", "VANMET", "H15MET")
 

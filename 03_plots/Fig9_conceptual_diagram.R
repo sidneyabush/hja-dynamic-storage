@@ -1,13 +1,6 @@
-# Figure 9 conceptual diagram
+# Figure 9 geology, landslide, and storage summary
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(ggplot2)
-  library(ggrepel)
-  library(patchwork)
-  library(scales)
-})
+librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -99,7 +92,7 @@ pca_scores <- axes %>%
   ) %>%
   filter(is.finite(geology_pc1), is.finite(geology_pc2))
 
-# keep site-shape mapping aligned with Figure 3
+# keep the site symbols aligned with Figure 3
 SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 
 loading_df <- loadings %>%
@@ -125,7 +118,7 @@ pretty_loading <- function(x) {
 
 loading_df <- loading_df %>% mutate(label = pretty_loading(variable))
 
-# scale loading arrows to PCA score space
+# scale the loading arrows to the PCA score space
 score_lim_x <- max(abs(pca_scores$geology_pc1), na.rm = TRUE)
 score_lim_y <- max(abs(pca_scores$geology_pc2), na.rm = TRUE)
 load_lim <- max(abs(c(loading_df$lx, loading_df$ly)), na.rm = TRUE)

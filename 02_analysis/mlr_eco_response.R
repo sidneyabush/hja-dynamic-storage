@@ -1,11 +1,6 @@
 # pooled eco response MLR models
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(MASS)
-  library(car)
-})
+librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")

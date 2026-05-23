@@ -1,9 +1,4 @@
-# supplementary exports used in the final SI only
-
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-})
+# make the supplement figure used in the final SI
 
 rm(list = ls())
 source("config.R")
@@ -14,81 +9,20 @@ for (d in c(supp_dir, supp_pdf_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-# ---- Figure S1 ----
-# kept in a dedicated script but dispatched from here so the SI workflow
-# has a single entry point for supplementary figure/table generation
-figs1_script <- file.path(REPO_DIR, "03_plots", "FigS1_met_context.R")
-if (file.exists(figs1_script)) {
-  status <- system2("Rscript", shQuote(figs1_script), stdout = "", stderr = "")
+run_supp_script <- function(filename) {
+  script_path <- file.path(REPO_DIR, "03_plots", filename)
+  if (!file.exists(script_path)) {
+    stop("Missing supplementary script: ", script_path)
+  }
+  status <- system2("Rscript", shQuote(script_path), stdout = "", stderr = "")
   if (!identical(status, 0L)) {
-    warning("FigS1_met_context.R failed when called from supplementary.R")
+    stop("Supplementary script failed: ", filename)
   }
 }
 
-# ---- Table S8 ----
-# residual diagnostics table used in the final SI
-catch_diag_file <- file.path(
-  OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
-  "catchment_char_storage_mlr_diagnostics.csv"
-)
-catch_diag_tbl <- tibble()
-if (file.exists(catch_diag_file)) {
-  catch_diag <- read_csv(catch_diag_file, show_col_types = FALSE)
-  catch_diag_tbl <- catch_diag %>%
-    transmute(
-      `MLR model set` = "Catchment characteristics",
-      `Response Variable` = label_metric_abbrev(gsub("_mean$", "", as.character(Outcome))),
-      `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
-      `Shapiro-Wilk p-value` = suppressWarnings(as.numeric(shapiro_p)),
-      `Non-constant Variance Test p-value` = suppressWarnings(as.numeric(ncv_p)),
-      `Shapiro-Wilk p-value` = ifelse(
-        is.finite(shapiro_p),
-        paste0(format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE), ifelse(shapiro_p < 0.05, "*", "")),
-        NA_character_
-      ),
-      `Non-constant Variance Test p-value` = ifelse(
-        is.finite(ncv_p),
-        paste0(format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE), ifelse(ncv_p < 0.05, "*", "")),
-        NA_character_
-      )
-    )
-}
-
-eco_diag_file <- file.path(
-  OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
-  "storage_eco_response_mlr_diagnostics.csv"
-)
-eco_diag_tbl <- tibble()
-if (file.exists(eco_diag_file)) {
-  eco_diag <- read_csv(eco_diag_file, show_col_types = FALSE)
-  eco_diag_tbl <- eco_diag %>%
-    transmute(
-      `MLR model set` = "Ecological responses",
-      `Response Variable` = as.character(Response),
-      `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
-      `Shapiro-Wilk p-value` = suppressWarnings(as.numeric(shapiro_p)),
-      `Non-constant Variance Test p-value` = suppressWarnings(as.numeric(ncv_p)),
-      `Shapiro-Wilk p-value` = ifelse(
-        is.finite(shapiro_p),
-        paste0(format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE), ifelse(shapiro_p < 0.05, "*", "")),
-        NA_character_
-      ),
-      `Non-constant Variance Test p-value` = ifelse(
-        is.finite(ncv_p),
-        paste0(format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE), ifelse(ncv_p < 0.05, "*", "")),
-        NA_character_
-      )
-    )
-}
-
-diag_table <- bind_rows(catch_diag_tbl, eco_diag_tbl)
-if (nrow(diag_table) > 0) {
-  diag_table <- diag_table %>%
-    arrange(`MLR model set`, `Response Variable`)
-  write_csv(diag_table, file.path(supp_dir, "TableS8_mlr_model_diagnostics.csv"))
-}
-
-# ---- cleanup of legacy supplement artifacts not used in the final SI ----
+# keep supplement outputs in separate scripts when that keeps things clear
+run_supp_script("FigS1_met_context.R")
+# remove older supplement files that are not part of the final SI
 legacy_supp_files <- c(
   "FigS2_dynamic_storage_corr.png",
   "FigS3_mobile_storage_corr.png",

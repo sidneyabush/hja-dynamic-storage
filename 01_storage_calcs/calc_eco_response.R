@@ -1,37 +1,29 @@
-# calculate ecologically relevant thermal, low-flow, and seasonal-precip metrics
+# calculate thermal, low-flow, and wet-season precipitation metrics
 # inputs: discharge_dir/HF00402_v14.csv; out_met_support_dir/catchments_met_q.csv
 # author: Sidney Bush
 # date: 2026-01-23
 
-library(dplyr)
-library(lubridate)
-library(readr)
-library(tidyr)
-library(zoo)        # for rollmean()
-library(ggplot2)
-library(patchwork)
+librarian::shelf(dplyr, lubridate, readr, tidyr, zoo, ggplot2, patchwork, cran_repo = "https://cloud.r-project.org")
 
-# clear environment
+# start clean
 rm(list = ls())
 
-# source configuration (paths, site definitions, water year range)
-# get script directory (works with source() and Rscript)
-# load project config
+# load the project settings
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# setup: directories and site list (from config.R)
+# set folders and site list from config.R
 
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
 temp_dir      <- STREAM_TEMP_DIR
 
-# create output directory if needed
+# create the output folder if needed
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# target sites and years (from config.R)
+# target sites and water years from config.R
 sites_keep <- SITE_ORDER_HYDROMETRIC
 target_years <- WY_START:WY_END
 
@@ -49,9 +41,9 @@ assert_unique_keys <- function(df, keys, df_name) {
   }
 }
 
-# load & process stream temperature data
+# load and process stream temperature
 
-# load daily stream temperature file
+# load the daily stream temperature file
 temp_file <- file.path(temp_dir, "HT00451_v10.txt")
 if (!file.exists(temp_file)) {
   stop("Missing stream temperature file: ", temp_file)
@@ -65,7 +57,7 @@ temp_raw <- read_csv(temp_file, show_col_types = FALSE) %>%
   select(site, date, temp_mean_C = WATERTEMP_MEAN) %>%
   filter(site %in% sites_keep)
 
-# aggregate to daily mean stream temperature per site-date
+# aggregate to daily mean stream temperature by site and date
 temp_daily <- temp_raw %>%
   group_by(site, date) %>%
   summarise(
@@ -90,10 +82,10 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
   )
 }
 
-# WS09 has no stream-temperature records in HT00451 source
-# Keep WS09 in downstream annual masters; temp responses remain NA for WS09
+# WS09 has no stream-temperature record in HT00451
+# keep WS09 in the annual master tables and leave the temperature outputs as NA
 
-# load & process preprocessed daily met data
+# load and process the daily met data
 
 met_support_file <- file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv")
 if (!file.exists(met_support_file)) {
@@ -114,8 +106,8 @@ met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
   filter(site %in% sites_keep, !is.na(date))
 assert_unique_keys(met_support, c("site", "date"), "met_support")
 
-# Use standardized Q_mm_d from creation-step support table
-# No downstream unit conversion should occur in this script
+# use the standardized Q_mm_d from the support table
+# this script should not do any later unit conversion
 discharge <- met_support %>%
   select(site, date, Q_mm_d, WATERYEAR) %>%
   arrange(site, date)
@@ -123,8 +115,8 @@ discharge <- met_support %>%
 met_daily <- met_support %>%
   select(site, date, P_mm_d)
 
-# Wet-season precipitation (Nov-May) by season year
-# Example: Nov-Dec 2019 + Jan-May 2020 are assigned to year 2020
+# wet-season precipitation from November through May
+# Nov-Dec 2019 plus Jan-May 2020 are assigned to water year 2020
 precip_nov_may <- met_daily %>%
   mutate(
     month_num = month(date),
@@ -145,7 +137,7 @@ assert_unique_keys(precip_nov_may, c("site", "year"), "precip_nov_may")
 
 # calculate 7-day moving averages
 
-# function to calculate 7-day rolling mean
+# helper for the 7-day rolling mean
 calc_7day_rolling <- function(df, value_col) {
   df %>%
     arrange(date) %>%
@@ -155,7 +147,7 @@ calc_7day_rolling <- function(df, value_col) {
     )
 }
 
-# 7-day rolling average stream temperature (by stream)
+# 7-day rolling average stream temperature by stream
 temp_rolling <- temp_daily %>%
   group_by(site) %>%
   calc_7day_rolling("temp_mean_C") %>%
@@ -163,7 +155,7 @@ temp_rolling <- temp_daily %>%
   mutate(year = get_water_year(date)) %>%
   rename(temp_7d_avg_C = rolling_7d)
 
-# 7-day rolling average discharge (by site)
+# 7-day rolling average discharge by site
 discharge_rolling <- discharge %>%
   group_by(site) %>%
   calc_7day_rolling("Q_mm_d") %>%
@@ -171,9 +163,9 @@ discharge_rolling <- discharge %>%
   mutate(year = get_water_year(date)) %>%
   rename(Q_7d_avg_mm_d = rolling_7d)
 
-# extract annual metrics (per water year)
+# pull out annual metrics by water year
 
-# maximum 7-day average temperature per water year
+# maximum 7-day average temperature in each water year
 t_7dmax <- temp_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -188,7 +180,7 @@ t_7dmax <- temp_rolling %>%
   ungroup()
 assert_unique_keys(t_7dmax, c("site", "year"), "t_7dmax")
 
-# q5 of 7-day average discharge per water year
+# Q5 of the 7-day average discharge in each water year
 q_7q5 <- discharge_rolling %>%
   filter(year %in% target_years) %>%
   group_by(site, year) %>%
@@ -198,7 +190,7 @@ q_7q5 <- discharge_rolling %>%
   )
 assert_unique_keys(q_7q5, c("site", "year"), "q_7q5")
 
-# representative date at q5 threshold (closest 7-day q to annual q5)
+# representative date at the Q5 threshold
 q_7q5_date <- discharge_rolling %>%
   filter(year %in% target_years, !is.na(Q_7d_avg_mm_d)) %>%
   inner_join(q_7q5, by = c("site", "year")) %>%
@@ -212,8 +204,8 @@ q_7q5_date <- discharge_rolling %>%
   ungroup()
 assert_unique_keys(q_7q5_date, c("site", "year"), "q_7q5_date")
 
-# temperature at q5 low-flow date
-# - t_at_q7q5: temperature on representative q5 date
+# temperature at the Q5 low-flow date
+# t_at_q7q5 = temperature on the representative Q5 date
 temp_at_q5 <- q_7q5_date %>%
   left_join(
     temp_daily %>%
@@ -223,9 +215,9 @@ temp_at_q5 <- q_7q5_date %>%
   )
 assert_unique_keys(temp_at_q5, c("site", "year"), "temp_at_q5")
 
-# q5_cv: coefficient of variation of stream temp during low-flow period
-# cv of daily mean stream temperature during aug-oct (late-summer recession)
-# lower values indicate greater thermal buffering by subsurface storage
+# q5_cv = coefficient of variation of stream temperature during the low-flow period
+# this uses daily mean stream temperature from Aug through Oct
+# lower values suggest stronger thermal buffering by subsurface storage
 temp_cv_lowflow <- temp_daily %>%
   mutate(
     year = get_water_year(date),
@@ -243,7 +235,7 @@ temp_cv_lowflow <- temp_daily %>%
   select(site, year, Q5_CV)
 assert_unique_keys(temp_cv_lowflow, c("site", "year"), "temp_cv_lowflow")
 
-# combine metrics into master table
+# combine the metrics into one table
 
 # merge all metrics by standardized site-year keys
 master_metrics <- t_7dmax %>%
@@ -252,7 +244,7 @@ master_metrics <- t_7dmax %>%
   left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
   left_join(precip_nov_may, by = c("site", "year")) %>%
   left_join(temp_cv_lowflow, by = c("site", "year")) %>%
-  # keep compatibility aliases while names transition.
+  # keep older column names while names are being cleaned up
   mutate(
     max_temp_7d_C = T_7DMax,
     q5_7d_mm_d = Q_7Q5,

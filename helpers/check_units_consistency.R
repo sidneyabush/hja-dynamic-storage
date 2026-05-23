@@ -1,4 +1,4 @@
-# validate unit consistency across core workflow outputs
+# check that the main outputs use consistent units
 # inputs:
 # - out_met_support_dir/catchments_met_q.csv
 # - resolve_water_balance_daily_file()
@@ -8,13 +8,10 @@
 # - output_dir/master/master_annual.csv
 # - output_dir/master/master_site.csv
 # - out_met_mobile_dir/isotope_metrics_site.csv
-# output (best effort):
+# output when possible:
 # - out_met_support_dir/unit_consistency_report.csv
 
-suppressPackageStartupMessages({
-  library(readr)
-  library(dplyr)
-})
+librarian::shelf(readr, dplyr, cran_repo = "https://cloud.r-project.org")
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
@@ -324,7 +321,7 @@ if (is.na(isotope_site_col)) {
   isotope_site <- isotope_site %>% mutate(site = standardize_site_code(.data[[isotope_site_col]]))
 }
 
-# required schema checks
+# required column checks
 check_required_columns(
   met_q,
   c("DATE", "SITECODE", "site", "T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d", "VPD_kPa", "Q_mm_d"),
@@ -364,7 +361,7 @@ check_unique_key(master_annual, c("site", "year"), "master_annual")
 check_unique_key(master_site, c("site"), "master_site")
 check_unique_key(isotope_site, c("site"), "isotope_metrics_site")
 
-# core range checks
+# main range checks
 check_nonnegative(met_q, "P_mm_d", "catchments_met_q")
 check_nonnegative(met_q, "Q_mm_d", "catchments_met_q")
 check_range(met_q, "RH_d_pct", low = 0, high = 100, table_name = "catchments_met_q", fatal = TRUE)
@@ -381,7 +378,7 @@ check_range(master_site, "BF_mean", low = 0, high = 1, table_name = "master_site
 check_range(master_site, "Fyw", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
 check_nonnegative(master_site, "RBI_mean", "master_site")
 
-# compare shared columns between met support and water-balance daily
+# compare shared columns between the met support table and the water-balance table
 common_cols <- intersect(c("T_C", "P_mm_d", "Q_mm_d"), intersect(names(met_q), names(wb_daily)))
 met_wb_cmp <- met_q %>%
   select(DATE, site, all_of(common_cols)) %>%
@@ -409,7 +406,7 @@ for (col in common_cols) {
   record_check(paste0("met_vs_wb_", col), ok, detail, fatal = TRUE)
 }
 
-# independent q_mm_d formula check against discharge + drainage area
+# check q_mm_d again from discharge and drainage area
 q_expected <- discharge %>%
   left_join(da_df %>% select(site, DA_M2), by = "site") %>%
   filter(is.finite(DA_M2), DA_M2 > 0) %>%
@@ -469,7 +466,7 @@ record_check(
   fatal = TRUE
 )
 
-# potential cross-site unit mismatch checks for mm/day variables
+# look for cross-site unit mismatches in mm/day variables
 check_site_median_ratio(met_q, "P_mm_d", "catchments_met_q", ratio_threshold = 500)
 check_site_median_ratio(met_q, "Q_mm_d", "catchments_met_q", ratio_threshold = 500)
 check_site_median_ratio(wb_daily, "ET_mm_d", "daily_water_balance", ratio_threshold = 500)
@@ -500,7 +497,7 @@ for (col in c("SD", "FDC", "Q99", "Q50", "Q01")) {
   record_check(paste0("dynamic_vs_master_annual_", col), ok, detail, fatal = TRUE)
 }
 
-# master_site *_mean columns should equal means from master_annual where base columns exist
+# master_site *_mean columns should match means from master_annual where possible
 mean_cols <- grep("_mean$", names(master_site), value = TRUE)
 mean_pairs <- tibble(mean_col = mean_cols) %>%
   mutate(base_col = sub("_mean$", "", mean_col)) %>%
@@ -542,7 +539,7 @@ if (nrow(mean_pairs) == 0) {
   }
 }
 
-# isotope site metrics should pass through to master_site unchanged
+# isotope site metrics should carry into master_site unchanged
 iso_cmp <- isotope_site %>%
   select(site, MTT, Fyw, DR) %>%
   inner_join(master_site %>% select(site, MTT, Fyw, DR), by = "site", suffix = c("_iso", "_site"))
@@ -565,7 +562,7 @@ for (col in c("MTT", "Fyw", "DR")) {
   record_check(paste0("isotope_vs_master_site_", col), ok, detail, fatal = TRUE)
 }
 
-# write detailed report when possible
+# write a detailed report when possible
 report_path <- file.path(OUT_MET_SUPPORT_DIR, "unit_consistency_report.csv")
 tryCatch(
   write_csv(check_log, report_path),

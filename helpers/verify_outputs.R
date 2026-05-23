@@ -1,11 +1,8 @@
-# inputs: out_stats_anova_dir/tukey_group_letters.csv
+# check that the expected output files were written
 # author: Sidney Bush
 # date: 2026-02-13
 
-suppressPackageStartupMessages({
-  library(readr)
-  library(dplyr)
-})
+librarian::shelf(readr, dplyr, cran_repo = "https://cloud.r-project.org")
 
 find_repo_root <- function(start_dir) {
   cur <- normalizePath(start_dir, winslash = "/", mustWork = FALSE)
@@ -42,7 +39,31 @@ required_outputs <- c(
   file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
   file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
   file.path(OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR, "catchment_char_storage_mlr_summary.csv"),
-  file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv")
+  file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv"),
+  file.path(MS_FIG_MAIN_DIR, "Fig2_ds_annual_boxplots.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig2_ds_annual_boxplots.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig3_ds_pca_annual.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig3_ds_pca_annual.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig4_mobile_storage.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig4_mobile_storage.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig5_dynamic_mobile_corr.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_dynamic_mobile_corr.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig6_catch_char_mlr_beta.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig6_catch_char_mlr_beta.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig7_eco_mlr_beta.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig7_eco_mlr_beta.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig8_eco_observed_v_predicted.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig8_eco_observed_v_predicted.pdf"),
+  file.path(MS_FIG_MAIN_DIR, "Fig9_conceptual_diagram.png"),
+  file.path(MS_FIG_MAIN_PDF_DIR, "Fig9_conceptual_diagram.pdf"),
+  file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv"),
+  file.path(MS_TABLES_MAIN_DIR, "Table5_storage_eco_response_mlr_model_stats.csv"),
+  file.path(MS_FIG_SUPP_DIR, "FigS1_met_context.png"),
+  file.path(MS_FIG_SUPP_PDF_DIR, "FigS1_met_context.pdf"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS8_mlr_model_diagnostics.csv")
 )
 
 missing_outputs <- required_outputs[!file.exists(required_outputs)]
@@ -64,48 +85,12 @@ if (isTRUE(WRITE_TABLE_OUTPUTS)) {
   )
 }
 
-required_output_alternatives <- list(
-  pca_biplot_png = c(
-    file.path(MS_FIG_MAIN_DIR, "Fig3_ds_pca_annual.png"),
-    file.path(MS_FIG_MAIN_DIR, "pca_biplot.png")
-  )
-)
-missing_alternatives <- names(required_output_alternatives)[
-  !vapply(
-    required_output_alternatives,
-    function(paths) any(file.exists(paths)),
-    logical(1)
-  )
-]
-missing_alt_lines <- character()
-for (key in missing_alternatives) {
-  missing_alt_lines <- c(
-    missing_alt_lines,
-    paste0("[", key, "] any of:\n  - ", paste(required_output_alternatives[[key]], collapse = "\n  - "))
-  )
-}
-
 if (length(missing_outputs) > 0) {
   msg <- paste0(
     "Missing required output file(s):\n- ",
     paste(missing_outputs, collapse = "\n- ")
   )
-  if (length(missing_alt_lines) > 0) {
-    msg <- paste0(
-      msg,
-      "\n\nMissing required output alternatives:\n",
-      paste(missing_alt_lines, collapse = "\n")
-    )
-  }
   stop(msg)
-}
-if (length(missing_alt_lines) > 0) {
-  stop(
-    paste0(
-      "Missing required output alternatives:\n",
-      paste(missing_alt_lines, collapse = "\n")
-    )
-  )
 }
 
 annual <- read_csv(file.path(master_dir, MASTER_ANNUAL_FILE), show_col_types = FALSE)
@@ -122,7 +107,7 @@ if (length(unknown_sites) > 0) {
   stop(paste0("Unknown site code(s) in master_annual: ", paste(unknown_sites, collapse = ", ")))
 }
 
-# enforce configured site order in Tukey group letters
+# keep the configured site order in the Tukey group letters file
 letters_path <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
 letters_df <- read_csv(letters_path, show_col_types = FALSE)
 if (!all(c("metric", "site") %in% names(letters_df))) {

@@ -3,12 +3,7 @@
 # author: Sidney Bush
 # date: 2026-01-23
 
-library(dplyr)
-library(readr)
-library(tidyr)
-library(ggplot2)
-library(patchwork)
-library(multcompView)
+librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, multcompView, cran_repo = "https://cloud.r-project.org")
 
 # clear environment
 rm(list = ls())
@@ -238,7 +233,7 @@ site_means <- HJA_annual %>%
     values_from = c(mean, sd),
     names_glue = "{metric}_{.value}"
   ) %>%
-  # keep legacy column order style: metric_mean then metric_sd.
+  # keep the older column order style: metric_mean then metric_sd
   select(
     site,
     dplyr::all_of(unlist(lapply(storage_metrics, function(m) c(paste0(m, "_mean"), paste0(m, "_sd")))))

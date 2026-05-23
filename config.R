@@ -1,14 +1,15 @@
-# HJA dynamic storage configuration file
+# settings used across the HJA dynamic storage analysis
 # author: Sidney Bush
 # date: 2026-02-13
 
-# default project paths
-REPO_DIR <- normalizePath(getwd(), mustWork = FALSE)
-default_box_base_dir <- "/Users/sidneybush/Library/CloudStorage/Box-Box/05_Storage_Manuscript"
-BOX_BASE_DIR <- Sys.getenv("HJA_BOX_BASE_DIR", unset = default_box_base_dir)
-
-# allow local overrides for sandboxed/batch comparison runs
-default_final_workflow_root <- file.path(BOX_BASE_DIR, "final_workflow")
+# default paths
+# by default the code looks for inputs/ and writes outputs inside the repo
+# you can still override these with environment variables
+REPO_DIR <- normalizePath(
+  Sys.getenv("HJA_REPO_DIR", unset = getwd()),
+  mustWork = FALSE
+)
+default_final_workflow_root <- REPO_DIR
 FINAL_WORKFLOW_ROOT <- Sys.getenv(
   "HJA_FINAL_WORKFLOW_ROOT",
   unset = default_final_workflow_root
@@ -29,12 +30,12 @@ EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
 CONCEPTUAL_DIAGRAM_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "conceptual_diagram")
 SUPP_EXPLORATORY_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "supp")
 SUPP_EXPLORATORY_PDF_DIR <- SUPP_EXPLORATORY_DIR
-# alias names still used in some scripts
+# keep older names that still appear in some scripts
 SUPP_LEGACY_DIR <- SUPP_EXPLORATORY_DIR
 SUPP_LEGACY_PDF_DIR <- SUPP_EXPLORATORY_PDF_DIR
 
-# manuscript-facing outputs
-# figures and tables write directly to main/supp
+# paper figures and tables
+# write figures and tables straight to main/ and supp/
 FIGURES_DIR <- MS_MATERIALS_DIR
 MS_MAIN_DIR <- file.path(MS_MATERIALS_DIR, "main")
 MS_SUPP_DIR <- file.path(MS_MATERIALS_DIR, "supp")
@@ -45,8 +46,8 @@ MS_FIG_SUPP_PDF_DIR <- file.path(MS_SUPP_DIR, "pdf")
 MS_TABLES_MAIN_DIR <- MS_MAIN_DIR
 MS_TABLES_SUPP_DIR <- MS_SUPP_DIR
 
-# input subdirectories
-# default input layout keeps small input groups at the inputs root
+# input folders
+# small input groups live at the top of inputs/ by default
 DISCHARGE_DIR <- BASE_DATA_DIR
 EC_DIR <- BASE_DATA_DIR
 ISOTOPE_DIR <- BASE_DATA_DIR
@@ -56,16 +57,15 @@ CATCHMENT_CHARACTERISTICS_DIR <- BASE_DATA_DIR
 
 EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
 
-# output controls
-# keep only workflow-essential csvs by default; set true when you need
-# manuscript/helper table exports
+# output options
+# leave extra helper exports off unless you need them
 WRITE_TABLE_OUTPUTS <- FALSE
 WRITE_AUX_OUTPUTS <- FALSE
 
-# create output directory if it doesn't exist
+# create the main output folder if needed
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-# organized output directories
+# output folders
 OUT_METRICS_DIR <- file.path(OUTPUT_DIR, "metrics")
 OUT_MET_DYNAMIC_DIR <- file.path(OUT_METRICS_DIR, "dynamic")
 OUT_MET_MOBILE_DIR <- file.path(OUT_METRICS_DIR, "mobile")
@@ -80,7 +80,7 @@ OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR <- file.path(
   OUT_STATS_DIR,
   "catchment_char_storage_mlr"
 )
-# alias name still used in some scripts
+# keep older name used in some scripts
 OUT_MODELS_WATERSHED_CHAR_STORAGE_MLR_DIR <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
 OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR <- file.path(
   OUT_STATS_DIR,
@@ -128,10 +128,10 @@ for (d in output_dirs) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-# site definitions
+# site lists
 
-# hydrometric sites with continuous streamflow data (for dynamic metrics)
-# order: ws06 grouped with 07 and 08 for plotting
+# sites with continuous streamflow used for dynamic storage
+# ws06 stays grouped with ws07 and ws08 for plotting
 SITE_ORDER_HYDROMETRIC <- c(
   "WS09", # WS09
   "WS10", # WS10
@@ -145,7 +145,7 @@ SITE_ORDER_HYDROMETRIC <- c(
   "WS08" # WS08
 )
 
-# sites with chemistry data (for chs)
+# sites with chemistry data
 SITE_ORDER_CHEMISTRY <- c(
   "WS09", # WS09
   "WS10", # WS10
@@ -159,10 +159,10 @@ SITE_ORDER_CHEMISTRY <- c(
   "Mack" # Mack
 )
 
-# active analysis/plotting site set
+# site order used in most outputs
 SITE_ORDER_ALL <- SITE_ORDER_HYDROMETRIC
 
-# site name lookup table
+# site name lookup
 SITE_NAMES <- c(
   "WS09" = "WS09",
   "WS10" = "WS10",
@@ -187,24 +187,24 @@ SITE_NAMES <- c(
 WY_START <- 1997
 WY_END <- 2020
 
-# minimum number of daily EC+Q observations needed to keep a BF water year
+# minimum number of daily EC + Q values needed to keep a BF water year
 BF_MIN_DAYS_PER_WY <- 300
 CHS_MIN_DAYS_PER_WY <- BF_MIN_DAYS_PER_WY
 
 # minimum number of chemistry samples per water year for sample-based BF
-# (from CF002 chemistry records, e.g., cond and Ca)
+# based on the CF002 chemistry records such as cond and Ca
 BF_MIN_OBS_PER_WY_CHEM <- 10
 CHS_MIN_OBS_PER_WY_CHEM <- BF_MIN_OBS_PER_WY_CHEM
 
-# isotope metrics are fixed as site averages in the final workflow
-# no annual isotope-ingestion branch is used in core processing
+# isotope metrics are used as site averages in this run
+# there is no annual isotope branch in the main code path
 
-# sites intentionally excluded from BF-based modeling summaries
+# sites intentionally excluded from BF-based summaries
 BF_EXCLUDE_SITES <- character(0)
 
-# storage metrics definitions
+# storage metric groups
 
-# default storage-metric order across figures/tables:
+# default storage metric order across figures and tables
 # rbi, rcs, fdc, sd, wb, bf, dr, fyw, mtt
 STORAGE_METRIC_ORDER <- c(
   "RBI",
@@ -219,31 +219,31 @@ STORAGE_METRIC_ORDER <- c(
 )
 
 # dynamic storage metrics
-# rbi = richards-baker index, rcs = recession curve slope
-# fdc = full-period site-level flow duration curve slope
-#       (annual site-year fdc is used only for figure 2 / anova-tukey display)
+# rbi = Richards-Baker index, rcs = recession-curve slope
+# fdc = full-period site-level flow-duration-curve slope
+# annual site-year fdc is used only for Figure 2 and ANOVA/Tukey output
 # sd = storage-discharge
 DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD")
 ]
 
 # mobile storage metrics
-# bf = baseflow fraction estimated from chemical hydrograph separation
-# mtt = mean transit time (single entity), fyw = young water fraction, dr = damping ratio
+# bf = baseflow fraction from chemical hydrograph separation
+# mtt = mean transit time, fyw = young water fraction, dr = damping ratio
 MOBILE_METRICS_ANNUAL <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("BF")
 ]
 MOBILE_METRICS_SITE <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("DR", "Fyw", "MTT")
-] # Site-level from isotopes
+] # site-level isotope values
 
-# extended dynamic storage metrics (from water balance - annual)
-# wb = water balance (extended dynamic storage)
+# extended-dynamic storage metric from the annual water balance
+# wb = water-balance deficit
 EXTENDED_DYNAMIC_METRICS <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("WB")
 ]
 
-# shared metric display order for plotting
+# plotting order
 PLOT_ORDER_DYNAMIC_STORAGE <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
 ]
@@ -265,19 +265,19 @@ ALL_STORAGE_METRICS <- STORAGE_METRIC_ORDER
 MASTER_ANNUAL_FILE <- "master_annual.csv"
 MASTER_SITE_FILE <- "master_site.csv"
 
-# raw site codes that should be excluded from analysis tables
+# raw site codes to leave out of analysis tables
 SITE_EXCLUDE_RAW <- c("GSWSMA", "GSWSMF")
 
-# site recode map used when bringing met/discharge records into site codes
+# site recode map used when bringing met and discharge records into site codes
 SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 
 # component sites used to make GSLOOK met composites
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 
-# color palette and plot aesthetics ----
+# plotting defaults ----
 
-# global plot text size (used across plotting scripts)
+# shared plot text size
 FIG_BASE_SIZE <- 18
 FIG_AXIS_TEXT_SIZE <- 16
 FIG_AXIS_TITLE_SIZE <- 18
@@ -290,8 +290,8 @@ FIG_POINT_SIZE_LARGE <- 3.0
 FIG_WIDTH_SCALE <- 1.35
 FIG_HEIGHT_SCALE <- 1.35
 
-# global label/annotation behavior
-# use these in plotting scripts so labels are consistently readable
+# shared label settings
+# use these so labels stay readable across figures
 FIG_LABEL_CHECK_OVERLAP <- TRUE
 FIG_LABEL_CLIP <- "off" # "off" prevents annotation clipping at panel bounds
 FIG_LABEL_PLOT_MARGIN_PT <- 18 # extra margin so outer labels are not cut
@@ -308,7 +308,7 @@ FIG_MEAN_LINE_LINETYPES <- c(
 )
 FIG_MEAN_LABEL_DIGITS <- 2
 
-# 10-color palette for streamflow sites (colorblind-friendly)
+# 10-color palette for streamflow sites
 SITE_COLORS <- c(
   "WS09" = "#882255",
   "WS10" = "#AA4499",
@@ -324,7 +324,7 @@ SITE_COLORS <- c(
 
 # helper functions
 
-# publication plot theme: no title/subtitle and no grid lines
+# plot theme used across the paper
 theme_pub <- function(base_size = FIG_BASE_SIZE) {
   ggplot2::theme_classic(base_size = base_size) +
     ggplot2::theme(

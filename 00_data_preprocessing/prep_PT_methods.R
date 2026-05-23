@@ -2,11 +2,7 @@
 # inputs: out_met_support_dir/catchments_met_q.csv
 # outputs: out_met_support_dir/pt_et_methods_timeseries.csv and alpha plots
 
-library(readr)
-library(dplyr)
-library(lubridate)
-library(tidyr)
-library(ggplot2)
+librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 source("config.R")
 

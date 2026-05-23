@@ -1,15 +1,13 @@
-# Catchment controls MLR plots
+# Figure 6 catchment controls on storage metrics
 # inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv
 # author: Sidney Bush
 # date: 2026-02-13
 
-library(dplyr)
-library(readr)
-library(ggplot2)
+librarian::shelf(dplyr, readr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
-# load project config
+# load the project settings
 source("config.R")
 
 safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {

@@ -1,10 +1,6 @@
-# Figure 8 pooled ecological response observed vs predicted
+# Figure 8 observed versus predicted ecological responses
 
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(readr)
-  library(ggplot2)
-})
+librarian::shelf(dplyr, readr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")

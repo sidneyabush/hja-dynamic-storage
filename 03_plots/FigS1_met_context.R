@@ -1,19 +1,14 @@
-# create figure showing monthly climatology of monthly aggregates
-# (median with IQR; Jan-Dec)
+# make the monthly climate summary figure
+# monthly medians are shown with IQR from Jan through Dec
 # inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv
 # author: Sidney Bush
 # date: 2026-01-30
 
-library(dplyr)
-library(readr)
-library(ggplot2)
-library(tidyr)
-library(lubridate)
-library(patchwork)
+librarian::shelf(dplyr, readr, ggplot2, tidyr, lubridate, patchwork, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
-# load project config
+# load the project settings
 source("config.R")
 
 # setup
@@ -29,7 +24,7 @@ wy_start <- 1997
 wy_end <- 2020
 wy_breaks <- seq(2000, wy_end, by = 5)
 
-# greyscale palette (print-safe, manuscript-ready)
+# greyscale palette that prints cleanly
 col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray
@@ -90,9 +85,9 @@ swe_data <- read_csv(
   filter(water_year >= wy_start & water_year <= wy_end) %>%
   select(month, water_year, SWE_mm = CENMET)
 
-# monthly aggregates by water year and calendar month:
-# precipitation = monthly total, temperature = monthly mean,
-# SWE = monthly mean
+# monthly values by water year and calendar month
+# precipitation = monthly total
+# temperature and SWE = monthly mean
 temp_monthly_agg <- temp_data %>%
   group_by(water_year, month) %>%
   summarise(T_month_mean = mean(T_C, na.rm = TRUE), .groups = "drop")
@@ -105,7 +100,7 @@ swe_monthly_agg <- swe_data %>%
   group_by(water_year, month) %>%
   summarise(SWE_month_mean = mean(SWE_mm, na.rm = TRUE), .groups = "drop")
 
-# monthly climatology (median + iqr) of monthly aggregates
+# monthly climatology using medians and IQR
 temp_monthly <- temp_monthly_agg %>%
   group_by(month) %>%
   summarise(
@@ -164,7 +159,7 @@ swe_monthly$month <- factor(
   labels = month_labels
 )
 
-# annual anomalies (wy aggregates)
+# annual anomalies from water-year totals or means
 
 temp_annual <- temp_data %>%
   group_by(water_year) %>%
@@ -183,7 +178,7 @@ swe_annual <- swe_data %>%
 
 # plots
 
-# top row: monthly climatology of monthly aggregates (median + iqr)
+# top row = monthly climatology with median and IQR
 p1 <- ggplot(precip_monthly, aes(month, med)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_errorbar(aes(ymin = q25, ymax = q75), width = 0.3, linewidth = 0.3) +
@@ -204,7 +199,7 @@ p3 <- ggplot(swe_monthly, aes(month, med)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# bottom row: anomalies (no titles; no legends)
+# bottom row = anomalies with no titles or legends
 p4 <- ggplot(precip_annual, aes(water_year, anom)) +
   geom_col(fill = col_precip, color = "black", linewidth = 0.15, alpha = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
@@ -229,7 +224,7 @@ p6 <- ggplot(swe_annual, aes(water_year, anom)) +
   coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# combine and save (no overall title; no caption; panel labels a)–f))
+# combine and save with no overall title or caption
 
 fig_combined <- (p1 | p2 | p3) /
   (p4 | p5 | p6) +
