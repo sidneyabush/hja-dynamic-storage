@@ -1,3 +1,7 @@
+# write Table 4 from catchment-characteristic storage MLR outputs
+# inputs: outputs/models/catchment_char_storage_mlr/*.csv
+# outputs: ms_materials/main/Table4_catchment_char_storage_mlr_model_stats.csv
+
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

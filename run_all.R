@@ -1,4 +1,5 @@
 # this script runs the full analysis and does not read the data files directly
+# use this as the main entry point for a complete reproducible run
 # author: Sidney Bush
 # date: 2026-02-13
 

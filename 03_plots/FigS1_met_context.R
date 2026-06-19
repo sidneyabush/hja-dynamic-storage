@@ -1,6 +1,7 @@
 # make the monthly climate summary figure
 # monthly medians are shown with IQR from Jan through Dec
 # inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv
+# outputs: ms_materials/supp/FigS1_met_context.*
 # author: Sidney Bush
 # date: 2026-01-30
 
@@ -8,15 +9,13 @@ librarian::shelf(dplyr, readr, ggplot2, tidyr, lubridate, patchwork, cran_repo =
 
 rm(list = ls())
 
-# load the project settings
 source("config.R")
-
-# setup
 
 met_dir <- MET_DIR
 output_dir <- MS_FIG_SUPP_DIR
 pdf_dir <- MS_FIG_SUPP_PDF_DIR
-for (d in c(output_dir, pdf_dir)) {
+tiff_dir <- MS_FIG_SUPP_TIFF_DIR
+for (d in c(output_dir, pdf_dir, tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -29,8 +28,6 @@ col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray
 
-# theme
-
 theme_pub_base <- theme_pub() +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
@@ -41,8 +38,6 @@ theme_pub_base <- theme_pub() +
   )
 
 theme_set(theme_pub_base)
-
-# load data
 
 temp_data <- read_csv(
   file.path(met_dir, "Temperature_original_&_filled_1979_2023_v2.csv"),
@@ -224,8 +219,6 @@ p6 <- ggplot(swe_annual, aes(water_year, anom)) +
   coord_cartesian(xlim = c(wy_start - 0.5, wy_end + 0.5)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# combine and save with no overall title or caption
-
 fig_combined <- (p1 | p2 | p3) /
   (p4 | p5 | p6) +
   plot_annotation(
@@ -242,7 +235,7 @@ ggsave(
   fig_combined,
   width = 13 * FIG_WIDTH_SCALE,
   height = 8.5 * FIG_HEIGHT_SCALE,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 )
 
 ggsave(
@@ -250,4 +243,13 @@ ggsave(
   fig_combined,
   width = 13 * FIG_WIDTH_SCALE,
   height = 8.5 * FIG_HEIGHT_SCALE
+)
+
+ggsave(
+  file.path(tiff_dir, "FigS1_met_context.tiff"),
+  fig_combined,
+  width = 13 * FIG_WIDTH_SCALE,
+  height = 8.5 * FIG_HEIGHT_SCALE,
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
 )

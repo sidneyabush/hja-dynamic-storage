@@ -1,11 +1,13 @@
 # Figure 9 geology, landslide, and storage summary
+# inputs: outputs/models/unified_framework/*.csv
+# outputs: ms_materials/main/Fig9_conceptual_diagram.*; exploratory panel files
 
 librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
 
-safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
@@ -16,9 +18,9 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   tryCatch(
     {
       if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
       } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
       }
       ok <- file.copy(tmp_file, filename, overwrite = TRUE)
       unlink(tmp_file)
@@ -37,7 +39,8 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-for (d in c(main_dir, main_pdf_dir)) {
+main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
+for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -501,7 +504,7 @@ invisible(safe_ggsave(
   fig10,
   width = fig9_width,
   height = fig9_height,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 ))
 invisible(safe_ggsave(
   file.path(main_pdf_dir, paste0(nm, ".pdf")),
@@ -510,9 +513,17 @@ invisible(safe_ggsave(
   height = fig9_height
 ))
 invisible(safe_ggsave(
+  file.path(main_tiff_dir, paste0(nm, ".tiff")),
+  fig10,
+  width = fig9_width,
+  height = fig9_height,
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
+))
+invisible(safe_ggsave(
   file.path(CONCEPTUAL_DIAGRAM_DIR, paste0(nm, ".png")),
   fig10,
   width = fig9_width,
   height = fig9_height,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 ))

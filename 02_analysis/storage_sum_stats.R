@@ -1,31 +1,22 @@
 # test for significant differences among sites in storage metrics
-# inputs: no direct CSV file reads in this script
+# inputs: outputs/master/master_annual.csv; outputs/metrics/dynamic/fdc_slopes_wy.csv
+# outputs: outputs/models/anova_tukey/*.csv
 # author: Sidney Bush
 # date: 2026-01-23
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, multcompView, cran_repo = "https://cloud.r-project.org")
 
-# clear environment
 rm(list = ls())
 
-# source configuration (paths, site definitions, water year range)
-# get script directory (works with source() and rscript)
-# load project config
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# use configuration values
 site_order <- SITE_ORDER_HYDROMETRIC
-base_dir   <- BASE_DATA_DIR
-output_dir <- OUTPUT_DIR
 output_dir <- OUT_STATS_ANOVA_DIR
 
-# create output directory if needed
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-
-# load annual storage metrics
 
 master_dir <- file.path(OUTPUT_DIR, "master")
 annual_file <- file.path(master_dir, MASTER_ANNUAL_FILE)
@@ -69,13 +60,8 @@ fdc_annual <- if (file.exists(fdc_wy_file)) {
   )
 }
 
-# select storage metrics for anova
-# Q5norm and CV_Q5norm are response variables, so they are excluded here
-# storage metrics by type (using method abbreviations):
-#   dynamic: rbi, rcs, fdc, sd
-#   mobile: chs - note: mtt, fyw, dr are site-level only
-#   extended dynamic: wb
-
+# Q5norm and CV_Q5norm are ecological response variables, and MTT/Fyw/DR are
+# site-level isotope metrics, so they are excluded from annual ANOVA/Tukey tests.
 storage_metrics <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "BF")
 ]
@@ -114,30 +100,23 @@ if (nrow(metric_data_long) == 0) {
   stop("No valid metric data available for ANOVA/Tukey.")
 }
 
-# run anova for each metric
-
 anova_results <- data.frame()
 
-for (metric in storage_metrics) {
-  # prepare data for anova
+for (metric_name in storage_metrics) {
   anova_data <- metric_data_long %>%
-    filter(metric == !!metric) %>%
+    filter(.data$metric == .env$metric_name) %>%
     select(site, value)
 
-  # check if enough data
   if (nrow(anova_data) < 10 || dplyr::n_distinct(anova_data$site) < 2) next
 
-  # run one-way anova
   anova_fit <- aov(value ~ site, data = anova_data)
   anova_summary <- summary(anova_fit)
 
-  # extract f-statistic and p-value
   f_stat <- anova_summary[[1]]$`F value`[1]
   p_value <- anova_summary[[1]]$`Pr(>F)`[1]
 
-  # store results
   anova_results <- rbind(anova_results, data.frame(
-    metric = metric,
+    metric = metric_name,
     F_statistic = f_stat,
     p_value = p_value,
     df_between = anova_summary[[1]]$Df[1],
@@ -146,7 +125,6 @@ for (metric in storage_metrics) {
   ))
 }
 
-# save anova results
 anova_results <- anova_results %>%
   arrange(factor(metric, levels = storage_metrics))
 
@@ -154,37 +132,31 @@ write.csv(anova_results,
           file.path(output_dir, "anova_results.csv"),
           row.names = FALSE)
 
-# run tukey hsd post-hoc tests
-
 tukey_results <- data.frame()
 tukey_group_letters <- data.frame()
 
-for (metric in storage_metrics) {
-  anova_row <- anova_results %>% filter(metric == !!metric)
+for (metric_name in storage_metrics) {
+  anova_row <- anova_results %>% filter(.data$metric == .env$metric_name)
   if (nrow(anova_row) == 0 || anova_row$p_value >= 0.05) next
 
-  # prepare data
   anova_data <- metric_data_long %>%
-    filter(metric == !!metric) %>%
+    filter(.data$metric == .env$metric_name) %>%
     select(site, value)
 
-  # run anova and tukey hsd
   anova_fit <- aov(value ~ site, data = anova_data)
   tukey_fit <- TukeyHSD(anova_fit)
 
-  # extract tukey results
   tukey_df <- as.data.frame(tukey_fit$site)
   tukey_df$comparison <- rownames(tukey_df)
-  tukey_df$metric <- metric
+  tukey_df$metric <- metric_name
 
   tukey_results <- rbind(tukey_results, tukey_df %>%
     select(metric, comparison, diff, lwr, upr, p_adj = `p adj`))
 
-  # grouping letters by site for compact significance display
   pvals <- setNames(tukey_df$`p adj`, tukey_df$comparison)
   letters <- multcompLetters(pvals)$Letters
   letters_df <- data.frame(
-    metric = metric,
+    metric = metric_name,
     site = names(letters),
     group_letter = as.character(letters),
     stringsAsFactors = FALSE
@@ -192,7 +164,6 @@ for (metric in storage_metrics) {
   tukey_group_letters <- rbind(tukey_group_letters, letters_df)
 }
 
-# save tukey hsd results
 if (nrow(tukey_results) > 0) {
   tukey_results <- tukey_results %>%
     arrange(factor(metric, levels = storage_metrics), comparison)
@@ -210,8 +181,6 @@ if (nrow(tukey_group_letters) > 0) {
             file.path(output_dir, "tukey_group_letters.csv"),
             row.names = FALSE)
 }
-
-# summary table: site means
 
 site_means <- HJA_annual %>%
   mutate(site = factor(site, levels = site_order)) %>%
@@ -233,7 +202,6 @@ site_means <- HJA_annual %>%
     values_from = c(mean, sd),
     names_glue = "{metric}_{.value}"
   ) %>%
-  # keep the older column order style: metric_mean then metric_sd
   select(
     site,
     dplyr::all_of(unlist(lapply(storage_metrics, function(m) c(paste0(m, "_mean"), paste0(m, "_sd")))))
@@ -246,7 +214,6 @@ write.csv(site_means,
           file.path(output_dir, "site_means_storage_metrics.csv"),
           row.names = FALSE)
 
-# summary stats table: long format per site and metric
 site_summary_stats <- HJA_annual %>%
   mutate(site = factor(site, levels = site_order)) %>%
   select(site) %>%

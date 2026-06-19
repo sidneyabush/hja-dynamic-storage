@@ -1,4 +1,6 @@
 # pooled eco response MLR models
+# inputs: outputs/master/master_annual.csv; outputs/metrics/mobile/isotope_metrics_site_mean.csv
+# outputs: outputs/models/storage_eco_response_mlr/*.csv
 
 librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 

@@ -1,4 +1,6 @@
 # Figures 2 and 4
+# inputs: outputs/master/*.csv; anova/Tukey outputs; isotope inputs
+# outputs: ms_materials/main/Fig2_ds_annual_boxplots.*; Fig4_mobile_storage.*
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, cowplot, cran_repo = "https://cloud.r-project.org")
 
@@ -7,7 +9,8 @@ source("config.R")
 
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-for (d in c(main_dir, main_pdf_dir)) {
+main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
+for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -167,14 +170,24 @@ build_corr_triangle_panel <- function(
       fontface = ifelse(is.finite(p_value) & p_value < 0.05, "bold", "plain"),
       label = ifelse(
         is.finite(r),
-        ifelse(abs(r) < 0.05, "|r| < 0.05", sprintf("%.2f", r)),
+        ifelse(abs(r) < 0.01, "|r|<0.01", sprintf("%.2f", r)),
         ""
+      ),
+      label_size = ifelse(
+        is.finite(r) & abs(r) < 0.01,
+        FIG_TILE_TEXT_SIZE * 0.95,
+        FIG_TILE_TEXT_SIZE * 1.15
       )
     )
 
   p_corr <- ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
     geom_tile(color = "white", linewidth = 0.3) +
-    geom_text(aes(label = label, fontface = fontface), size = FIG_TILE_TEXT_SIZE * 1.15) +
+    geom_text(
+      aes(label = label, fontface = fontface, size = label_size),
+      family = "sans",
+      show.legend = FALSE
+    ) +
+    scale_size_identity() +
     scale_fill_gradient2(
       low = "firebrick3",
       mid = "white",
@@ -395,7 +408,8 @@ build_fig2_panel <- function(metric_key) {
       aes(x = site, y = y, label = group_letter),
       inherit.aes = FALSE,
       size = FIG_ANNOT_TEXT_SIZE + 0.2,
-      color = "grey35"
+      color = "grey35",
+      family = "sans"
     ) +
     scale_fill_manual(values = SITE_COLORS, drop = FALSE) +
     scale_color_manual(values = SITE_COLORS, drop = FALSE) +
@@ -745,7 +759,7 @@ ggsave(
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white",
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 )
 ggsave(
   file.path(main_pdf_dir, "Fig2_ds_annual_boxplots.pdf"),
@@ -754,6 +768,15 @@ ggsave(
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
+ggsave(
+  file.path(main_tiff_dir, "Fig2_ds_annual_boxplots.tiff"),
+  p_fig2,
+  width = 10.4 * FIG_WIDTH_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
+  bg = "white",
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
+)
 
 ggsave(
   file.path(main_dir, "Fig4_mobile_storage.png"),
@@ -761,7 +784,7 @@ ggsave(
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white",
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 )
 ggsave(
   file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"),
@@ -770,7 +793,17 @@ ggsave(
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
+ggsave(
+  file.path(main_tiff_dir, "Fig4_mobile_storage.tiff"),
+  p_fig4,
+  width = 10.4 * FIG_WIDTH_SCALE,
+  height = 12.0 * FIG_HEIGHT_SCALE,
+  bg = "white",
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
+)
 
 # remove older BF-only files not used in the final paper
 unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
 unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))
+unlink(file.path(main_tiff_dir, "Fig4_chs_boxplots.tiff"))

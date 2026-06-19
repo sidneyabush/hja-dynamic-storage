@@ -594,5 +594,3 @@ if (length(fatal_msgs) > 0) {
     )
   )
 }
-
-message("Unit consistency checks passed: ", sum(check_log$status == "PASS"), " checks.")

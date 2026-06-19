@@ -1,3 +1,7 @@
+# write Table 5 from storage-eco response MLR outputs
+# inputs: outputs/models/storage_eco_response_mlr/*.csv
+# outputs: ms_materials/main/Table5_storage_eco_response_mlr_model_stats.csv
+
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

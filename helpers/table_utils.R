@@ -1,3 +1,5 @@
+# shared table-loading and formatting helpers for 04_tables scripts
+
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
 ALPHA <- 0.05

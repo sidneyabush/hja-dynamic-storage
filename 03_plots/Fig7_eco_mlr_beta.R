@@ -1,11 +1,13 @@
 # Figure 7 storage metrics and ecological responses
+# inputs: outputs/models/storage_eco_response_mlr/*.csv
+# outputs: ms_materials/main/Fig7_eco_mlr_beta.*
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
 
-safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
@@ -16,9 +18,9 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   tryCatch(
     {
       if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
       } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
       }
       ok <- file.copy(tmp_file, filename, overwrite = TRUE)
       unlink(tmp_file)
@@ -38,7 +40,8 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-for (d in c(main_dir, main_pdf_dir)) {
+main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
+for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -176,7 +179,7 @@ invisible(safe_ggsave(
   p,
   width = 3.9 * FIG_WIDTH_SCALE,
   height = 4.1 * FIG_HEIGHT_SCALE,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 ))
 
 invisible(safe_ggsave(
@@ -184,4 +187,12 @@ invisible(safe_ggsave(
   p,
   width = 3.9 * FIG_WIDTH_SCALE,
   height = 4.1 * FIG_HEIGHT_SCALE
+))
+invisible(safe_ggsave(
+  file.path(main_tiff_dir, "Fig7_eco_mlr_beta.tiff"),
+  p,
+  width = 3.9 * FIG_WIDTH_SCALE,
+  height = 4.1 * FIG_HEIGHT_SCALE,
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
 ))

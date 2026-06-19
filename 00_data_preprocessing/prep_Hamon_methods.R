@@ -1,5 +1,5 @@
 # calibrate Hamon ET to PT ET methods and produce daily water-balance ET inputs
-# inputs: out_met_support_dir/pt_et_methods_timeseries.csv
+# inputs: out_met_support_dir/PT_ET_methods_timeseries.csv
 # outputs: out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
 
 librarian::shelf(readr, dplyr, lubridate, purrr, tidyr, zoo, cran_repo = "https://cloud.r-project.org")

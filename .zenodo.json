@@ -1,0 +1,43 @@
+{
+  "title": "Code for: A Unified Framework for Dynamic and Mobile Storage Across Volcanic Montane Catchments",
+  "upload_type": "software",
+  "access_right": "open",
+  "version": "1.0.0",
+  "license": "mit",
+  "language": "eng",
+  "description": "R workflow used to reproduce the storage metric calculations, analyses, figures, and tables for a manuscript submitted to Water Resources Research.",
+  "creators": [
+    {
+      "name": "Bush, Sidney A.",
+      "affiliation": "College of Earth, Ocean, and Atmospheric Sciences, Oregon State University, Corvallis, Oregon, USA"
+    },
+    {
+      "name": "Johnson, Keira",
+      "affiliation": "College of Earth, Ocean, and Atmospheric Sciences, Oregon State University, Corvallis, Oregon, USA; Cooperative Institute for Research in Environmental Sciences, University of Colorado Boulder, Boulder, Colorado, USA"
+    },
+    {
+      "name": "Segura, Catalina",
+      "affiliation": "Department of Forest Engineering, Resources & Management, Oregon State University, Corvallis, Oregon, USA"
+    },
+    {
+      "name": "Perry, Zachary",
+      "affiliation": "Department of Forest Engineering, Resources & Management, Oregon State University, Corvallis, Oregon, USA"
+    },
+    {
+      "name": "Duffy, Shannon",
+      "affiliation": "College of Earth, Ocean, and Atmospheric Sciences, Oregon State University, Corvallis, Oregon, USA; Department of Forest Engineering, Resources & Management, Oregon State University, Corvallis, Oregon, USA"
+    },
+    {
+      "name": "Sullivan, Pamela L.",
+      "affiliation": "College of Earth, Ocean, and Atmospheric Sciences, Oregon State University, Corvallis, Oregon, USA"
+    }
+  ],
+  "keywords": [
+    "subsurface storage",
+    "hydrologic connectivity",
+    "mobile water",
+    "low flow",
+    "stream temperature",
+    "groundwater surface water interactions"
+  ]
+}

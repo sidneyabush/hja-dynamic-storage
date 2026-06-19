@@ -1,4 +1,6 @@
 # check that all required input files are present
+# inputs: files listed in README.md
+# outputs: stops with a readable error if a required file or key column is missing
 # author: Sidney Bush
 # date: 2026-02-13
 

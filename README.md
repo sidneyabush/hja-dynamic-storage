@@ -1,17 +1,39 @@
-# hja_dynamic_storage
+# A Unified Framework for Dynamic and Mobile Storage Across Volcanic Montane Catchments
 
-This repository reruns the analysis used in the paper on dynamic, extended-dynamic, and mobile storage in H.J. Andrews catchments
+This repository contains the reproducible analysis workflow for the manuscript submitted to *Water Resources Research*.
 
-It recreates the paper figures, tables, and supporting outputs from the prepared inputs in `inputs/`. It does not rebuild every dataset from raw Andrews downloads, and it is not meant to be a general hydrology package
+Preliminary citation:
 
-To run it, put the required files in `inputs/`, install packages with `Rscript install_packages.R`, and run `Rscript run_all.R`
+Bush, S. A., Johnson, K., Segura, C., Perry, Z., Duffy, S., and Sullivan, P. L. (submitted). A Unified Framework for Dynamic and Mobile Storage Across Volcanic Montane Catchments. *Water Resources Research*.
+
+## Abstract
+
+Subsurface storage regulates streamflow variability, sustains low flows, and moderates stream temperatures, but is difficult to measure directly and is therefore typically inferred from stream flow and chemistry data. We analyzed long-term hydrometric, chemical, and isotopic records from Lookout Creek and nine subcatchments in the H.J. Andrews Experimental Forest, Oregon, USA, to evaluate how commonly used storage metrics covary and relate to ecologically relevant hydrologic and thermal responses. We developed a unified framework combining dynamic storage inferred from streamflow, extended-dynamic storage represented by catchment water-balance deficit, and mobile storage characterized by calcium-derived baseflow fraction and isotope-derived mixing and transport metrics. Across this heterogeneous volcanic landscape, storage metrics varied among catchments but did not produce a single consistent high-to-low storage ranking of catchments. Relationships among storage metrics followed several clear patterns but varied in strength: isotope-derived mobile metrics were most strongly related to flashiness and storage-discharge behavior, whereas baseflow fraction was higher in catchments with greater storage-discharge estimates and lower in flashier catchments. Geology, slope, and landslide extent further organized variation among catchments. Storage metrics retained in predictive models differed between stream low-flow and thermal responses. Annual seven-day low-flow discharge was most strongly associated with dynamic and extended-dynamic storage metrics and wet-season precipitation, whereas annual maximum seven-day stream temperature retained both flow-based and tracer-based storage metrics, indicating that thermal responses reflect both discharge regulation and source-water mixing. These results support a multi-metric framework that interprets subsurface storage using complementary storage indicators, rather than any single metric.
+
+## Repository Purpose
+
+This repository reruns the analysis used in the paper on dynamic, extended-dynamic, and mobile storage in H.J. Andrews catchments.
+
+It recreates the paper figures, tables, and supporting outputs from input files placed in `inputs/`. Data are publicly available from the H.J. Andrews Forest Science Data Bank and related public data products. The gap-filled meteorological files used by the workflow are derived from public H.J. Andrews records.
+
+## How To Review The Code
+
+Start with `run_all.R`, which lists the full workflow in the order scripts are run. Shared paths, site lists, metric names, plotting constants, and helper functions are in `config.R`.
 
 ## Software
 
 - Tested with `R 4.5.2`
-- Required packages are listed in [install_packages.R](install_packages.R)
+- Required packages are listed in `install_packages.R`
+- Software citation metadata are provided in `CITATION.cff` and `.zenodo.json`
+- License: MIT
 
-## What This Repository Produces
+## Open Research Statement Draft
+
+The R code used to calculate storage metrics, run the analyses, and produce the manuscript figures and tables is developed at <https://github.com/sidneyabush/hja-dynamic-storage> and should be cited using the archived Zenodo software DOI after release. Data used by the workflow are publicly available from the sources cited below. The gap-filled meteorological inputs used by the workflow are derived from public H.J. Andrews Forest records.
+
+## Code-Generated Outputs
+
+Figures are written as PDF and TIFF files for manuscript use. PNG copies are also written as local previews.
 
 Main-text figures:
 
@@ -29,7 +51,7 @@ Main-text tables:
 - Table 4
 - Table 5
 
-Supplement items written by the code:
+Supplement items:
 
 - Figure S1
 - Table S5
@@ -37,156 +59,16 @@ Supplement items written by the code:
 - Table S7
 - Table S8
 
-The code does not write Tables S1-S4 or Text S1-S4 as separate files. Those stay outside the code-generated outputs
+## Data References
 
-## Before You Run
+Data citations are taken from the manuscript reference list.
 
-This code uses two kinds of inputs
-
-Public Andrews files:
-
-- `MS001`: benchmark and secondary meteorology
-- `MS004`: precipitation network
-- `MS050`: solar radiation / net radiation support used in ET processing
-- `HF004`: stream discharge
-- `HT004`: stream temperature
-- `CF012`: stream specific conductance
-- `CF002`: stream chemistry
-
-Prepared paper inputs:
-
-- gap-filled temperature, precipitation, and SWE files used in the paper
-- `catchment_char.csv`
-- `drainage_area.csv`
-- `MTT_FYW.csv`
-- `DampingRatios_2025-07-07.csv`
-
-Those prepared files are part of the reproducible analysis. This repository does not rebuild every input from raw public downloads alone. If you post this code on Zenodo, those files should go with it or be linked clearly
-
-The exact filenames expected by the code are listed in [inputs/README.md](inputs/README.md)
-
-The code will stop if any required file is missing or misnamed
-
-## Where To Get The Public Data
-
-Start with the Andrews Forest data catalog:
-
-- <https://andrewsforest.oregonstate.edu/data>
-
-Study pages used here:
-
-- `MS001` meteorology: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=MS001>
-- `MS004` precipitation: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=MS004>
-- `MS050` solar radiation: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=MS050>
-- `HF004` discharge: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=HF004>
-- `HT004` stream temperature: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=HT004>
-- `CF012` specific conductance: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=CF012>
-- `CF002` stream chemistry: <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=CF002>
-
-## Default Folder Layout
-
-By default, the repository looks for inputs and writes outputs in this simple local layout:
-
-```text
-hja_dynamic_storage/
-├── inputs/
-│   └── ...
-├── outputs/
-├── ms_materials/
-│   ├── main/
-│   └── supp/
-├── run_all.R
-└── install_packages.R
-```
-
-You only need to provide `inputs/`
-
-`outputs/` and `ms_materials/` are created automatically when the code runs
-
-If you want different folders, set:
-
-- `HJA_REPO_DIR`
-- `HJA_FINAL_WORKFLOW_ROOT`
-- `HJA_BASE_DATA_DIR`
-- `HJA_OUTPUT_DIR`
-- `HJA_MS_MATERIALS_DIR`
-
-## What `run_all.R` Does
-
-In order, the full run:
-
-1. Checks that the required input files are present.
-2. Builds catchment-scale daily meteorological forcing and ET inputs.
-3. Calculates annual storage metrics and ecological response metrics.
-4. Runs ANOVA, PCA, regression models, and the MTT sensitivity analysis.
-5. Makes the main-text figures and supplement figures.
-6. Writes the main-text and supplement tables.
-7. Verifies that the expected outputs were written.
-
-## Run The Code
-
-1. Put the required input files in `inputs/`.
-2. Install packages if needed:
-
-```bash
-Rscript install_packages.R
-```
-
-3. Optional input check:
-
-```bash
-Rscript helpers/check_inputs.R
-```
-
-4. Run the code:
-
-```bash
-Rscript run_all.R
-```
-
-5. Optional output check:
-
-```bash
-Rscript helpers/verify_outputs.R
-```
-
-`run_all.R` already calls both checks
-
-## Repository Layout
-
-- `00_data_preprocessing/`: builds catchment-scale daily meteorological and ET inputs
-- `01_storage_calcs/`: calculates annual storage and ecological response metrics
-- `02_analysis/`: runs ANOVA, PCA, regression models, and the MTT sensitivity analysis
-- `03_plots/`: makes the paper figures and the supplement figures
-- `04_tables/`: writes the main-text and supplement tables
-- `helpers/`: input checks, unit checks, helper functions, and final output checks
-- `legacy_code/`: older development and comparison scripts kept for reference, but not required by `run_all.R`
-
-## Files Written By The Code
-
-- `outputs/metrics/`: annual and site-level hydrologic metrics
-- `outputs/models/`: ANOVA, PCA, regression, and sensitivity-analysis outputs
-- `outputs/master/`: combined annual and site summary tables used later
-- `ms_materials/main/`: paper-ready main-text figures and tables
-- `ms_materials/supp/`: supplement figure and tables made by the code
-
-The MTT sensitivity step also writes a fuller set of outputs to `outputs/MTT_sensitivity/` and copies `TableS5_MTT_sensitivity.csv` into `ms_materials/supp/`
-
-Main-text figures are written as both `.png` and `.pdf`. Supplement figure exports also include `.png` and `.pdf` where needed
-
-## What Counts As A Successful Run
-
-- `Rscript run_all.R` exits without error
-- `outputs/master/master_annual.csv` and `outputs/master/master_site.csv` are created
-- `ms_materials/main/` contains Figures 2-9
-- `ms_materials/supp/` contains `FigS1` and `TableS5` through `TableS8`
-- `Rscript helpers/verify_outputs.R` returns without error
-
-## A Few Notes
-
-- The analysis period is water years 1997-2020.
-- `WB` is treated as a maximum within-year water-balance deficit, not as absolute storage.
-- `DR`, `Fyw`, and `MTT` are used as site-level isotope metrics in this run
-- `WS09` has no usable stream-temperature record in `HT00451_v10.txt`, so `T7DMax` and `Q7Q5`-based thermal metrics are not available there.
-- The MTT sensitivity step is the slowest part of the run and may sit quiet for a while before finishing
-- `legacy_code/` is not required to rerun the paper results
+- Bell, D. M. (2023). Time-series of lidar data for the H. J. Andrews Experimental Forest and Willamette National Forest, 2008-2021 [Data set]. Long-Term Ecological Research; Forest Science Data Bank. Retrieved June 18, 2026, from <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=GI013>
+- Daly, C., Schulze, M. D., & McKee, W. A. (2025). Air temperature, relative humidity, dewpoint temperature, water vapor pressure deficit, and atmospheric pressure data from benchmark stations at the HJ Andrews Experimental Forest, 1957 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/5d4ab4b210165d6e860ebe58e0579e4e>
+- H.J. Andrews Experimental Forest. (2019, May 27). Harvest sites [Data set]. H.J. Andrews Experimental Forest and LTER Open Data Hub. Retrieved June 18, 2026, from <https://data-osugisci.opendata.arcgis.com/datasets/2d8986828d3d4d07af77784bcea3845f/explore?layer=0>
+- Johnson, S. L., Gregory, S., Henshaw, D., & Kennedy, A. (2026). Stream and air temperature data from stream gages and stream confluences in the Andrews Experimental Forest, 1950 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/4d0e647de6e461c29ff13456849ea328>
+- Johnson, S. L., Henshaw, D., Nash, B., Remillard, S., & Rothacher, J. (2025). Stream discharge in gaged watersheds at the HJ Andrews Experimental Forest, 1949 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/9826b79c5bb9e80e37c08c02b2ee13f6>
+- Johnson, S. L., Henshaw, D., Remillard, S., & Fredriksen, R. L. (2026). Stream chemistry concentrations and fluxes using proportional sampling in the Andrews Experimental Forest, 1968 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/42cb9e9d33248e56386454c89cdba777>
+- Schulze, M. D., Daly, C., & McKee, W. A. (2026). Solar radiation data from benchmark stations at the HJ Andrews Experimental Forest, 1973 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/6183856f5450ad6be6745de8581ced63>
+- Schulze, M. D., Daly, C., & Rothacher, J. (2026). Precipitation measurements from historic and current standard, storage and recording rain gauges at the Andrews Experimental Forest, 1951 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/c30028e97bf7ec5be4fb72d08ab64bd2>
+- Segura, C., Perry, Z., & Ortega, J. (2025). Water stable isotopes for streams and precipitation samples in the HJ Andrews Experimental Forest, 2014-2023 [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/460268c31591c065921bcb7426d987cc>

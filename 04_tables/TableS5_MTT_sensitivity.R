@@ -1,3 +1,7 @@
+# copy the MTT sensitivity table into the supplement materials folder
+# inputs: outputs/MTT_sensitivity/TableS5_MTT_sensitivity.csv
+# outputs: ms_materials/supp/TableS5_MTT_sensitivity.csv
+
 librarian::shelf(readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

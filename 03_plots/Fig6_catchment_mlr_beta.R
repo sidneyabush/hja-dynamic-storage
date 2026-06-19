@@ -1,5 +1,6 @@
 # Figure 6 catchment controls on storage metrics
 # inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv
+# outputs: ms_materials/main/Fig6_catchment_mlr_beta.*
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -7,10 +8,9 @@ librarian::shelf(dplyr, readr, ggplot2, cran_repo = "https://cloud.r-project.org
 
 rm(list = ls())
 
-# load the project settings
 source("config.R")
 
-safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
@@ -21,9 +21,9 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   tryCatch(
     {
       if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
       } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
       }
       ok <- file.copy(tmp_file, filename, overwrite = TRUE)
       unlink(tmp_file)
@@ -45,12 +45,16 @@ output_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
 ALPHA <- 0.05
 plot_dir <- MS_FIG_MAIN_DIR
 plot_pdf_dir <- MS_FIG_MAIN_PDF_DIR
+plot_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
 supp_plot_dir <- MS_FIG_SUPP_DIR
 supp_plot_pdf_dir <- MS_FIG_SUPP_PDF_DIR
+supp_plot_tiff_dir <- MS_FIG_SUPP_TIFF_DIR
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(plot_pdf_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_tiff_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(supp_plot_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(supp_plot_pdf_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(supp_plot_tiff_dir, recursive = TRUE, showWarnings = FALSE)
 
 results_file <- file.path(output_dir, "catchment_char_storage_mlr_results.csv")
 summary_file <- file.path(output_dir, "catchment_char_storage_mlr_summary.csv")
@@ -209,7 +213,7 @@ invisible(safe_ggsave(
   p_beta,
   width = 8.6 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 ))
 
 invisible(safe_ggsave(
@@ -217,4 +221,12 @@ invisible(safe_ggsave(
   p_beta,
   width = 8.6 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
+))
+invisible(safe_ggsave(
+  file.path(plot_tiff_dir, "Fig6_catch_char_mlr_beta.tiff"),
+  p_beta,
+  width = 8.6 * FIG_WIDTH_SCALE,
+  height = 5.8 * FIG_HEIGHT_SCALE,
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
 ))

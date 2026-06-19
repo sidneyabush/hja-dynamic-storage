@@ -1,5 +1,6 @@
 # Figure 3 PCA plot
 # inputs: out_stats_pca_dir/pca_scores_pc1_pc2.csv; out_stats_pca_dir/pca_loadings.csv; out_stats_pca_dir/pca_variance_explained.csv
+# outputs: ms_materials/main/Fig3_ds_pca_annual.*
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -7,10 +8,9 @@ librarian::shelf(dplyr, readr, ggplot2, scales, cran_repo = "https://cloud.r-pro
 
 rm(list = ls())
 
-# load the project settings
 source("config.R")
 
-safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
+safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
@@ -21,9 +21,9 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
   tryCatch(
     {
       if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
       } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
       }
       ok <- file.copy(tmp_file, filename, overwrite = TRUE)
       unlink(tmp_file)
@@ -43,7 +43,8 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL) {
 
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-for (d in c(main_dir, main_pdf_dir)) {
+main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
+for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -141,13 +142,21 @@ invisible(safe_ggsave(
   p_biplot,
   width = 8.5 * FIG_WIDTH_SCALE,
   height = 6.5 * FIG_HEIGHT_SCALE,
-  dpi = 300
+  dpi = FIG_PREVIEW_DPI
 ))
 invisible(safe_ggsave(
   file.path(main_pdf_dir, "Fig3_ds_pca_annual.pdf"),
   p_biplot,
   width = 8.5 * FIG_WIDTH_SCALE,
   height = 6.5 * FIG_HEIGHT_SCALE
+))
+invisible(safe_ggsave(
+  file.path(main_tiff_dir, "Fig3_ds_pca_annual.tiff"),
+  p_biplot,
+  width = 8.5 * FIG_WIDTH_SCALE,
+  height = 6.5 * FIG_HEIGHT_SCALE,
+  dpi = FIG_PRODUCTION_DPI,
+  compression = "lzw"
 ))
 
 p_scree <- vexp %>%

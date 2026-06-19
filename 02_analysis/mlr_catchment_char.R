@@ -1,4 +1,6 @@
 # catchment characteristics MLR
+# inputs: outputs/master/master_site.csv; outputs/metrics/mobile/isotope_metrics_site_mean.csv
+# outputs: outputs/models/catchment_char_storage_mlr/*.csv
 
 librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 

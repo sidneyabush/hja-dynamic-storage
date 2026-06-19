@@ -1,5 +1,6 @@
 # calculate mobile-storage metrics (BF + isotope metrics)
 # inputs: discharge_dir/HF00402_v14.csv; ec_dir/CF01201_v4.txt; ec_dir/CF00201_v7.csv; isotope_dir/MTT_FYW.csv; isotope_dir/dampingratios_2025-07-07.csv
+# outputs: outputs/metrics/mobile/annual_gw_prop_ca.csv; outputs/metrics/mobile/isotope_metrics_site.csv
 # author: Keira Johnson (original BF), Sidney Bush
 # date: 2026-03-09
 
@@ -7,7 +8,6 @@ librarian::shelf(dplyr, readr, lubridate, cran_repo = "https://cloud.r-project.o
 
 rm(list = ls())
 
-# load project config
 source("config.R")
 
 output_dir <- OUT_MET_MOBILE_DIR

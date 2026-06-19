@@ -1,4 +1,6 @@
 # make the supplement figure used in the final SI
+# inputs: figure scripts in this folder
+# outputs: supplement figure files in ms_materials/supp/
 
 rm(list = ls())
 source("config.R")

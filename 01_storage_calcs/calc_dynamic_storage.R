@@ -1,5 +1,6 @@
 # calculate hydrometric dynamic-storage metrics (RBI/RCS + SD/FDC) by site and water year
 # inputs: discharge_dir/HF00402_v14.csv; catchment_characteristics_dir/drainage_area.csv; out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
+# outputs: outputs/metrics/dynamic/*.csv; outputs/metrics/extended_dynamic/ds_depletion_annual.csv
 # author: Sidney Bush
 # date: 2026-02-14
 
@@ -7,7 +8,6 @@ librarian::shelf(dplyr, lubridate, readr, tidyr, tibble, cran_repo = "https://cl
 
 rm(list = ls())
 
-# load project config
 source("config.R")
 
 output_dir <- OUT_MET_DYNAMIC_DIR

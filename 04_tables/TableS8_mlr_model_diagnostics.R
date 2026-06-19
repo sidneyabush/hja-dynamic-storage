@@ -1,3 +1,7 @@
+# write model diagnostics for the supplement
+# inputs: catchment and ecological-response MLR diagnostics files
+# outputs: ms_materials/supp/TableS8_mlr_model_diagnostics.csv
+
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

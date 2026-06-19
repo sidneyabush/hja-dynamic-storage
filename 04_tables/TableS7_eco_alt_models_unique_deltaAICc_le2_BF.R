@@ -1,3 +1,7 @@
+# write the ecological-response alternative-model table for the supplement
+# inputs: outputs/models/storage_eco_response_mlr/storage_eco_response_mlr_aicc_lt2.csv
+# outputs: ms_materials/supp/TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv
+
 librarian::shelf(readr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

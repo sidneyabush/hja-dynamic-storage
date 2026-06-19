@@ -1,32 +1,22 @@
 # perform PCA on annual storage metrics to identify dominant structure
-# inputs: no direct CSV file reads in this script
+# inputs: outputs/master/master_annual.csv
+# outputs: outputs/models/pca/pca_loadings.csv; pca_scores_pc1_pc2.csv; pca_variance_explained.csv
 # author: Pamela Sullivan (original), Sidney Bush (adapted)
 # date: 2026-01-23
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, scales, cran_repo = "https://cloud.r-project.org")
 
-# clear environment
 rm(list = ls())
 
-# source configuration (paths, site definitions, water year range)
-# get script directory (works with source() and Rscript)
-# load project config
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# use configuration values
 site_order <- SITE_ORDER_HYDROMETRIC
-base_dir   <- BASE_DATA_DIR
-output_dir <- OUTPUT_DIR
 output_dir <- OUT_STATS_PCA_DIR
 
-# create output directory if needed
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-
-# load annual storage metrics
-# this file contains all annual storage metrics, temperature metrics, and catchment characteristics
 
 master_dir <- file.path(OUTPUT_DIR, "master")
 annual_file <- file.path(master_dir, MASTER_ANNUAL_FILE)
@@ -38,11 +28,7 @@ HJA_Yr <- read_csv(
   mutate(site = standardize_site_code(site)) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
-# select features for pca
-
-# core streamflow storage metrics (annual values)
-# using method abbreviations: rbi, rcs, fdc, sd, wb
-# Q5norm is an ecological response, so we do not include it in storage-metric PCA
+# Q5norm is an ecological response, not a storage metric.
 features <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB")
 ]
@@ -50,12 +36,8 @@ features <- STORAGE_METRIC_ORDER[
 site_column <- "site"
 year_column <- "year"
 
-# select features - keep all sites even with partial data
 HJA_selected <- HJA_Yr %>%
   select(all_of(c(site_column, year_column)), all_of(features))
-
-# outlier removal (z-score > 3)
-# remove outliers only from non-missing values
 
 HJA_clean <- HJA_selected %>%
   filter(if_all(all_of(features), ~ {
@@ -67,9 +49,7 @@ HJA_clean <- HJA_selected %>%
     }
   }))
 
-# impute missing values & normalize features
-# impute missing values with column means so all sites can be included
-
+# Mean imputation keeps all site-years in the storage-metric PCA.
 scaled_features <- HJA_clean %>%
   select(all_of(c(site_column, year_column)), all_of(features)) %>%
   mutate(across(all_of(features), ~ {
@@ -91,31 +71,21 @@ if (length(features_kept) == 0) {
   stop("PCA failed: all candidate features are constant or missing after cleaning.")
 }
 
-# run pca
-
 pca_result <- prcomp(
   scaled_features %>% select(all_of(features_kept)),
   center = TRUE,
   scale. = TRUE
 )
 
-# extract pca scores and loadings
-
-# pca scores (pc1 and pc2)
 pca_df <- as.data.frame(pca_result$x[, 1:2])
 pca_df$site <- factor(scaled_features$site, levels = site_order)
 pca_df$year <- scaled_features$year
 
-# loadings (rotation matrix)
 loadings <- as.data.frame(pca_result$rotation[, 1:2])
 loadings$feature <- rownames(loadings)
 
-# variance explained by each pc
-
-# calculate variance explained
 explained_var <- pca_result$sdev^2 / sum(pca_result$sdev^2)
 
-# create data frame (all pcs)
 explained_df <- data.frame(
   PC = paste0("PC", 1:length(explained_var)),
   Variance_Explained = explained_var
@@ -131,6 +101,5 @@ write.csv(pca_df %>% select(site, year, PC1, PC2),
           file.path(output_dir, "pca_scores_pc1_pc2.csv"),
           row.names = FALSE)
 
-# Catchment-characteristics PCA removed by design
-# Catchment characteristics are screened directly in MLR using
-# constrained predictor sets plus iterative VIF filtering
+# Catchment characteristics are screened directly in MLR using constrained
+# predictor sets and iterative VIF filtering.

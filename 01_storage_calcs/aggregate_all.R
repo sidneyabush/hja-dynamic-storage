@@ -1,33 +1,25 @@
 # assemble the annual and site-level metrics into the master tables
 # inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop_ca.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; mobile_dir/isotope_metrics_site.csv; +1 more CSV files
+# outputs: outputs/master/master_annual.csv; outputs/master/master_site.csv
 # author: Sidney Bush
 # date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
-# start clean
 rm(list = ls())
 
-# load the project settings
 source("config.R")
 
 
 theme_set(theme_pub(base_size = 12))
 
-# key input and output folders
-
-base_dir    <- BASE_DATA_DIR
 dynamic_dir <- OUT_MET_DYNAMIC_DIR
 mobile_dir  <- OUT_MET_MOBILE_DIR
 extended_dir <- OUT_MET_EXTENDED_DIR
 eco_dir <- OUT_MET_ECO_DIR
 master_dir <- file.path(OUTPUT_DIR, "master")
-catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 
-# make sure the output folder exists
 dir.create(master_dir, recursive = TRUE, showWarnings = FALSE)
-
-# stop early if a join key is not unique
 
 assert_unique_keys <- function(df, keys, df_name) {
   dupes <- df %>%
@@ -43,9 +35,6 @@ assert_unique_keys <- function(df, keys, df_name) {
   }
 }
 
-# annual dynamic storage metrics
-
-# rbi and recession slope
 rbi_path <- file.path(dynamic_dir, "rbi_rcs_annual.csv")
 rbi_recession <- read_csv(
   rbi_path,
@@ -56,7 +45,6 @@ rbi_recession <- read_csv(
   select(site, year, RCS, RBI)
 assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
 
-# annual storage-discharge metrics and supporting flow quantiles
 fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
 storage_fdc <- read_csv(
   fdc_path,
@@ -94,8 +82,6 @@ storage_fdc <- storage_fdc %>%
   mutate(FDC = dplyr::coalesce(FDC_site, FDC)) %>%
   select(-FDC_site)
 
-# annual mobile storage metric
-
 # BF = annual mean baseflow fraction from calcium-based hydrograph separation
 chs_path <- file.path(mobile_dir, "annual_gw_prop_ca.csv")
 baseflow <- read_csv(
@@ -113,9 +99,6 @@ baseflow <- read_csv(
   select(site, year, BF)
 assert_unique_keys(baseflow, c("site", "year"), "baseflow")
 
-# annual extended-dynamic storage metric
-
-# water-balance deficit
 wb_path <- file.path(extended_dir, "ds_depletion_annual.csv")
 wb_storage <- read_csv(
   wb_path,
@@ -129,9 +112,6 @@ wb_storage <- read_csv(
   select(site, year, WB)
 assert_unique_keys(wb_storage, c("site", "year"), "wb_storage")
 
-# annual ecological response variables
-
-# thermal and low-flow metrics
 thermal_lowflow <- read_csv(
   file.path(eco_dir, "stream_thermal_lowflow_metrics_annual.csv"),
   show_col_types = FALSE
@@ -182,26 +162,19 @@ thermal_lowflow <- thermal_lowflow %>%
   )
 assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
-# merge the annual tables into one site-year master table
-
 HJA_annual <- rbi_recession %>%
   full_join(storage_fdc, by = c("site", "year")) %>%
   full_join(baseflow, by = c("site", "year")) %>%
   full_join(wb_storage, by = c("site", "year")) %>%
   full_join(thermal_lowflow, by = c("site", "year")) %>%
-  # keep only the sites used in the analysis
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-  # keep site order consistent across outputs and plots
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site, year)
 assert_unique_keys(HJA_annual, c("site", "year"), "HJA_annual")
 
-# save the annual site-year master table
 write.csv(HJA_annual,
           file.path(master_dir, MASTER_ANNUAL_FILE),
           row.names = FALSE)
-
-# calculate site-level means across available years
 
 HJA_avg <- HJA_annual %>%
   group_by(site) %>%
@@ -214,8 +187,6 @@ HJA_avg <- HJA_annual %>%
     ),
     .groups = "drop"
   )
-
-# add the isotope-based site-level metrics
 
 isotope_site_path <- file.path(mobile_dir, "isotope_metrics_site.csv")
 if (!file.exists(isotope_site_path)) {
@@ -238,11 +209,8 @@ isotope_metrics <- read_csv(
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 assert_unique_keys(isotope_metrics, c("site"), "isotope_metrics")
 
-# join the isotope metrics into the site-average table
 HJA_avg <- HJA_avg %>%
   left_join(isotope_metrics, by = "site")
-
-# add the catchment characteristics
 
 catchment_chars <- read_csv(
   resolve_catchment_characteristics_file(),
@@ -256,20 +224,16 @@ assert_unique_keys(catchment_chars, c("site"), "catchment_chars")
 HJA_avg <- HJA_avg %>%
   left_join(catchment_chars, by = "site")
 
-# save the final site-level master table
 write.csv(HJA_avg,
           file.path(master_dir, MASTER_SITE_FILE),
           row.names = FALSE)
 
-# track sample sizes by metric and site
-# storage and response metric names used below
 dynamic_metrics <- DYNAMIC_METRICS
 mobile_metrics_annual <- MOBILE_METRICS_ANNUAL
 mobile_metrics_site <- MOBILE_METRICS_SITE
 extended_metrics <- EXTENDED_DYNAMIC_METRICS
 response_metrics <- c("T_7DMax", "Q_7Q5", "Pws")
 
-# count available annual observations by site
 annual_sample_sizes <- HJA_annual %>%
   mutate(site = as.character(site)) %>%
   group_by(site) %>%
@@ -287,7 +251,6 @@ annual_sample_sizes <- HJA_annual %>%
     .groups = "drop"
   )
 
-# add isotope availability flags
 site_isotope <- HJA_avg %>%
   select(site, MTT, Fyw, DR) %>%
   mutate(
@@ -300,7 +263,6 @@ site_isotope <- HJA_avg %>%
 sample_sizes <- annual_sample_sizes %>%
   left_join(site_isotope, by = "site")
 
-# save the sample-size summary table when that extra output is turned on
 if (isTRUE(WRITE_AUX_OUTPUTS)) {
   write.csv(
     sample_sizes,
@@ -309,7 +271,6 @@ if (isTRUE(WRITE_AUX_OUTPUTS)) {
   )
 }
 
-# build per-site summary statistics for all metrics
 storage_metric_cols <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c(dynamic_metrics, mobile_metrics_annual, extended_metrics)
 ]

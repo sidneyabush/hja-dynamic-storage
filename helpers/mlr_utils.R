@@ -1,3 +1,6 @@
+# shared helpers for model selection, AICc, VIF filtering, and diagnostics
+# used by: 02_analysis/mlr_catchment_char.R, mlr_eco_response.R, mtt_sensitivity.R
+
 calc_aicc <- function(model_obj, n_obs) {
   k_params <- length(coef(model_obj)) + 1
   aic_val <- AIC(model_obj)

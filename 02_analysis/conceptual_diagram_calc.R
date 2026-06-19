@@ -1,4 +1,6 @@
 # calculate conceptual diagram axes and geology landslide pca outputs
+# inputs: outputs/master/master_site.csv
+# outputs: outputs/models/unified_framework/*.csv
 
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 

@@ -66,6 +66,7 @@ tmp_figures*/
 
 # Local temporary run outputs
 temp_outputs/
+_local/
 
 # Generated workflow folders
 outputs/

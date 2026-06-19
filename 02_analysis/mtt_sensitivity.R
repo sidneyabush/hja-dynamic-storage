@@ -1,3 +1,7 @@
+# test whether alternate MTT definitions change the main model conclusions
+# inputs: isotope files, master tables, and main storage-eco model outputs
+# outputs: outputs/MTT_sensitivity/*.csv; ms_materials/supp/TableS5_MTT_sensitivity.csv
+
 librarian::shelf(dplyr, readr, tidyr, tibble, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())

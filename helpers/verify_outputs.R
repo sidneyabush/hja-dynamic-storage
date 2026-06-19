@@ -1,4 +1,6 @@
 # check that the expected output files were written
+# inputs: outputs and manuscript materials written by run_all.R
+# outputs: stops with a readable error if expected outputs are missing or malformed
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -42,24 +44,33 @@ required_outputs <- c(
   file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv"),
   file.path(MS_FIG_MAIN_DIR, "Fig2_ds_annual_boxplots.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig2_ds_annual_boxplots.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig2_ds_annual_boxplots.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig3_ds_pca_annual.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig3_ds_pca_annual.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig3_ds_pca_annual.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig4_mobile_storage.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig4_mobile_storage.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig4_mobile_storage.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig5_dynamic_mobile_corr.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_dynamic_mobile_corr.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_dynamic_mobile_corr.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig6_catch_char_mlr_beta.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig6_catch_char_mlr_beta.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig6_catch_char_mlr_beta.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig7_eco_mlr_beta.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig7_eco_mlr_beta.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig7_eco_mlr_beta.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig8_eco_observed_v_predicted.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig8_eco_observed_v_predicted.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig8_eco_observed_v_predicted.tiff"),
   file.path(MS_FIG_MAIN_DIR, "Fig9_conceptual_diagram.png"),
   file.path(MS_FIG_MAIN_PDF_DIR, "Fig9_conceptual_diagram.pdf"),
+  file.path(MS_FIG_MAIN_TIFF_DIR, "Fig9_conceptual_diagram.tiff"),
   file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv"),
   file.path(MS_TABLES_MAIN_DIR, "Table5_storage_eco_response_mlr_model_stats.csv"),
   file.path(MS_FIG_SUPP_DIR, "FigS1_met_context.png"),
   file.path(MS_FIG_SUPP_PDF_DIR, "FigS1_met_context.pdf"),
+  file.path(MS_FIG_SUPP_TIFF_DIR, "FigS1_met_context.tiff"),
   file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"),
   file.path(MS_TABLES_SUPP_DIR, "TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.csv"),
   file.path(MS_TABLES_SUPP_DIR, "TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv"),
@@ -91,6 +102,37 @@ if (length(missing_outputs) > 0) {
     paste(missing_outputs, collapse = "\n- ")
   )
   stop(msg)
+}
+
+table_outputs <- c(
+  file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv"),
+  file.path(MS_TABLES_MAIN_DIR, "Table5_storage_eco_response_mlr_model_stats.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv"),
+  file.path(MS_TABLES_SUPP_DIR, "TableS8_mlr_model_diagnostics.csv")
+)
+
+for (table_file in table_outputs) {
+  table_df <- read_csv(
+    table_file,
+    show_col_types = FALSE,
+    name_repair = "minimal"
+  )
+  bad_names <- names(table_df) == "" | is.na(names(table_df))
+  if (any(bad_names)) {
+    stop("Table has missing column heading(s): ", table_file)
+  }
+  duplicated_names <- names(table_df)[duplicated(names(table_df))]
+  if (length(duplicated_names) > 0) {
+    stop(
+      "Table has duplicated column heading(s): ",
+      table_file,
+      " (",
+      paste(unique(duplicated_names), collapse = ", "),
+      ")"
+    )
+  }
 }
 
 annual <- read_csv(file.path(master_dir, MASTER_ANNUAL_FILE), show_col_types = FALSE)
