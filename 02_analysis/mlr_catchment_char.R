@@ -1,12 +1,11 @@
 # catchment characteristics MLR
-# inputs: outputs/master/master_site.csv; outputs/metrics/mobile/isotope_metrics_site_mean.csv
+# inputs: outputs/master/master_site.csv, outputs/metrics/mobile/isotope_metrics_site_mean.csv
 # outputs: outputs/models/catchment_char_storage_mlr/*.csv
 
 librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
-source("helpers/mlr_utils.R")
 
 file_prefix <- "catchment_char_storage_mlr"
 output_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
@@ -18,17 +17,17 @@ VIF_THRESHOLD <- 10
 
 site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 if (!file.exists(site_file)) {
-  stop("Missing required file: ", site_file)
+  stop("Missing file: ", site_file)
 }
 
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
-# use the combined site-level MTT values
+# use the combined site level MTT values
 # regardless of other isotope mode settings
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
-  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+  stop("Missing isotope site mean file: ", isotope_site_mean_file)
 }
 
 mtt_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
@@ -191,7 +190,7 @@ fit_candidate <- function(df_in, outcome, predictors) {
   summary_out <- tibble(
     Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
     N = nrow(model_df),
-    Predictors_Final = paste(retained, collapse = "; "),
+    Predictors_Final = paste(retained, collapse = ", "),
     R2 = fit_sum$r.squared,
     R2_adj = fit_sum$adj.r.squared,
     model_p_global = model_p,
@@ -208,7 +207,7 @@ fit_candidate <- function(df_in, outcome, predictors) {
   diagnostics_out <- compute_residual_diagnostics(fit) %>%
     mutate(
       Outcome = ifelse(outcome == "DR", "DR_mean", outcome),
-      Predictors_Final = paste(retained, collapse = "; "),
+      Predictors_Final = paste(retained, collapse = ", "),
       N = nrow(model_df)
     ) %>%
     dplyr::select(

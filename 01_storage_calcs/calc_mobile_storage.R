@@ -1,6 +1,6 @@
-# calculate mobile-storage metrics (BF + isotope metrics)
-# inputs: discharge_dir/HF00402_v14.csv; ec_dir/CF01201_v4.txt; ec_dir/CF00201_v7.csv; isotope_dir/MTT_FYW.csv; isotope_dir/dampingratios_2025-07-07.csv
-# outputs: outputs/metrics/mobile/annual_gw_prop_ca.csv; outputs/metrics/mobile/isotope_metrics_site.csv
+# calculate mobile storage metrics (BF + isotope metrics)
+# inputs: discharge_dir/HF00402_v14.csv, ec_dir/CF01201_v4.txt, ec_dir/CF00201_v7.csv, isotope_dir/MTT_FYW.csv, isotope_dir/dampingratios_2025-07-07.csv
+# outputs: outputs/metrics/mobile/annual_gw_prop_ca.csv, outputs/metrics/mobile/isotope_metrics_site.csv
 # author: Keira Johnson (original BF), Sidney Bush
 # date: 2026-03-09
 
@@ -96,7 +96,7 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
 
 ec_file <- file.path(ec_dir, "CF01201_v4.txt")
 if (!file.exists(ec_file)) {
-  stop("Missing required EC file: ", ec_file)
+  stop("Missing EC file: ", ec_file)
 }
 ec_inst <- read_csv(ec_file, show_col_types = FALSE)
 
@@ -114,7 +114,7 @@ ec_daily <- ec_inst %>%
   summarise(tracer_value = mean(tracer_value, na.rm = TRUE), .groups = "drop") %>%
   filter(is.finite(tracer_value))
 
-ec_bf <- calc_bf_from_tracer(ec_daily, discharge, CHS_MIN_DAYS_PER_WY)
+ec_bf <- calc_bf_from_tracer(ec_daily, discharge, BF_MIN_DAYS_PER_WY)
 annual_bf_prop <- ec_bf$annual %>%
   rename(n_days = n_obs)
 
@@ -132,7 +132,7 @@ write.csv(
 
 chem_file <- file.path(ec_dir, "CF00201_v7.csv")
 if (!file.exists(chem_file)) {
-  stop("Missing required chemistry file: ", chem_file)
+  stop("Missing chemistry file: ", chem_file)
 }
 chem <- read_csv(chem_file, show_col_types = FALSE) %>%
   mutate(
@@ -158,8 +158,8 @@ chem_ca_daily <- chem %>%
   summarise(tracer_value = mean(CA, na.rm = TRUE), .groups = "drop") %>%
   filter(is.finite(tracer_value))
 
-ec_chem_bf <- calc_bf_from_tracer(chem_ec_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
-ca_bf <- calc_bf_from_tracer(chem_ca_daily, discharge, CHS_MIN_OBS_PER_WY_CHEM)
+ec_chem_bf <- calc_bf_from_tracer(chem_ec_daily, discharge, BF_MIN_OBS_PER_WY_CHEM)
+ca_bf <- calc_bf_from_tracer(chem_ca_daily, discharge, BF_MIN_OBS_PER_WY_CHEM)
 
 annual_bf_prop_ec_chem <- ec_chem_bf$annual
 annual_bf_prop_ca <- ca_bf$annual
@@ -339,7 +339,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- part 2: isotope-derived site metrics (mtt/fyw/dr) ----
+# part 2: isotope derived site metrics (mtt/fyw/dr)
 
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),
@@ -364,7 +364,7 @@ mtt_fyw <- read_csv(
       ), na.rm = TRUE)
     ))),
     MTT_late = ifelse(is.nan(MTT_late), NA_real_, MTT_late),
-    # collapse older period-specific labels into one MTT value
+    # collapse older period specific labels into one MTT value
     MTT = rowMeans(cbind(MTT_early, MTT_late), na.rm = TRUE),
     MTT = ifelse(is.nan(MTT), NA_real_, MTT),
     Fyw = suppressWarnings(as.numeric(FYWM))
@@ -381,14 +381,14 @@ damping <- read_csv(
     site = standardize_site_code(site)
   ) %>%
   select(site, DR = DR_Overall, DR_err = DR__err) %>%
-  filter(!is.na(site), site != "", site %in% SITE_ORDER_ALL)
+  filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
-site_template <- tibble(site = SITE_ORDER_ALL)
+site_template <- tibble(site = SITE_ORDER_HYDROMETRIC)
 
 isotope_metrics_mean <- site_template %>%
   left_join(mtt_fyw, by = "site") %>%
   left_join(damping, by = "site") %>%
-  mutate(site = factor(site, levels = SITE_ORDER_ALL)) %>%
+  mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
 
 write.csv(

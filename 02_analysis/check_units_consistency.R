@@ -1,15 +1,15 @@
 # check that the main outputs use consistent units
 # inputs:
-# - out_met_support_dir/catchments_met_q.csv
-# - resolve_water_balance_daily_file()
-# - discharge_dir/hf00402_v14.csv
-# - resolve_drainage_area_file()
-# - out_met_dynamic_dir/storage_discharge_fdc_annual.csv
-# - output_dir/master/master_annual.csv
-# - output_dir/master/master_site.csv
-# - out_met_mobile_dir/isotope_metrics_site.csv
-# output when possible:
-# - out_met_support_dir/unit_consistency_report.csv
+# out_met_support_dir/catchments_met_q.csv
+# resolve_water_balance_daily_file()
+# discharge_dir/hf00402_v14.csv
+# resolve_drainage_area_file()
+# out_met_dynamic_dir/storage_discharge_fdc_annual.csv
+# output_dir/master/master_annual.csv
+# output_dir/master/master_site.csv
+# out_met_mobile_dir/isotope_metrics_site.csv
+# output file:
+# out_met_support_dir/unit_consistency_report.csv
 
 librarian::shelf(readr, dplyr, cran_repo = "https://cloud.r-project.org")
 
@@ -77,7 +77,7 @@ check_required_columns <- function(df, required_cols, table_name) {
   missing <- setdiff(required_cols, names(df))
   ok <- length(missing) == 0
   detail <- if (ok) {
-    paste0(table_name, " has required columns.")
+    paste0(table_name, " has columns.")
   } else {
     paste0("Missing columns in ", table_name, ": ", paste(missing, collapse = ", "))
   }
@@ -90,7 +90,7 @@ check_unique_key <- function(df, key_cols, table_name) {
     record_check(
       paste0("unique_key_", table_name),
       FALSE,
-      paste0("Cannot test key; missing: ", paste(missing, collapse = ", ")),
+      paste0("Cannot test key. Missing: ", paste(missing, collapse = ", ")),
       fatal = TRUE
     )
     return(invisible(NULL))
@@ -187,7 +187,7 @@ check_site_median_ratio <- function(df, value_col, table_name, ratio_threshold =
     record_check(
       paste0("site_ratio_", table_name, "_", value_col),
       FALSE,
-      "Missing site/value column for ratio check.",
+      "Missing site or value column for ratio check.",
       fatal = TRUE
     )
     return(invisible(NULL))
@@ -245,7 +245,7 @@ required_paths <- c(
 for (nm in names(required_paths)) {
   p <- required_paths[[nm]]
   ok <- is.character(p) && nzchar(p) && file.exists(p)
-  detail <- if (ok) paste0("Found: ", p) else paste0("Missing required file: ", p)
+  detail <- if (ok) paste0("Found: ", p) else paste0("Missing file: ", p)
   record_check(paste0("file_", nm), ok, detail, fatal = TRUE)
 }
 
@@ -321,7 +321,7 @@ if (is.na(isotope_site_col)) {
   isotope_site <- isotope_site %>% mutate(site = standardize_site_code(.data[[isotope_site_col]]))
 }
 
-# required column checks
+# column checks
 check_required_columns(
   met_q,
   c("DATE", "SITECODE", "site", "T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d", "VPD_kPa", "Q_mm_d"),
@@ -378,7 +378,7 @@ check_range(master_site, "BF_mean", low = 0, high = 1, table_name = "master_site
 check_range(master_site, "Fyw", low = 0, high = 1, table_name = "master_site", fatal = FALSE)
 check_nonnegative(master_site, "RBI_mean", "master_site")
 
-# compare shared columns between the met support table and the water-balance table
+# compare shared columns between the met support table and the water balance table
 common_cols <- intersect(c("T_C", "P_mm_d", "Q_mm_d"), intersect(names(met_q), names(wb_daily)))
 met_wb_cmp <- met_q %>%
   select(DATE, site, all_of(common_cols)) %>%
@@ -406,17 +406,17 @@ for (col in common_cols) {
   record_check(paste0("met_vs_wb_", col), ok, detail, fatal = TRUE)
 }
 
-# check q_mm_d again from discharge and drainage area
-q_expected <- discharge %>%
+# check q_mm_d from discharge and drainage area
+q_formula <- discharge %>%
   left_join(da_df %>% select(site, DA_M2), by = "site") %>%
   filter(is.finite(DA_M2), DA_M2 > 0) %>%
-  mutate(Q_mm_expected = MEAN_Q * 0.0283168 * 86400 / DA_M2 * 1000) %>%
-  select(DATE, site, Q_mm_expected)
+  mutate(Q_mm_formula = MEAN_Q * 0.0283168 * 86400 / DA_M2 * 1000) %>%
+  select(DATE, site, Q_mm_formula)
 
 q_cmp <- met_q %>%
   select(DATE, site, Q_mm_d) %>%
-  inner_join(q_expected, by = c("DATE", "site")) %>%
-  filter(is.finite(Q_mm_d), is.finite(Q_mm_expected), Q_mm_expected > 0)
+  inner_join(q_formula, by = c("DATE", "site")) %>%
+  filter(is.finite(Q_mm_d), is.finite(Q_mm_formula), Q_mm_formula > 0)
 
 record_check(
   "rows_q_formula_join",
@@ -425,13 +425,13 @@ record_check(
   fatal = TRUE
 )
 
-q_stats <- max_diff_stats(q_cmp$Q_mm_d, q_cmp$Q_mm_expected)
+q_stats <- max_diff_stats(q_cmp$Q_mm_d, q_cmp$Q_mm_formula)
 q_row_ok <- q_stats$n > 0 && is.finite(q_stats$max_rel) && q_stats$max_rel <= 1e-6
 record_check(
   "q_formula_row_match",
   q_row_ok,
   paste0(
-    "Q_mm_d vs expected: n=", q_stats$n,
+    "Q_mm_d formula check: n=", q_stats$n,
     ", max_abs=", signif(q_stats$max_abs, 6),
     ", max_rel=", signif(q_stats$max_rel, 6), "."
   ),
@@ -439,7 +439,7 @@ record_check(
 )
 
 q_site_ratio <- q_cmp %>%
-  mutate(ratio = Q_mm_d / Q_mm_expected) %>%
+  mutate(ratio = Q_mm_d / Q_mm_formula) %>%
   group_by(site) %>%
   summarise(
     n = n(),
@@ -466,7 +466,7 @@ record_check(
   fatal = TRUE
 )
 
-# look for cross-site unit mismatches in mm/day variables
+# look for cross site unit mismatches in mm/day variables
 check_site_median_ratio(met_q, "P_mm_d", "catchments_met_q", ratio_threshold = 500)
 check_site_median_ratio(met_q, "Q_mm_d", "catchments_met_q", ratio_threshold = 500)
 check_site_median_ratio(wb_daily, "ET_mm_d", "daily_water_balance", ratio_threshold = 500)
@@ -497,7 +497,7 @@ for (col in c("SD", "FDC", "Q99", "Q50", "Q01")) {
   record_check(paste0("dynamic_vs_master_annual_", col), ok, detail, fatal = TRUE)
 }
 
-# master_site *_mean columns should match means from master_annual where possible
+# master_site *_mean columns should match master_annual means when columns are present
 mean_cols <- grep("_mean$", names(master_site), value = TRUE)
 mean_pairs <- tibble(mean_col = mean_cols) %>%
   mutate(base_col = sub("_mean$", "", mean_col)) %>%
@@ -562,7 +562,7 @@ for (col in c("MTT", "Fyw", "DR")) {
   record_check(paste0("isotope_vs_master_site_", col), ok, detail, fatal = TRUE)
 }
 
-# write a detailed report when possible
+# write the report
 report_path <- file.path(OUT_MET_SUPPORT_DIR, "unit_consistency_report.csv")
 tryCatch(
   write_csv(check_log, report_path),

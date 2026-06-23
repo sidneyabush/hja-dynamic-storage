@@ -1,5 +1,5 @@
-# install the R packages used by this code
-# run this once before run_all.R if the required packages are not installed
+# one time package setup
+# run this once, then run run_all.R
 
 required_packages <- c(
   "car",
@@ -7,6 +7,7 @@ required_packages <- c(
   "dplyr",
   "ggplot2",
   "ggrepel",
+  "ggtext",
   "librarian",
   "lubridate",
   "MASS",
@@ -27,3 +28,5 @@ missing_packages <- required_packages[
 if (length(missing_packages) > 0) {
   install.packages(missing_packages, repos = "https://cloud.r-project.org")
 }
+
+message("Package setup complete. Next run: Rscript run_all.R")

@@ -1,6 +1,6 @@
-# Figure 5 dynamic and mobile storage correlation matrix
+# Figure S4 dynamic and mobile storage correlation matrix
 # inputs: outputs/master/master_site.csv
-# outputs: ms_materials/main/Fig5_dynamic_mobile_corr.*
+# outputs: ms_materials/supp/FigS4_dynamic_mobile_corr.*
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
@@ -11,7 +11,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig6_",
+    pattern = "figs4_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -37,16 +37,16 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   )
 }
 
-main_dir <- MS_FIG_MAIN_DIR
-main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
-for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
+supp_dir <- MS_FIG_SUPP_DIR
+supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
+supp_tiff_dir <- MS_FIG_SUPP_TIFF_DIR
+for (d in c(supp_dir, supp_pdf_dir, supp_tiff_dir)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
 site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 if (!file.exists(site_file)) {
-  stop("Missing required file: ", site_file)
+  stop("Missing file: ", site_file)
 }
 
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
@@ -70,7 +70,7 @@ dynamic_map <- dynamic_map[dynamic_map %in% names(site_df)]
 mobile_map <- mobile_map[mobile_map %in% names(site_df)]
 
 if (length(dynamic_map) == 0 || length(mobile_map) == 0) {
-  stop("Required dynamic/mobile metric columns are missing from master_site.csv")
+  stop("Needed dynamic/mobile metric columns are missing from master_site.csv")
 }
 
 dynamic_axis_labels_plotmath <- c(
@@ -165,7 +165,7 @@ p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig5_dynamic_mobile_corr.png"),
+  file.path(supp_dir, "FigS4_dynamic_mobile_corr.png"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
@@ -173,13 +173,13 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig5_dynamic_mobile_corr.pdf"),
+  file.path(supp_pdf_dir, "FigS4_dynamic_mobile_corr.pdf"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
 invisible(safe_ggsave(
-  file.path(main_tiff_dir, "Fig5_dynamic_mobile_corr.tiff"),
+  file.path(supp_tiff_dir, "FigS4_dynamic_mobile_corr.tiff"),
   p,
   width = 7.2 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
@@ -187,7 +187,10 @@ invisible(safe_ggsave(
   compression = "lzw"
 ))
 
-# remove older isotope-only correlation files not used in the final paper
-unlink(file.path(main_dir, "Fig5_iso_annual.png"))
-unlink(file.path(main_pdf_dir, "Fig5_iso_annual.pdf"))
-unlink(file.path(main_tiff_dir, "Fig5_iso_annual.tiff"))
+# remove older isotope only correlation files not used in the final paper
+unlink(file.path(MS_FIG_MAIN_DIR, "Fig5_iso_annual.png"))
+unlink(file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_iso_annual.pdf"))
+unlink(file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_iso_annual.tiff"))
+unlink(file.path(MS_FIG_MAIN_DIR, "Fig5_dynamic_mobile_corr.png"))
+unlink(file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_dynamic_mobile_corr.pdf"))
+unlink(file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_dynamic_mobile_corr.tiff"))

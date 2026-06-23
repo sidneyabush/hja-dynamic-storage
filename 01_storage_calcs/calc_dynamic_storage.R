@@ -1,6 +1,6 @@
-# calculate hydrometric dynamic-storage metrics (RBI/RCS + SD/FDC) by site and water year
-# inputs: discharge_dir/HF00402_v14.csv; catchment_characteristics_dir/drainage_area.csv; out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
-# outputs: outputs/metrics/dynamic/*.csv; outputs/metrics/extended_dynamic/ds_depletion_annual.csv
+# calculate hydrometric dynamic storage metrics (RBI/RCS + SD/FDC) by site and water year
+# inputs: discharge_dir/HF00402_v14.csv, catchment_characteristics_dir/drainage_area.csv, out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
+# outputs: outputs/metrics/dynamic/*.csv, outputs/metrics/extended_dynamic/ds_depletion_annual.csv
 # author: Sidney Bush
 # date: 2026-02-14
 
@@ -77,7 +77,7 @@ rbi_rcs_annual <- discharge %>%
 
 write_csv(rbi_rcs_annual, file.path(output_dir, "rbi_rcs_annual.csv"))
 
-# ---- part 2: storage-discharge and fdc metrics from water balance ----
+# part 2: storage discharge and fdc metrics from water balance
 
 wb_daily_file <- resolve_water_balance_daily_file()
 stopifnot(file.exists(wb_daily_file))
@@ -288,7 +288,7 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
-# site-level full-period FDC slope used in later analysis steps
+# site level full period FDC slope used in later analysis steps
 fdc_slopes_site <- fdc_slopes %>%
   transmute(
     site = site,
@@ -347,7 +347,7 @@ write.csv(
   row.names = FALSE
 )
 
-# default annual dynamic-storage output consumed by aggregation script
+# annual dynamic storage output used by the aggregation script
 write.csv(
   annual %>%
     rename(SD = S_annual_mm, FDC = fdc_slope) %>%
@@ -356,7 +356,7 @@ write.csv(
   row.names = FALSE
 )
 
-# ---- part 3: extended dynamic storage (wb max within-year depletion) ----
+# part 3: extended dynamic storage (wb max within year depletion)
 
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(

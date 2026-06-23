@@ -1,5 +1,5 @@
 # test for significant differences among sites in storage metrics
-# inputs: outputs/master/master_annual.csv; outputs/metrics/dynamic/fdc_slopes_wy.csv
+# inputs: outputs/master/master_annual.csv, outputs/metrics/dynamic/fdc_slopes_wy.csv
 # outputs: outputs/models/anova_tukey/*.csv
 # author: Sidney Bush
 # date: 2026-01-23
@@ -29,7 +29,7 @@ HJA_annual <- read_csv(
   filter(!site %in% SITE_EXCLUDE_STANDARD) %>%
   mutate(site = factor(site, levels = site_order))
 
-# for ANOVA/Tukey only, use annual FDC slopes (site-year) from dynamic metrics output
+# for ANOVA/Tukey only, use annual FDC slopes (site year) from dynamic metrics output
 fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
 fdc_annual <- if (file.exists(fdc_wy_file)) {
   fdc_raw <- read_csv(fdc_wy_file, show_col_types = FALSE)
@@ -61,7 +61,7 @@ fdc_annual <- if (file.exists(fdc_wy_file)) {
 }
 
 # Q5norm and CV_Q5norm are ecological response variables, and MTT/Fyw/DR are
-# site-level isotope metrics, so they are excluded from annual ANOVA/Tukey tests.
+# site level isotope metrics, so they are excluded from annual ANOVA/Tukey tests.
 storage_metrics <- STORAGE_METRIC_ORDER[
   STORAGE_METRIC_ORDER %in% c("RBI", "RCS", "FDC", "SD", "WB", "BF")
 ]

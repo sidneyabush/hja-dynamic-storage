@@ -1,6 +1,6 @@
-# Figure 6 catchment controls on storage metrics
-# inputs: output_dir/catchment_char_storage_mlr_results.csv; output_dir/catchment_char_storage_mlr_summary.csv
-# outputs: ms_materials/main/Fig6_catchment_mlr_beta.*
+# Figure 4 catchment controls on storage metrics
+# inputs: output_dir/catchment_char_storage_mlr_results.csv, output_dir/catchment_char_storage_mlr_summary.csv
+# outputs: ms_materials/main/Fig4_catchment_controls.*
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -14,7 +14,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig7_",
+    pattern = "fig4_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -209,7 +209,7 @@ p_beta <- ggplot(beta_plot_df, aes(x = Outcome_label, y = Predictor, fill = Beta
   coord_cartesian(clip = FIG_LABEL_CLIP)
 
 invisible(safe_ggsave(
-  file.path(plot_dir, "Fig6_catch_char_mlr_beta.png"),
+  file.path(plot_dir, "Fig4_catchment_controls.png"),
   p_beta,
   width = 8.6 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
@@ -217,16 +217,19 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(plot_pdf_dir, "Fig6_catch_char_mlr_beta.pdf"),
+  file.path(plot_pdf_dir, "Fig4_catchment_controls.pdf"),
   p_beta,
   width = 8.6 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE
 ))
 invisible(safe_ggsave(
-  file.path(plot_tiff_dir, "Fig6_catch_char_mlr_beta.tiff"),
+  file.path(plot_tiff_dir, "Fig4_catchment_controls.tiff"),
   p_beta,
   width = 8.6 * FIG_WIDTH_SCALE,
   height = 5.8 * FIG_HEIGHT_SCALE,
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 ))
+unlink(file.path(plot_dir, "Fig6_catch_char_mlr_beta.png"))
+unlink(file.path(plot_pdf_dir, "Fig6_catch_char_mlr_beta.pdf"))
+unlink(file.path(plot_tiff_dir, "Fig6_catch_char_mlr_beta.tiff"))

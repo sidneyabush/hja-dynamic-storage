@@ -1,4 +1,4 @@
-# calculate conceptual diagram axes and geology landslide pca outputs
+# calculate unified framework axes and geology landslide pca outputs
 # inputs: outputs/master/master_site.csv
 # outputs: outputs/models/unified_framework/*.csv
 
@@ -9,7 +9,7 @@ source("config.R")
 
 master_site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 if (!file.exists(master_site_file)) {
-  stop("Missing required file: ", master_site_file)
+  stop("Missing file: ", master_site_file)
 }
 
 model_out_dir <- file.path(OUTPUT_DIR, "models", "unified_framework")

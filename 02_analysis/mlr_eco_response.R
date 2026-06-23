@@ -1,12 +1,11 @@
 # pooled eco response MLR models
-# inputs: outputs/master/master_annual.csv; outputs/metrics/mobile/isotope_metrics_site_mean.csv
+# inputs: outputs/master/master_annual.csv, outputs/metrics/mobile/isotope_metrics_site_mean.csv
 # outputs: outputs/models/storage_eco_response_mlr/*.csv
 
 librarian::shelf(dplyr, readr, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
-source("helpers/mlr_utils.R")
 
 output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -18,16 +17,16 @@ VIF_THRESHOLD <- 10
 
 annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
 if (!file.exists(annual_file)) {
-  stop("Missing required file: ", annual_file)
+  stop("Missing file: ", annual_file)
 }
 
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
-# Use site-level isotope means (DR, Fyw, MTT) as eco-model predictors
+# Use site level isotope means (DR, Fyw, MTT) as eco model predictors
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
-  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+  stop("Missing isotope site mean file: ", isotope_site_mean_file)
 }
 
 isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
@@ -93,7 +92,7 @@ mandatory_predictors <- c("Pws")
 storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT")
 storage_predictors <- storage_predictors[storage_predictors %in% names(data_all)]
 if (!("Pws" %in% names(data_all))) {
-  stop("Missing required predictor: Pws")
+  stop("Missing predictor: Pws")
 }
 
 candidate_sets <- list(c("Pws"))
@@ -217,7 +216,7 @@ fit_candidate <- function(df_in, response, predictors) {
   summary_out <- tibble(
     Site = "all_sites",
     Response = response,
-    Predictors_Final = paste(retained, collapse = "; "),
+    Predictors_Final = paste(retained, collapse = ", "),
     R2 = fit_sum$r.squared,
     R2_adj = fit_sum$adj.r.squared,
     model_p_global = model_p_global,
@@ -252,7 +251,7 @@ fit_candidate <- function(df_in, response, predictors) {
     mutate(
       Site = "all_sites",
       Response = response,
-      Predictors_Final = paste(retained, collapse = "; "),
+      Predictors_Final = paste(retained, collapse = ", "),
       n = nrow(model_df)
     ) %>%
     dplyr::select(

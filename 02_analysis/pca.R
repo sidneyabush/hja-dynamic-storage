@@ -1,6 +1,6 @@
 # perform PCA on annual storage metrics to identify dominant structure
 # inputs: outputs/master/master_annual.csv
-# outputs: outputs/models/pca/pca_loadings.csv; pca_scores_pc1_pc2.csv; pca_variance_explained.csv
+# outputs: outputs/models/pca/pca_loadings.csv, pca_scores_pc1_pc2.csv, pca_variance_explained.csv
 # author: Pamela Sullivan (original), Sidney Bush (adapted)
 # date: 2026-01-23
 
@@ -49,7 +49,7 @@ HJA_clean <- HJA_selected %>%
     }
   }))
 
-# Mean imputation keeps all site-years in the storage-metric PCA.
+# Mean imputation keeps all site years in the storage metric PCA.
 scaled_features <- HJA_clean %>%
   select(all_of(c(site_column, year_column)), all_of(features)) %>%
   mutate(across(all_of(features), ~ {
@@ -60,7 +60,7 @@ scaled_features <- HJA_clean %>%
     }
   }))
 
-# drop constant/all-NA columns that cannot be scaled by PCA
+# drop constant/all NA columns that cannot be scaled by PCA
 feature_sds <- scaled_features %>%
   summarise(across(all_of(features), ~ sd(.x, na.rm = TRUE)))
 feature_sds_vec <- as.numeric(feature_sds[1, ])

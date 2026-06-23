@@ -72,3 +72,6 @@ _local/
 outputs/
 
 ms_materials/
+generated_outputs/
+inputs/
+scripts/

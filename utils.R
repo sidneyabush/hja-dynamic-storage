@@ -1,9 +1,492 @@
-# helper functions used to build daily meteorological and streamflow inputs
-# this file does not read the study data on its own
-# author: Sidney Bush
-# date: 2026-02-13
+# shared functions, plot settings, and labels
 
-librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
+# shared font sizes and export settings
+FIG_BASE_SIZE <- 18
+FIG_AXIS_TEXT_SIZE <- 16
+FIG_AXIS_TITLE_SIZE <- 18
+FIG_STRIP_TEXT_SIZE <- 16
+FIG_ANNOT_TEXT_SIZE <- 5
+FIG_TILE_TEXT_SIZE <- 6
+FIG_POINT_SIZE_SMALL <- 1.5
+FIG_POINT_SIZE_LARGE <- 3.0
+FIG_WIDTH_SCALE <- 1.35
+FIG_HEIGHT_SCALE <- 1.35
+FIG_PREVIEW_DPI <- 300
+FIG_PRODUCTION_DPI <- 300
+
+# shared label spacing settings
+FIG_LABEL_CLIP <- "off"
+FIG_LABEL_PLOT_MARGIN_PT <- 18
+
+# site colors used in figures
+SITE_COLORS <- c(
+  "WS09" = "#882255",
+  "WS10" = "#AA4499",
+  "WS01" = "#CC6677",
+  "Look" = "#DDCC77",
+  "WS02" = "#999933",
+  "WS03" = "#117733",
+  "WS06" = "#44AA99",
+  "WS07" = "#88CCEE",
+  "WS08" = "#6699CC",
+  "Mack" = "#332288"
+)
+
+# plot theme
+# individual figure scripts add any figure specific styling
+theme_pub <- function(base_size = FIG_BASE_SIZE) {
+  ggplot2::theme_classic(base_size = base_size) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_blank(),
+      plot.subtitle = ggplot2::element_blank(),
+      panel.grid.major = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank(),
+      strip.text.x = ggplot2::element_text(hjust = 0),
+      strip.text.y = ggplot2::element_text(hjust = 0)
+    )
+}
+
+# water year from date
+# water years start on October 1
+get_water_year <- function(date) {
+  ifelse(
+    lubridate::month(date) >= 10,
+    lubridate::year(date) + 1,
+    lubridate::year(date)
+  )
+}
+
+# day of water year from date
+# October 1 is day 1
+get_water_year_day <- function(date) {
+  wy <- get_water_year(date)
+  wy_start <- as.Date(paste0(wy - 1, "-10-01"))
+  as.numeric(date - wy_start) + 1
+}
+
+# standard site codes used in outputs
+# source files use several naming systems for the same sites
+standardize_site_code <- function(site_code) {
+  site_code <- trimws(site_code)
+  dplyr::case_when(
+    site_code == "GSWSMC" ~ "Mack",
+    site_code == "GSMACK" ~ "Mack",
+    site_code == "GSLOOK_FULL" ~ "Look",
+    site_code == "GSLOOK" ~ "Look",
+    site_code == "MCRAEC" ~ "MR",
+    site_code == "NCCREC" ~ "NC",
+    site_code == "LCCREC" ~ "LC",
+    site_code == "LO2CRE" ~ "LO2",
+    site_code == "CCCREE" ~ "CC",
+    site_code == "LO1CRE" ~ "LO1",
+    grepl("^GSWS[0-9]+$", site_code) ~ gsub("^GSWS", "WS", site_code),
+    TRUE ~ site_code
+  )
+}
+
+# full storage metric names used in tables and figure labels
+STORAGE_METRIC_FULL_NAMES <- c(
+  "RBI" = "Richards-Baker Index",
+  "RCS" = "Recession Curve Slope",
+  "FDC" = "Flow Duration Curve Slope",
+  "SD" = "Storage-Discharge",
+  "WB" = "Water-balance deficit",
+  "BF" = "Baseflow Fraction",
+  "DR" = "Damping Ratio",
+  "Fyw" = "Young Water Fraction",
+  "MTT" = "Mean Transit Time"
+)
+
+# short metric names used when space is limited
+METRIC_ABBREV_DISPLAY <- c(
+  "RBI" = "RBI",
+  "RCS" = "RCS",
+  "FDC" = "FDC",
+  "SD" = "SD",
+  "WB" = "WB",
+  "BF" = "BF",
+  "DR" = "DR",
+  "Fyw" = "Fyw",
+  "MTT" = "MTT"
+)
+
+# return a short metric name
+label_metric_abbrev <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(METRIC_ABBREV_DISPLAY[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
+# return a full storage metric label
+label_storage_metric <- function(x, include_abbrev = TRUE) {
+  x_chr <- as.character(x)
+  long <- unname(STORAGE_METRIC_FULL_NAMES[x_chr])
+  abbr <- label_metric_abbrev(x_chr)
+  miss <- is.na(long)
+  long[miss] <- x_chr[miss]
+  if (!isTRUE(include_abbrev)) {
+    return(long)
+  }
+  out <- paste0(long, " (", abbr, ")")
+  out[miss] <- x_chr[miss]
+  out
+}
+
+# catchment predictor names used in model figures and tables
+CATCHMENT_PREDICTOR_LABELS <- c(
+  "basin_slope" = "Basin Slope",
+  "Harvest" = "Harvest",
+  "Landslide_Total" = "Total Landslide",
+  "Landslide_Young" = "Young Landslide",
+  "Lava 1 (%)" = "Lava-1 (%)",
+  "Lava1_per" = "Lava-1 (%)",
+  "Lava 2 (%)" = "Lava-2 (%)",
+  "Lava2_per" = "Lava-2 (%)",
+  "Ash_Per" = "Ash (%)",
+  "Pyro_per" = "Pyroclastic (%)"
+)
+
+# return a clean catchment predictor label
+label_catchment_predictor <- function(x) {
+  x_chr <- as.character(x)
+  out <- unname(CATCHMENT_PREDICTOR_LABELS[x_chr])
+  miss <- is.na(out)
+  out[miss] <- x_chr[miss]
+  out
+}
+
+# return clean labels for comma separated predictor lists
+label_catchment_predictor_list <- function(x) {
+  x_chr <- as.character(x)
+  vapply(
+    x_chr,
+    function(val) {
+      if (is.na(val) || !nzchar(val)) {
+        return(val)
+      }
+      parts <- trimws(strsplit(val, "[[:space:]]*[,;][[:space:]]*")[[1]])
+      parts <- parts[nzchar(parts)]
+      if (length(parts) == 0) {
+        return(val)
+      }
+      paste(label_catchment_predictor(parts), collapse = ", ")
+    },
+    FUN.VALUE = character(1)
+  )
+}
+
+# standardized site codes to leave out of analysis tables
+SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))
+
+# return a file path and stop if the file is missing
+resolve_file <- function(path, label) {
+  if (!file.exists(path)) {
+    stop("Missing ", label, ": ", path, call. = FALSE)
+  }
+  path
+}
+
+# files used by several scripts
+resolve_water_balance_daily_file <- function() {
+  resolve_file(
+    file.path(
+      OUT_MET_SUPPORT_DIR,
+      "daily_water_balance_et_hamon_zhang_coeff_interp.csv"
+    ),
+    "water balance daily file"
+  )
+}
+
+resolve_drainage_area_file <- function() {
+  resolve_file(
+    file.path(CATCHMENT_CHARACTERISTICS_DIR, "drainage_area.csv"),
+    "drainage area file"
+  )
+}
+
+resolve_catchment_characteristics_file <- function() {
+  resolve_file(
+    file.path(CATCHMENT_CHARACTERISTICS_DIR, "catchment_char.csv"),
+    "catchment characteristics file"
+  )
+}
+
+# check input files before running the workflow
+check_inputs <- function() {
+  if (!requireNamespace("readr", quietly = TRUE)) {
+    stop(
+      "Missing R package: readr. Run Rscript install_packages.R once, ",
+      "then rerun Rscript run_all.R.",
+      call. = FALSE
+    )
+  }
+
+  input_files <- c(
+    file.path(MET_DIR, "Temperature_original_&_filled_1979_2023_v2.csv"),
+    file.path(MET_DIR, "Precipitation_original_&_filled_1979_2023.csv"),
+    file.path(MET_DIR, "SWE_original_&_filled_1997_2023_v5.csv"),
+    file.path(MET_DIR, "MS00102_v9.csv"),
+    file.path(MET_DIR, "MS05025_v3.csv"),
+    file.path(MET_DIR, "MS00403_v2.csv"),
+    file.path(DISCHARGE_DIR, "HF00402_v14.csv"),
+    file.path(CATCHMENT_CHARACTERISTICS_DIR, "drainage_area.csv"),
+    file.path(CATCHMENT_CHARACTERISTICS_DIR, "catchment_char.csv"),
+    file.path(ISOTOPE_DIR, "MTT_FYW.csv"),
+    file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv"),
+    file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"),
+    file.path(EC_DIR, "CF01201_v4.txt"),
+    file.path(EC_DIR, "CF00201_v7.csv")
+  )
+
+  missing_files <- input_files[!file.exists(input_files)]
+  if (length(missing_files) > 0) {
+    stop(
+      paste0(
+        "Missing input file(s):\n- ",
+        paste(missing_files, collapse = "\n- ")
+      ),
+      call. = FALSE
+    )
+  }
+
+  check_columns <- function(path, cols) {
+    file_cols <- names(suppressMessages(readr::read_csv(
+      path,
+      n_max = 0,
+      show_col_types = FALSE
+    )))
+    missing_cols <- setdiff(cols, file_cols)
+    if (length(missing_cols) > 0) {
+      stop(
+        "Missing columns in ",
+        path,
+        ": ",
+        paste(missing_cols, collapse = ", "),
+        call. = FALSE
+      )
+    }
+  }
+
+  check_columns(file.path(DISCHARGE_DIR, "HF00402_v14.csv"), c("DATE", "SITECODE", "MEAN_Q"))
+  check_columns(file.path(EC_DIR, "CF01201_v4.txt"), c("DATE_TIME", "SITECODE", "EC_INST"))
+  check_columns(file.path(EC_DIR, "CF00201_v7.csv"), c("DATE_TIME", "SITECODE", "COND", "CA"))
+  check_columns(file.path(STREAM_TEMP_DIR, "HT00451_v10.txt"), c("DATE_TIME", "SITECODE", "WATERTEMP_MEAN"))
+  check_columns(file.path(CATCHMENT_CHARACTERISTICS_DIR, "catchment_char.csv"), c("Site"))
+
+  invisible(TRUE)
+}
+
+# make folders used by the full workflow
+make_output_dirs <- function() {
+  dirs <- c(
+    OUT_METRICS_DIR,
+    OUT_MET_DYNAMIC_DIR,
+    OUT_MET_MOBILE_DIR,
+    OUT_MET_EXTENDED_DIR,
+    OUT_MET_ECO_DIR,
+    OUT_MET_SUPPORT_DIR,
+    file.path(OUTPUT_DIR, "master"),
+    MS_MATERIALS_DIR,
+    MS_MAIN_DIR,
+    MS_SUPP_DIR,
+    MS_FIG_MAIN_DIR,
+    MS_FIG_SUPP_DIR,
+    MS_FIG_MAIN_PDF_DIR,
+    MS_FIG_SUPP_PDF_DIR,
+    MS_FIG_MAIN_TIFF_DIR,
+    MS_FIG_SUPP_TIFF_DIR,
+    MS_TABLES_MAIN_DIR,
+    MS_TABLES_SUPP_DIR,
+    OUT_STATS_DIR,
+    OUT_STATS_ANOVA_DIR,
+    OUT_STATS_PCA_DIR,
+    OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
+    OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
+    EXPLORATORY_PLOTS_DIR,
+    UNIFIED_FRAMEWORK_DIR,
+    EXPLORATORY_ET_METHODS_DIR
+  )
+
+  if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+    dirs <- c(dirs, OUT_TABLES_DIR, OUT_TABLES_MLR_DIR)
+  }
+
+  for (d in dirs) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  invisible(dirs)
+}
+
+# check that the workflow wrote the files used by the manuscript
+verify_outputs <- function() {
+  if (!requireNamespace("readr", quietly = TRUE)) {
+    stop(
+      "Missing R package: readr. Run Rscript install_packages.R once, ",
+      "then rerun Rscript run_all.R.",
+      call. = FALSE
+    )
+  }
+
+  master_dir <- file.path(OUTPUT_DIR, "master")
+
+  required_outputs <- c(
+    file.path(master_dir, MASTER_ANNUAL_FILE),
+    file.path(master_dir, MASTER_SITE_FILE),
+    file.path(OUT_STATS_ANOVA_DIR, "anova_results.csv"),
+    file.path(OUT_STATS_ANOVA_DIR, "tukey_hsd_results.csv"),
+    file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv"),
+    file.path(OUT_STATS_ANOVA_DIR, "storage_metrics_summary_stats_by_site.csv"),
+    file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv"),
+    file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv"),
+    file.path(OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR, "catchment_char_storage_mlr_summary.csv"),
+    file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv"),
+    file.path(MS_FIG_MAIN_DIR, "Fig2_dynamic_storage_pca.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig2_dynamic_storage_pca.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig2_dynamic_storage_pca.tiff"),
+    file.path(MS_FIG_MAIN_DIR, "Fig3_mobile_storage.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig3_mobile_storage.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig3_mobile_storage.tiff"),
+    file.path(MS_FIG_MAIN_DIR, "Fig4_catchment_controls.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig4_catchment_controls.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig4_catchment_controls.tiff"),
+    file.path(MS_FIG_MAIN_DIR, "Fig5_ecological_response_models.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_ecological_response_models.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_ecological_response_models.tiff"),
+    file.path(MS_FIG_MAIN_DIR, "Fig6_observed_predicted_ecological_responses.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig6_observed_predicted_ecological_responses.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig6_observed_predicted_ecological_responses.tiff"),
+    file.path(MS_FIG_MAIN_DIR, "Fig7_dynamic_mobile_framework.png"),
+    file.path(MS_FIG_MAIN_PDF_DIR, "Fig7_dynamic_mobile_framework.pdf"),
+    file.path(MS_FIG_MAIN_TIFF_DIR, "Fig7_dynamic_mobile_framework.tiff"),
+    file.path(MS_FIG_SUPP_DIR, "FigS1_met_context.png"),
+    file.path(MS_FIG_SUPP_PDF_DIR, "FigS1_met_context.pdf"),
+    file.path(MS_FIG_SUPP_TIFF_DIR, "FigS1_met_context.tiff"),
+    file.path(MS_FIG_SUPP_DIR, "FigS2_dynamic_storage_corr.png"),
+    file.path(MS_FIG_SUPP_PDF_DIR, "FigS2_dynamic_storage_corr.pdf"),
+    file.path(MS_FIG_SUPP_TIFF_DIR, "FigS2_dynamic_storage_corr.tiff"),
+    file.path(MS_FIG_SUPP_DIR, "FigS3_mobile_storage_corr.png"),
+    file.path(MS_FIG_SUPP_PDF_DIR, "FigS3_mobile_storage_corr.pdf"),
+    file.path(MS_FIG_SUPP_TIFF_DIR, "FigS3_mobile_storage_corr.tiff"),
+    file.path(MS_FIG_SUPP_DIR, "FigS4_dynamic_mobile_corr.png"),
+    file.path(MS_FIG_SUPP_PDF_DIR, "FigS4_dynamic_mobile_corr.pdf"),
+    file.path(MS_FIG_SUPP_TIFF_DIR, "FigS4_dynamic_mobile_corr.tiff"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS8_catchment_char_storage_mlr_model_stats.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS9_catchment_alt_models_unique_deltaAICc_le2_BF.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS10_storage_eco_response_mlr_model_stats.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS11_eco_alt_models_unique_deltaAICc_le2_BF.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS12_mlr_model_diagnostics.csv")
+  )
+
+  if (isTRUE(WRITE_AUX_OUTPUTS)) {
+    required_outputs <- c(
+      required_outputs,
+      file.path(master_dir, "master_site_metric_summary_stats.csv"),
+      file.path(OUT_MET_SUPPORT_DIR, "site_metric_availability.csv")
+    )
+  }
+
+  if (isTRUE(WRITE_TABLE_OUTPUTS)) {
+    required_outputs <- c(
+      required_outputs,
+      file.path(OUT_TABLES_MLR_DIR, "mlr_main_results_table.csv")
+    )
+  }
+
+  missing_outputs <- required_outputs[!file.exists(required_outputs)]
+  if (length(missing_outputs) > 0) {
+    stop(
+      paste0(
+        "Missing output file(s):\n- ",
+        paste(missing_outputs, collapse = "\n- ")
+      ),
+      call. = FALSE
+    )
+  }
+
+  table_outputs <- c(
+    file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS8_catchment_char_storage_mlr_model_stats.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS9_catchment_alt_models_unique_deltaAICc_le2_BF.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS10_storage_eco_response_mlr_model_stats.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS11_eco_alt_models_unique_deltaAICc_le2_BF.csv"),
+    file.path(MS_TABLES_SUPP_DIR, "TableS12_mlr_model_diagnostics.csv")
+  )
+
+  for (table_file in table_outputs) {
+    table_df <- readr::read_csv(
+      table_file,
+      show_col_types = FALSE,
+      name_repair = "minimal"
+    )
+    bad_names <- names(table_df) == "" | is.na(names(table_df))
+    if (any(bad_names)) {
+      stop("Table has missing column heading(s): ", table_file, call. = FALSE)
+    }
+    duplicated_names <- names(table_df)[duplicated(names(table_df))]
+    if (length(duplicated_names) > 0) {
+      stop(
+        "Table has duplicated column heading(s): ",
+        table_file,
+        " (",
+        paste(unique(duplicated_names), collapse = ", "),
+        ")",
+        call. = FALSE
+      )
+    }
+  }
+
+  annual <- readr::read_csv(
+    file.path(master_dir, MASTER_ANNUAL_FILE),
+    show_col_types = FALSE
+  )
+  if (!all(c("site", "year") %in% names(annual))) {
+    stop("master_annual is missing columns: site/year", call. = FALSE)
+  }
+  if (nrow(annual) == 0) {
+    stop("master_annual has zero rows", call. = FALSE)
+  }
+  if (any(!is.finite(annual$year))) {
+    stop("master_annual has non-finite years", call. = FALSE)
+  }
+
+  unknown_sites <- setdiff(unique(as.character(annual$site)), SITE_ORDER_HYDROMETRIC)
+  if (length(unknown_sites) > 0) {
+    stop(
+      "Unknown site code(s) in master_annual: ",
+      paste(unknown_sites, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  letters_path <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
+  letters_df <- readr::read_csv(letters_path, show_col_types = FALSE)
+  if (!all(c("metric", "site") %in% names(letters_df))) {
+    stop("tukey_group_letters is missing columns: metric/site", call. = FALSE)
+  }
+
+  metric_groups <- split(as.character(letters_df$site), letters_df$metric)
+  for (metric_name in names(metric_groups)) {
+    site_values <- metric_groups[[metric_name]]
+    allowed <- SITE_ORDER_HYDROMETRIC[SITE_ORDER_HYDROMETRIC %in% site_values]
+    if (!identical(site_values, allowed)) {
+      stop(
+        "Site order mismatch in tukey_group_letters for metric: ",
+        metric_name,
+        call. = FALSE
+      )
+    }
+  }
+
+  invisible(TRUE)
+}
+
+# functions used to build daily meteorological and streamflow inputs
+# this section does not read study data on its own
+
 
 # date parsing
 
@@ -42,7 +525,7 @@ parse_my_date <- function(d) {
 #' @param fname Filename of CSV with *_inter columns
 #' @param var Variable name for the value column
 #' @param met_dir Directory containing the file
-#' @return Long-format tibble with DATE, SITECODE, and variable column
+#' @return Long format tibble with DATE, SITECODE, and variable column
 make_inter_long <- function(fname, var, met_dir, date_start = NULL, date_end = NULL) {
   raw <- read_csv(file.path(met_dir, fname), show_col_types = FALSE) %>%
     mutate(DATE = parse_my_date(DATE))
@@ -589,7 +1072,7 @@ process_station_groups <- function(data, station_groups, variables, plot_dir = N
   ))
 }
 
-#' Create catchment-level datasets from interpolated station data
+#' Create catchment level datasets from interpolated station data
 #' @param interpolated_data Interpolated station data
 #' @param site_mapping Named list of catchment -> station mappings
 #' @param variables Character vector of variable names
@@ -739,4 +1222,218 @@ plot_triplet_station_comparisons <- function(interpolated_data, plot_dir) {
     model_ws7_h15 = model_ws7_h15,
     model_van_h15 = model_van_h15
   )
+}
+
+# model selection, AICc, VIF filtering, and diagnostics
+# used by the catchment-control, ecological-response, and MTT sensitivity scripts
+
+calc_aicc <- function(model_obj, n_obs) {
+  k_params <- length(coef(model_obj)) + 1
+  aic_val <- AIC(model_obj)
+  if ((n_obs - k_params - 1) <= 0) {
+    return(NA_real_)
+  }
+  aic_val + (2 * k_params * (k_params + 1)) / (n_obs - k_params - 1)
+}
+
+calc_loocv_stats <- function(model_formula, model_df, min_n = 6) {
+  n <- nrow(model_df)
+  if (n < min_n) {
+    return(list(rmse = NA_real_, mae = NA_real_, r2 = NA_real_))
+  }
+
+  response <- all.vars(model_formula)[1]
+  obs <- model_df[[response]]
+  pred <- rep(NA_real_, n)
+
+  for (i in seq_len(n)) {
+    fit_i <- tryCatch(lm(model_formula, data = model_df[-i, , drop = FALSE]), error = function(e) NULL)
+    if (!is.null(fit_i)) {
+      pred[i] <- tryCatch(
+        as.numeric(predict(fit_i, newdata = model_df[i, , drop = FALSE])),
+        error = function(e) NA_real_
+      )
+    }
+  }
+
+  valid <- is.finite(obs) & is.finite(pred)
+  if (sum(valid) < 3) {
+    return(list(rmse = NA_real_, mae = NA_real_, r2 = NA_real_))
+  }
+
+  errs <- obs[valid] - pred[valid]
+  sst <- sum((obs[valid] - mean(obs[valid], na.rm = TRUE))^2, na.rm = TRUE)
+  sse <- sum(errs^2, na.rm = TRUE)
+
+  list(
+    rmse = sqrt(mean(errs^2, na.rm = TRUE)),
+    mae = mean(abs(errs), na.rm = TRUE),
+    r2 = ifelse(sst > 0, 1 - sse / sst, NA_real_)
+  )
+}
+
+compute_residual_diagnostics <- function(model_obj) {
+  pull_scalar <- function(obj, key) {
+    val <- tryCatch(obj[[key]], error = function(e) NULL)
+    num <- suppressWarnings(as.numeric(val))
+    if (length(num) >= 1 && is.finite(num[1])) {
+      return(num[1])
+    }
+    NA_real_
+  }
+
+  resid_vals <- residuals(model_obj)
+  resid_vals <- resid_vals[is.finite(resid_vals)]
+
+  shapiro_w <- NA_real_
+  shapiro_p <- NA_real_
+  if (length(resid_vals) >= 3 && length(resid_vals) <= 5000) {
+    sh <- tryCatch(shapiro.test(resid_vals), error = function(e) NULL)
+    if (!is.null(sh)) {
+      shapiro_w <- suppressWarnings(as.numeric(unname(sh$statistic)))
+      shapiro_p <- suppressWarnings(as.numeric(sh$p.value))
+    }
+  }
+
+  ncv <- tryCatch(car::ncvTest(model_obj), error = function(e) NULL)
+  ncv_chisq <- if (!is.null(ncv)) pull_scalar(ncv, "Chisquare") else NA_real_
+  if (!is.finite(ncv_chisq) && !is.null(ncv)) {
+    ncv_chisq <- pull_scalar(ncv, "ChiSquare")
+  }
+  ncv_p <- if (!is.null(ncv)) pull_scalar(ncv, "p") else NA_real_
+
+  tibble::tibble(
+    n_residuals = length(resid_vals),
+    shapiro_W = shapiro_w,
+    shapiro_p = shapiro_p,
+    ncv_chisq = ncv_chisq,
+    ncv_p = ncv_p,
+    normality_pass_p05 = ifelse(is.finite(shapiro_p), shapiro_p > 0.05, NA),
+    homoscedasticity_pass_p05 = ifelse(is.finite(ncv_p), ncv_p > 0.05, NA)
+  )
+}
+
+round_export_cols <- function(df, cols, digits = 3) {
+  keep <- intersect(cols, names(df))
+  if (length(keep) == 0) {
+    return(df)
+  }
+  dplyr::mutate(df, dplyr::across(dplyr::all_of(keep), ~ signif(.x, digits)))
+}
+
+format_export_outcome <- function(x, strip_mean = TRUE, drop_underscores = TRUE) {
+  out <- as.character(x)
+  if (isTRUE(strip_mean)) {
+    out <- gsub("_mean$", "", out)
+  }
+  if (isTRUE(drop_underscores)) {
+    out <- gsub("_", "", out, fixed = TRUE)
+  }
+  out
+}
+
+apply_vif_filter <- function(model_obj, outcome, model_df, threshold, protected = character()) {
+  fit <- model_obj
+  protected <- as.character(protected)
+
+  repeat {
+    retained <- setdiff(names(coef(fit)), "(Intercept)")
+    drop_pool <- setdiff(retained, protected)
+    if (length(drop_pool) == 0 || length(retained) <= 1) {
+      break
+    }
+
+    vif_vals <- tryCatch(car::vif(fit), error = function(e) NULL)
+    if (is.null(vif_vals) || max(vif_vals, na.rm = TRUE) <= threshold) {
+      break
+    }
+
+    ordered <- names(sort(vif_vals, decreasing = TRUE))
+    drop_var <- ordered[ordered %in% drop_pool][1]
+    if (is.na(drop_var) || !nzchar(drop_var)) {
+      break
+    }
+
+    keep <- setdiff(retained, drop_var)
+    if (length(keep) == 0) {
+      return(NULL)
+    }
+
+    fit <- tryCatch(
+      lm(as.formula(paste(outcome, "~", paste(keep, collapse = " + "))), data = model_df),
+      error = function(e) NULL
+    )
+    if (is.null(fit)) {
+      return(NULL)
+    }
+    fit <- tryCatch(MASS::stepAIC(fit, direction = "backward", trace = 0), error = function(e) fit)
+  }
+
+  fit
+}
+
+apply_correlated_predictor_rules_catchment <- function(model_obj, outcome, model_df) {
+  refit_drop_var <- function(drop_var) {
+    keep <- setdiff(setdiff(names(coef(model_obj_curr)), "(Intercept)"), drop_var)
+    if (length(keep) == 0) {
+      return(NULL)
+    }
+    fit <- tryCatch(
+      lm(as.formula(paste(outcome, "~", paste(keep, collapse = " + "))), data = model_df),
+      error = function(e) NULL
+    )
+    if (is.null(fit)) {
+      return(NULL)
+    }
+    fit <- tryCatch(MASS::stepAIC(fit, direction = "backward", trace = 0), error = function(e) fit)
+    keep_fit <- setdiff(names(coef(fit)), "(Intercept)")
+    if (length(keep_fit) == 0) {
+      return(NULL)
+    }
+    list(
+      model = fit,
+      aicc = calc_aicc(fit, nrow(model_df)),
+      aic = tryCatch(AIC(fit), error = function(e) NA_real_)
+    )
+  }
+
+  model_obj_curr <- model_obj
+  repeat {
+    retained <- setdiff(names(coef(model_obj_curr)), "(Intercept)")
+    has_ash <- "Ash_Per" %in% retained
+    has_lava <- any(c("Lava1_per", "Lava2_per") %in% retained)
+    has_both_landslide <- all(c("Landslide_Total", "Landslide_Young") %in% retained)
+
+    if (!(has_ash && has_lava) && !has_both_landslide) {
+      break
+    }
+
+    options <- list()
+    if (has_ash && has_lava) {
+      drop_candidates <- c("Ash_Per", intersect(c("Lava1_per", "Lava2_per"), retained))
+      options <- lapply(drop_candidates, refit_drop_var)
+    } else if (has_both_landslide) {
+      options <- lapply(c("Landslide_Total", "Landslide_Young"), refit_drop_var)
+    }
+
+    valid <- which(vapply(options, function(x) !is.null(x), logical(1)))
+    if (length(valid) == 0) {
+      break
+    }
+
+    aicc_scores <- vapply(options[valid], function(x) x$aicc, numeric(1))
+    if (any(is.finite(aicc_scores))) {
+      best <- valid[which.min(aicc_scores)]
+    } else {
+      aic_scores <- vapply(options[valid], function(x) x$aic, numeric(1))
+      if (any(is.finite(aic_scores))) {
+        best <- valid[which.min(aic_scores)]
+      } else {
+        best <- valid[1]
+      }
+    }
+    model_obj_curr <- options[[best]]$model
+  }
+
+  model_obj_curr
 }

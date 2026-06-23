@@ -1,13 +1,12 @@
 # test whether alternate MTT definitions change the main model conclusions
-# inputs: isotope files, master tables, and main storage-eco model outputs
-# outputs: outputs/MTT_sensitivity/*.csv; ms_materials/supp/TableS5_MTT_sensitivity.csv
+# inputs: isotope files, master tables, and main storage eco model outputs
+# outputs: outputs/MTT_sensitivity/*.csv, ms_materials/supp/TableS7_MTT_sensitivity.csv
 
 librarian::shelf(dplyr, readr, tidyr, tibble, MASS, car, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
 source("config.R")
-source("helpers/mlr_utils.R")
 
 output_dir <- file.path(OUTPUT_DIR, "MTT_sensitivity")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -26,7 +25,7 @@ main_eco_results_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "sto
 required_files <- c(annual_file, site_file, isotope_file, damping_file, main_eco_summary_file, main_eco_results_file)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
-  stop("Missing required file(s): ", paste(missing_files, collapse = "; "))
+  stop("Missing file(s): ", paste(missing_files, collapse = ", "))
 }
 
 annual_df <- read_csv(annual_file, show_col_types = FALSE) %>%
@@ -39,7 +38,7 @@ site_df_base <- read_csv(site_file, show_col_types = FALSE) %>%
 
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
 if (!file.exists(isotope_site_mean_file)) {
-  stop("Missing required isotope site mean file: ", isotope_site_mean_file)
+  stop("Missing isotope site mean file: ", isotope_site_mean_file)
 }
 
 isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
@@ -279,7 +278,7 @@ fit_catchment_mtt <- function(site_df_in) {
 
     list(
       summary = tibble(
-        Predictors_Final = paste(retained, collapse = "; "),
+        Predictors_Final = paste(retained, collapse = ", "),
         N = nrow(model_df),
         R2 = fit_sum$r.squared,
         R2_adj = fit_sum$adj.r.squared,
@@ -441,7 +440,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
     list(
       summary = tibble(
         Response = response,
-        Predictors_Final = paste(retained, collapse = "; "),
+        Predictors_Final = paste(retained, collapse = ", "),
         n = nrow(model_df),
         R2 = fit_sum$r.squared,
         R2_adj = fit_sum$adj.r.squared,
@@ -549,7 +548,7 @@ main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
     AICc
   )
 
-# Keep the main-text combined-MTT result as the reference row
+# Keep the main text combined MTT result as the reference row
 # The sensitivity run only refits the alternate MTT definitions
 main_eco_results <- read_csv(main_eco_results_file, show_col_types = FALSE) %>%
   mutate(Response = as.character(Response)) %>%
@@ -666,7 +665,7 @@ panel_b_summary <- conceptual_axis_tbl %>%
   group_by(mtt_definition) %>%
   summarise(
     n_panel_b_sites = n(),
-    sites_panel_b = paste(site, collapse = "; "),
+    sites_panel_b = paste(site, collapse = ", "),
     .groups = "drop"
   )
 
@@ -674,14 +673,14 @@ write_csv(panel_b_summary, file.path(output_dir, "mtt_conceptual_panel_b_summary
 
 scope_tbl <- tibble(
   analysis_component = c(
-    "Dynamic/extended-dynamic PCA (Figure 3)",
-    "ANOVA + Tukey HSD for annual site differences (Figure 2, BF in Figure 4a)",
-    "Mobile storage descriptive MTT values (Figure 4d, Table 1)",
-    "Dynamic-mobile correlation matrix (Figure 5)",
-    "Catchment-control model for MTT (Figure 6, Table 4)",
-    "Low-flow eco model Q7Q5 (Figure 7, Table 5)",
-    "Temperature eco model T7DMax (Figure 7, Table 5)",
-    "Conceptual framework mobile axis / panel b eligibility (Figure 9)"
+    "Dynamic/extended-dynamic PCA (Figure 2)",
+    "ANOVA + Tukey HSD for annual site differences (Figure 2, BF in Figure 3a)",
+    "Mobile storage descriptive MTT values (Figure 3d, Table 1)",
+    "Dynamic-mobile correlation matrix (Figure S4)",
+    "Catchment-control model for MTT (Figure 4, Table S8)",
+    "Low-flow eco model Q7Q5 (Figure 5, Table S10)",
+    "Temperature eco model T7DMax (Figure 5, Table S10)",
+    "Conceptual framework mobile axis / panel a eligibility (Figure 7)"
   ),
   affected_by_mtt_definition = c(
     "No",
@@ -781,12 +780,14 @@ supp_table_combined <- bind_rows(
     )
   )
 
-write_csv(supp_table_combined, file.path(output_dir, "TableS5_MTT_sensitivity.csv"))
+write_csv(supp_table_combined, file.path(output_dir, "TableS7_MTT_sensitivity.csv"))
 
 write_csv(
   supp_table_combined,
-  file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv")
+  file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv")
 )
+unlink(file.path(output_dir, "TableS5_MTT_sensitivity.csv"))
+unlink(file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"))
 
 summary_lines <- c(
   "# MTT Sensitivity Summary",
@@ -800,7 +801,7 @@ summary_lines <- c(
     ", mean=", signif(mtt_availability$mean_mtt, 3)
   ),
   "",
-  "## Key Eco-Model Results",
+  "## Key Eco Model Results",
   paste0(
     "- ", key_results$Response,
     " [", key_results$mtt_definition, "/", key_results$model_variant, "]: ",

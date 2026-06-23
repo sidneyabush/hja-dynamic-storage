@@ -1,6 +1,6 @@
-# Figure 9 geology, landslide, and storage summary
+# Figure 7 dynamic mobile storage framework
 # inputs: outputs/models/unified_framework/*.csv
-# outputs: ms_materials/main/Fig9_conceptual_diagram.*; exploratory panel files
+# outputs: ms_materials/main/Fig7_dynamic_mobile_framework.*, exploratory panel files
 
 librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = "https://cloud.r-project.org")
 
@@ -11,7 +11,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig10_",
+    pattern = "fig7_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -50,7 +50,7 @@ variance_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_c
 master_site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 
 for (f in c(axes_file, loadings_file, variance_file, master_site_file)) {
-  if (!file.exists(f)) stop("Missing required file: ", f)
+  if (!file.exists(f)) stop("Missing file: ", f)
 }
 
 axes <- read_csv(axes_file, show_col_types = FALSE) %>%
@@ -95,7 +95,7 @@ pca_scores <- axes %>%
   ) %>%
   filter(is.finite(geology_pc1), is.finite(geology_pc2))
 
-# keep the site symbols aligned with Figure 3
+# keep the site symbols aligned with the storage metric figures
 SITE_SHAPES <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
 
 loading_df <- loadings %>%
@@ -306,7 +306,7 @@ required_mobile_dynamic_cols <- c(
 missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
 if (length(missing_required_cols) > 0) {
   stop(
-    "master_site is missing required columns for panel b filter: ",
+    "master_site is missing columns for panel b filter: ",
     paste(missing_required_cols, collapse = ", ")
   )
 }
@@ -490,40 +490,41 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     )
   )
 
-fig10 <- p_geo / p_state +
-  plot_layout(heights = c(1.15, 1)) +
+fig7 <- p_state / p_geo +
+  plot_layout(heights = c(1, 1.15)) +
   plot_annotation(tag_levels = "a", tag_suffix = ")") &
   theme(plot.tag = element_text(face = "plain", size = tag_label_size))
 
-fig9_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
-fig9_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
+fig7_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
+fig7_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
 
-nm <- "Fig9_conceptual_diagram"
+nm <- "Fig7_dynamic_mobile_framework"
 invisible(safe_ggsave(
   file.path(main_dir, paste0(nm, ".png")),
-  fig10,
-  width = fig9_width,
-  height = fig9_height,
+  fig7,
+  width = fig7_width,
+  height = fig7_height,
   dpi = FIG_PREVIEW_DPI
 ))
 invisible(safe_ggsave(
   file.path(main_pdf_dir, paste0(nm, ".pdf")),
-  fig10,
-  width = fig9_width,
-  height = fig9_height
+  fig7,
+  width = fig7_width,
+  height = fig7_height
 ))
 invisible(safe_ggsave(
   file.path(main_tiff_dir, paste0(nm, ".tiff")),
-  fig10,
-  width = fig9_width,
-  height = fig9_height,
+  fig7,
+  width = fig7_width,
+  height = fig7_height,
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 ))
 invisible(safe_ggsave(
-  file.path(CONCEPTUAL_DIAGRAM_DIR, paste0(nm, ".png")),
-  fig10,
-  width = fig9_width,
-  height = fig9_height,
+  file.path(UNIFIED_FRAMEWORK_DIR, paste0(nm, ".png")),
+  fig7,
+  width = fig7_width,
+  height = fig7_height,
   dpi = FIG_PREVIEW_DPI
 ))
+unlink(Sys.glob(file.path(c(main_dir, main_pdf_dir, main_tiff_dir), "Fig9_*")))

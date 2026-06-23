@@ -1,6 +1,6 @@
-# Figure 7 storage metrics and ecological responses
+# Figure 5 storage metrics and ecological responses
 # inputs: outputs/models/storage_eco_response_mlr/*.csv
-# outputs: ms_materials/main/Fig7_eco_mlr_beta.*
+# outputs: ms_materials/main/Fig5_ecological_response_models.*
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
@@ -11,7 +11,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig8_",
+    pattern = "fig5_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -48,13 +48,13 @@ for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
 results_file <- file.path(output_dir, "storage_eco_response_mlr_results.csv")
 if (!file.exists(results_file)) {
   stop(
-    "Missing required eco pooled model file: ", results_file
+    "Missing eco pooled model file: ", results_file
   )
 }
 
 summary_file <- file.path(output_dir, "storage_eco_response_mlr_summary.csv")
 if (!file.exists(summary_file)) {
-  stop("Missing required eco pooled model summary file: ", summary_file)
+  stop("Missing eco pooled model summary file: ", summary_file)
 }
 
 norm_response <- function(x) {
@@ -175,7 +175,7 @@ p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig7_eco_mlr_beta.png"),
+  file.path(main_dir, "Fig5_ecological_response_models.png"),
   p,
   width = 3.9 * FIG_WIDTH_SCALE,
   height = 4.1 * FIG_HEIGHT_SCALE,
@@ -183,16 +183,19 @@ invisible(safe_ggsave(
 ))
 
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig7_eco_mlr_beta.pdf"),
+  file.path(main_pdf_dir, "Fig5_ecological_response_models.pdf"),
   p,
   width = 3.9 * FIG_WIDTH_SCALE,
   height = 4.1 * FIG_HEIGHT_SCALE
 ))
 invisible(safe_ggsave(
-  file.path(main_tiff_dir, "Fig7_eco_mlr_beta.tiff"),
+  file.path(main_tiff_dir, "Fig5_ecological_response_models.tiff"),
   p,
   width = 3.9 * FIG_WIDTH_SCALE,
   height = 4.1 * FIG_HEIGHT_SCALE,
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 ))
+unlink(file.path(main_dir, "Fig7_eco_mlr_beta.png"))
+unlink(file.path(main_pdf_dir, "Fig7_eco_mlr_beta.pdf"))
+unlink(file.path(main_tiff_dir, "Fig7_eco_mlr_beta.tiff"))

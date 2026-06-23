@@ -1,8 +1,8 @@
-# Figure 8 observed versus predicted ecological responses
+# Figure 6 observed versus predicted ecological responses
 # inputs: outputs/models/storage_eco_response_mlr/storage_eco_response_mlr_predicted_observed.csv
-# outputs: ms_materials/main/Fig8_eco_observed_v_predicted.*
+# outputs: ms_materials/main/Fig6_observed_predicted_ecological_responses.*
 
-librarian::shelf(dplyr, readr, ggplot2, cran_repo = "https://cloud.r-project.org")
+librarian::shelf(dplyr, readr, ggplot2, ggtext, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
@@ -11,7 +11,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(filename)
   tmp_file <- tempfile(
-    pattern = "fig8_",
+    pattern = "fig6_",
     tmpdir = tempdir(),
     fileext = ifelse(nzchar(ext), paste0(".", ext), "")
   )
@@ -49,14 +49,27 @@ pred_file <- file.path(
   "storage_eco_response_mlr_predicted_observed.csv"
 )
 if (!file.exists(pred_file)) {
-  stop("Missing required file: ", pred_file)
+  stop("Missing file: ", pred_file)
+}
+
+summary_file <- file.path(
+  OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
+  "storage_eco_response_mlr_summary.csv"
+)
+if (!file.exists(summary_file)) {
+  stop("Missing file: ", summary_file)
+}
+
+norm_response <- function(x) {
+  out <- as.character(x)
+  out[out == "Q_7Q5"] <- "Q7Q5"
+  out[out == "T_7DMax"] <- "T7DMax"
+  out
 }
 
 pred_df <- read_csv(pred_file, show_col_types = FALSE) %>%
   mutate(
-    Response = as.character(Response),
-    Response = ifelse(Response == "Q_7Q5", "Q7Q5", Response),
-    Response = ifelse(Response == "T_7DMax", "T7DMax", Response),
+    Response = norm_response(Response),
     site = standardize_site_code(as.character(Site)),
     site = factor(site, levels = SITE_ORDER_HYDROMETRIC)
   ) %>%
@@ -73,12 +86,30 @@ diamond_sites <- names(site_shapes)[site_shapes %in% c(18, 23)]
 site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 1.1
 legend_site_levels <- SITE_ORDER_HYDROMETRIC
 
-r2_df <- pred_df %>%
-  group_by(Response) %>%
-  summarise(
-    r2 = suppressWarnings(cor(Observed, Predicted, use = "complete.obs")^2),
-    .groups = "drop"
+format_predictor_label <- function(x) {
+  labels <- c(
+    Pws = "P<sub>ws</sub>",
+    Fyw = "F<sub>yw</sub>"
   )
+  out <- trimws(as.character(x))
+  ifelse(out %in% names(labels), unname(labels[out]), out)
+}
+
+format_predictors <- function(x) {
+  parts <- strsplit(gsub(";", ",", as.character(x), fixed = TRUE), ",", fixed = TRUE)[[1]]
+  parts <- trimws(parts)
+  parts <- parts[nzchar(parts)]
+  paste(format_predictor_label(parts), collapse = ", ")
+}
+
+model_stats <- read_csv(summary_file, show_col_types = FALSE) %>%
+  transmute(
+    Response = norm_response(Response),
+    r2 = suppressWarnings(as.numeric(R2)),
+    rmse = suppressWarnings(as.numeric(RMSE)),
+    predictors = vapply(Predictors_Final, format_predictors, character(1))
+  ) %>%
+  filter(Response %in% c("Q7Q5", "T7DMax"))
 
 one_to_one_df <- pred_df %>%
   group_by(Response) %>%
@@ -88,12 +119,16 @@ one_to_one_df <- pred_df %>%
     .groups = "drop"
   )
 
-r2_annot_df <- r2_df %>%
+annot_df <- model_stats %>%
   left_join(one_to_one_df, by = "Response") %>%
   mutate(
     x = min_v + 0.015 * (max_v - min_v),
     y = max_v - 0.015 * (max_v - min_v),
-    label_parse = paste0("R^2==", sprintf("%.2f", r2))
+    label = paste0(
+      "R<sup>2</sup> = ", sprintf("%.2f", r2),
+      "<br>RMSE = ", signif(rmse, 3),
+      "<br>Predictors: ", predictors
+    )
   )
 
 p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
@@ -110,14 +145,17 @@ p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
     color = "grey35",
     size = FIG_ANNOT_TEXT_SIZE + 1.2
   ) +
-  geom_text(
-    data = r2_annot_df,
-    aes(x = x, y = y, label = label_parse),
+  ggtext::geom_richtext(
+    data = annot_df,
+    aes(x = x, y = y, label = label),
     inherit.aes = FALSE,
-    parse = TRUE,
-    size = FIG_ANNOT_TEXT_SIZE + 1.2,
+    size = FIG_ANNOT_TEXT_SIZE + 0.5,
     hjust = 0,
-    vjust = 1
+    vjust = 1,
+    lineheight = 1.12,
+    fill = NA,
+    label.color = NA,
+    label.padding = grid::unit(rep(0, 4), "pt")
   ) +
   facet_wrap(~ Response, scales = "free", ncol = 1, labeller = as_labeller(response_labels)) +
   scale_color_manual(values = SITE_COLORS, drop = FALSE) +
@@ -149,23 +187,26 @@ p_pred <- ggplot(pred_df, aes(x = Observed, y = Predicted)) +
   )
 
 invisible(safe_ggsave(
-  file.path(main_dir, "Fig8_eco_observed_v_predicted.png"),
+  file.path(main_dir, "Fig6_observed_predicted_ecological_responses.png"),
   p_pred,
   width = 8.8 * FIG_WIDTH_SCALE,
   height = 8.4 * FIG_HEIGHT_SCALE,
   dpi = FIG_PREVIEW_DPI
 ))
 invisible(safe_ggsave(
-  file.path(main_pdf_dir, "Fig8_eco_observed_v_predicted.pdf"),
+  file.path(main_pdf_dir, "Fig6_observed_predicted_ecological_responses.pdf"),
   p_pred,
   width = 8.8 * FIG_WIDTH_SCALE,
   height = 8.4 * FIG_HEIGHT_SCALE
 ))
 invisible(safe_ggsave(
-  file.path(main_tiff_dir, "Fig8_eco_observed_v_predicted.tiff"),
+  file.path(main_tiff_dir, "Fig6_observed_predicted_ecological_responses.tiff"),
   p_pred,
   width = 8.8 * FIG_WIDTH_SCALE,
   height = 8.4 * FIG_HEIGHT_SCALE,
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 ))
+unlink(file.path(main_dir, "Fig8_eco_observed_v_predicted.png"))
+unlink(file.path(main_pdf_dir, "Fig8_eco_observed_v_predicted.pdf"))
+unlink(file.path(main_tiff_dir, "Fig8_eco_observed_v_predicted.tiff"))

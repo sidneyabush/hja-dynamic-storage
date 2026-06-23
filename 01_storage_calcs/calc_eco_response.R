@@ -1,5 +1,5 @@
-# calculate thermal, low-flow, and wet-season precipitation metrics
-# inputs: discharge_dir/HF00402_v14.csv; out_met_support_dir/catchments_met_q.csv
+# calculate thermal, low flow, and wet season precipitation metrics
+# inputs: discharge_dir/HF00402_v14.csv, out_met_support_dir/catchments_met_q.csv
 # outputs: outputs/metrics/eco/stream_thermal_lowflow_metrics_annual.csv
 # author: Sidney Bush
 # date: 2026-01-23
@@ -68,12 +68,12 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
     paste0(
       "Stream temperature inputs do not cover hydrometric analysis sites. ",
       "Found stream IDs: ", paste(available_streams, collapse = ", "), ". ",
-      "Expected site coverage includes: ", paste(sites_keep, collapse = ", "), "."
+      "Analysis sites are: ", paste(sites_keep, collapse = ", "), "."
     )
   )
 }
 
-# WS09 has no stream-temperature record in HT00451
+# WS09 has no stream temperature record in HT00451
 # keep WS09 in the annual master tables and leave the temperature outputs as NA
 
 met_support_file <- file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv")
@@ -104,8 +104,8 @@ discharge <- met_support %>%
 met_daily <- met_support %>%
   select(site, date, P_mm_d)
 
-# wet-season precipitation from November through May
-# Nov-Dec 2019 plus Jan-May 2020 are assigned to water year 2020
+# wet season precipitation from November through May
+# Nov Dec 2019 plus Jan May 2020 are assigned to water year 2020
 precip_nov_may <- met_daily %>%
   mutate(
     month_num = month(date),
@@ -185,7 +185,7 @@ q_7q5_date <- discharge_rolling %>%
   ungroup()
 assert_unique_keys(q_7q5_date, c("site", "year"), "q_7q5_date")
 
-# temperature at the Q5 low-flow date
+# temperature at the Q5 low flow date
 # t_at_q7q5 = temperature on the representative Q5 date
 temp_at_q5 <- q_7q5_date %>%
   left_join(
@@ -196,7 +196,7 @@ temp_at_q5 <- q_7q5_date %>%
   )
 assert_unique_keys(temp_at_q5, c("site", "year"), "temp_at_q5")
 
-# q5_cv = coefficient of variation of stream temperature during the low-flow period
+# q5_cv = coefficient of variation of stream temperature during the low flow period
 # this uses daily mean stream temperature from Aug through Oct
 # lower values suggest stronger thermal buffering by subsurface storage
 temp_cv_lowflow <- temp_daily %>%
@@ -204,7 +204,7 @@ temp_cv_lowflow <- temp_daily %>%
     year = get_water_year(date),
     month_num = month(date)
   ) %>%
-  filter(year %in% target_years, month_num %in% 8:10) %>%  # Aug-Oct
+  filter(year %in% target_years, month_num %in% 8:10) %>%  # Aug Oct
   group_by(site, year) %>%
   summarise(
     temp_mean = mean(temp_mean_C, na.rm = TRUE),
@@ -222,7 +222,7 @@ master_metrics <- t_7dmax %>%
   left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
   left_join(precip_nov_may, by = c("site", "year")) %>%
   left_join(temp_cv_lowflow, by = c("site", "year")) %>%
-  # keep older column names while names are being cleaned up
+# keep both column names for compatibility
   mutate(
     max_temp_7d_C = T_7DMax,
     q5_7d_mm_d = Q_7Q5,

@@ -1,4 +1,4 @@
-# calculate Priestley-Taylor ET methods from daily catchment met+Q support data
+# calculate Priestley Taylor ET methods from daily catchment met+Q support data
 # inputs: out_met_support_dir/catchments_met_q.csv
 # outputs: out_met_support_dir/PT_ET_methods_timeseries.csv and exploratory alpha plots
 
@@ -18,7 +18,7 @@ dir.create(alpha_plot_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(et_plot_dir, showWarnings = FALSE, recursive = TRUE)
 
 if (!file.exists(input_file)) {
-  stop("Missing required input file: ", input_file)
+  stop("Missing input file: ", input_file)
 }
 
 all_catchments_data <- read_csv(input_file, show_col_types = FALSE) %>%
@@ -28,7 +28,7 @@ required_cols <- c("DATE", "SITECODE", "T_C", "RH_d_pct", "NR_Wm2_d")
 missing_cols <- setdiff(required_cols, names(all_catchments_data))
 if (length(missing_cols) > 0) {
   stop(
-    "Missing required columns in catchments met file: ",
+    "Missing columns in catchments met file: ",
     paste(missing_cols, collapse = ", ")
   )
 }
@@ -95,7 +95,7 @@ all_catchments_data$ET_PT_szilagyi <- calculate_et_pt(
 
 write_csv(all_catchments_data, file.path(output_dir, "PT_ET_methods_timeseries.csv"))
 
-# --- alpha plots: long format ---
+# alpha plots: long format
 alpha_long <- all_catchments_data %>%
   filter(DATE >= wy_start_date, DATE <= wy_end_date) %>%
   select(DATE, SITECODE, alpha_zhang, alpha_szilagyi) %>%

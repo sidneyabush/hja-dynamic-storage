@@ -1,9 +1,12 @@
 # build daily catchment met and discharge inputs for WY 1997-2020
+
 # inputs:
 # met_dir/ms00102_v9.csv
 # met_dir/ms05025_v3.csv
 # discharge_dir/hf00402_v14.csv
-# outputs: out_met_support_dir/catchments_met_q.csv
+
+# outputs:
+# out_met_support_dir/catchments_met_q.csv
 
 # author: Sidney Bush
 # date: 2026-02-13
@@ -12,7 +15,6 @@ librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://c
 
 rm(list = ls())
 
-source("helpers/hydromet_utils.R")
 source("config.R")
 
 met_dir <- MET_DIR
@@ -25,10 +27,11 @@ wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# MET station assignments by catchment and variable. Single stations are used
-# directly; two- and three-station groups are gap-filled by the helper methods.
+# MET station assignments by catchment and variable
+# Single stations are used directly, two and three station groups are gap filled with interpolation functions
+
 site_mapping <- list(
-  # lower-elevation catchments use PRIMET
+  # lower elevation catchments use PRIMET
   "GSWS09" = list(
     temp = c("PRIMET"),
     precip = c("PRIMET"),
@@ -68,7 +71,7 @@ site_mapping <- list(
     netrad = c("VANMET")
   ),
 
-  # upper-elevation catchments use H15MET and VANMET
+  # upper elevation catchments use H15MET and VANMET
   "GSWS06" = list(
     temp = c("H15MET", "VANMET"),
     precip = c("H15MET"),
@@ -95,6 +98,7 @@ site_mapping <- list(
     rh = c("CENMET"),
     netrad = c("VANMET")
   ),
+
   "COLD" = list(
     temp = c("CENMET", "UPLMET"),
     precip = c("CENMET", "UPLMET"),
@@ -103,6 +107,7 @@ site_mapping <- list(
   )
 )
 
+# Meteorological data:(filled from Attias (2025; Appendix A from raw data base data))
 Temp <- make_inter_long(
   "Temperature_original_&_filled_1979_2023_v2.csv",
   "Temp",
@@ -158,7 +163,7 @@ combined_met_clean <- combined_met %>%
   group_by(DATE, SITECODE) %>%
   summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
-# VPD is calculated inside the interpolation helper.
+# VPD is calculated inside the interpolation function
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")
 
 results <- process_station_groups(
@@ -211,8 +216,7 @@ if ("SITECODE.x" %in% names(all_catchments_data)) {
     select(DATE, SITECODE, everything())
 }
 
-# GSLOOK is represented by a met composite of the configured tributary
-# catchments, paired with the observed GSLOOK discharge record.
+# GSLOOK is represented by a met composite of the configured tributary catchments, paired with the observed GSLOOK discharge record
 gslook_components <- GSLOOK_COMPOSITE_COMPONENT_SITES
 
 gslook_full_df <- all_catchments_data %>%

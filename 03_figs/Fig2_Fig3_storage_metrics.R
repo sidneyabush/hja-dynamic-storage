@@ -1,6 +1,6 @@
-# Figures 2 and 4
-# inputs: outputs/master/*.csv; anova/Tukey outputs; isotope inputs
-# outputs: ms_materials/main/Fig2_ds_annual_boxplots.*; Fig4_mobile_storage.*
+# Figures 2 and 3 storage metrics
+# inputs: outputs/master/*.csv, anova/Tukey outputs, isotope inputs
+# outputs: ms_materials/main/Fig2_dynamic_storage_pca.*, Fig3_mobile_storage.*
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, cowplot, cran_repo = "https://cloud.r-project.org")
 
@@ -20,16 +20,27 @@ letters_file <- file.path(OUT_STATS_ANOVA_DIR, "tukey_group_letters.csv")
 isotope_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
 damping_file <- file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv")
 fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
+pca_scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
+pca_loadings_file <- file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv")
+pca_variance_file <- file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv")
 
-for (f in c(annual_file, site_file)) {
-  if (!file.exists(f)) stop("Missing required file: ", f)
+for (f in c(
+  annual_file,
+  site_file,
+  isotope_file,
+  damping_file,
+  pca_scores_file,
+  pca_loadings_file,
+  pca_variance_file
+)) {
+  if (!file.exists(f)) stop("Missing file: ", f)
 }
 
 annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-# use annual site-year FDC slopes in Figure 2
+# use annual site year FDC slopes in Figure 2
 if (file.exists(fdc_wy_file)) {
   fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
     mutate(
@@ -58,6 +69,14 @@ if (file.exists(fdc_wy_file)) {
 site_summary <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
+
+pca_scores <- read_csv(pca_scores_file, show_col_types = FALSE) %>%
+  mutate(site = standardize_site_code(site)) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
+
+pca_loadings <- read_csv(pca_loadings_file, show_col_types = FALSE)
+pca_variance <- read_csv(pca_variance_file, show_col_types = FALSE)
 
 letters_df <- if (file.exists(letters_file)) {
   read_csv(letters_file, show_col_types = FALSE) %>%
@@ -441,27 +460,99 @@ build_fig2_panel <- function(metric_key) {
     )
 }
 
+build_fig2_pca_panel <- function() {
+  pc1_pct <- ifelse(nrow(pca_variance) >= 1, 100 * pca_variance$Variance_Explained[1], NA_real_)
+  pc2_pct <- ifelse(nrow(pca_variance) >= 2, 100 * pca_variance$Variance_Explained[2], NA_real_)
+  pca_point_alpha <- 0.55
+  site_shapes <- setNames(c(21, 22, 23, 24, 25, 15, 16, 17, 18, 19), SITE_ORDER_HYDROMETRIC)
+  site_point_sizes <- setNames(rep(FIG_POINT_SIZE_LARGE + 0.7, length(SITE_ORDER_HYDROMETRIC)), SITE_ORDER_HYDROMETRIC)
+  diamond_sites <- names(site_shapes)[site_shapes %in% c(18, 23)]
+  site_point_sizes[diamond_sites] <- site_point_sizes[diamond_sites] + 0.8
+
+  score_lim <- max(abs(c(pca_scores$PC1, pca_scores$PC2)), na.rm = TRUE)
+  load_lim <- max(abs(c(pca_loadings$PC1, pca_loadings$PC2)), na.rm = TRUE)
+  arrow_scale <- ifelse(
+    is.finite(score_lim) && is.finite(load_lim) && load_lim > 0,
+    0.75 * score_lim / load_lim,
+    1
+  )
+
+  loadings_plot <- pca_loadings %>%
+    mutate(
+      PC1s = PC1 * arrow_scale,
+      PC2s = PC2 * arrow_scale,
+      pretty_label = toupper(feature)
+    )
+
+  ggplot(pca_scores, aes(x = PC1, y = PC2, color = site, fill = site, shape = site)) +
+    geom_hline(yintercept = 0, linewidth = 0.3, color = "grey70") +
+    geom_vline(xintercept = 0, linewidth = 0.3, color = "grey70") +
+    geom_point(aes(size = site), alpha = pca_point_alpha, stroke = 0.8) +
+    geom_segment(
+      data = loadings_plot,
+      aes(x = 0, y = 0, xend = PC1s, yend = PC2s),
+      inherit.aes = FALSE,
+      arrow = arrow(length = grid::unit(0.16, "cm")),
+      color = "black",
+      linewidth = 0.5
+    ) +
+    geom_label(
+      data = loadings_plot,
+      aes(x = PC1s, y = PC2s, label = pretty_label),
+      inherit.aes = FALSE,
+      color = "black",
+      fill = scales::alpha("white", 0.78),
+      linewidth = 0,
+      label.padding = grid::unit(0.10, "lines"),
+      size = FIG_ANNOT_TEXT_SIZE + 0.2,
+      nudge_x = 0.05,
+      nudge_y = 0.05
+    ) +
+    scale_color_manual(values = SITE_COLORS, name = NULL, drop = FALSE) +
+    scale_fill_manual(values = SITE_COLORS, guide = "none", drop = FALSE) +
+    scale_shape_manual(values = site_shapes, name = NULL, drop = FALSE) +
+    scale_size_manual(values = site_point_sizes, guide = "none", drop = FALSE) +
+    guides(
+      color = guide_legend(
+        ncol = 1,
+        override.aes = list(
+          shape = unname(site_shapes[SITE_ORDER_HYDROMETRIC]),
+          fill = unname(SITE_COLORS[SITE_ORDER_HYDROMETRIC]),
+          alpha = pca_point_alpha,
+          size = unname(site_point_sizes[SITE_ORDER_HYDROMETRIC]),
+          stroke = 0.8
+        )
+      ),
+      shape = "none",
+      size = "none"
+    ) +
+    labs(
+      x = paste0("PC1 (", scales::number(pc1_pct, accuracy = 0.1), "%)"),
+      y = paste0("PC2 (", scales::number(pc2_pct, accuracy = 0.1), "%)"),
+      title = "f) Principal Components Analysis (PCA)"
+    ) +
+    theme_storage_panel() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size = FIG_AXIS_TEXT_SIZE),
+      axis.text.y = element_text(size = FIG_AXIS_TEXT_SIZE),
+      axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
+      legend.position = "right",
+      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 2),
+      legend.key.height = grid::unit(9, "pt"),
+      legend.key.width = grid::unit(9, "pt"),
+      legend.spacing.y = grid::unit(0, "pt"),
+      legend.margin = margin(0, 0, 0, 0),
+      plot.margin = margin(5.5, 3, 5.5, 5.5)
+    ) +
+    coord_cartesian(clip = FIG_LABEL_CLIP)
+}
+
 p_fig2_a <- build_fig2_panel("RBI")
 p_fig2_b <- build_fig2_panel("RCS")
 p_fig2_c <- build_fig2_panel("FDC")
 p_fig2_d <- build_fig2_panel("SD")
 p_fig2_e <- build_fig2_panel("WB")
-p_fig2_f <- build_corr_triangle_panel(
-  annual,
-  metric_map_fig2,
-  metric_labels = c(
-    RBI = "plain(RBI)",
-    RCS = "plain(RCS)",
-    FDC = "plain(FDC)",
-    SD = "plain(SD)",
-    WB = "plain(WB)"
-  ),
-  title = "f) Dynamic Storage Metric Correlations",
-  legend_mode = "side",
-  axis_text_size = FIG_AXIS_TEXT_SIZE,
-  title_margin_bottom = 12,
-  legend_scale = 1.18
-)
+p_fig2_f <- build_fig2_pca_panel()
 
 # build the columns separately so panel d labels do not push panel e down
 p_fig2_left <- p_fig2_a / p_fig2_c / p_fig2_e +
@@ -472,7 +563,7 @@ p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
 p_fig2 <- (p_fig2_left | p_fig2_right) +
   plot_layout(widths = c(1, 1))
 
-# keep the older BF boxplot code because the BF panel is reused in Figure 4
+# keep the older BF boxplot code because the BF panel is reused in Figure 3
 fig4_df <- annual %>%
   select(site, year, BF) %>%
   filter(is.finite(BF))
@@ -521,7 +612,7 @@ p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site
     axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1)
   )
 
-# Figure 4 mobile storage panels
+# Figure 3 mobile storage panels
 fig4_mobile_map <- c(
   DR = "DR",
   Fyw = "Fyw",
@@ -649,7 +740,7 @@ build_fig4_panel <- function(metric_key) {
   }
 
   dat <- fig4_mobile_df %>% filter(metric == metric_key)
-  # keep x-axis labels only on the bottom row
+  # keep x axis labels only on the bottom row
   show_x <- TRUE
   reserve_x_space <- metric_key %in% c("DR")
   panel_margin <- margin(5.5, 5.5, 5.5, 5.5)
@@ -703,26 +794,6 @@ build_fig4_panel <- function(metric_key) {
 
 fig4_order <- c("BF", names(fig4_mobile_map))
 fig4_raw_plots <- lapply(fig4_order, build_fig4_panel)
-p_fig4_e <- build_corr_triangle_panel(
-  site_summary,
-  c(
-    BF = "BF_mean",
-    DR = "DR",
-    Fyw = "Fyw",
-    MTT = "MTT"
-  ),
-  metric_labels = c(
-    BF = "plain(BF)",
-    DR = "plain(DR)",
-    Fyw = "plain(F)[yw]",
-    MTT = "plain(MTT)"
-  ),
-  title = "e) Mobile Storage Metric Correlations",
-  legend_mode = "side",
-  axis_text_size = FIG_AXIS_TEXT_SIZE + 2,
-  title_margin_bottom = 5,
-  legend_scale = 1.65
-)
 
 left_aligned <- equalize_plot_widths(list(
   p_fig2_a, p_fig2_c, p_fig2_e
@@ -742,19 +813,14 @@ p_fig4 <- patchwork::wrap_plots(
   B = fig4_raw_plots[[2]],
   C = fig4_raw_plots[[3]],
   D = fig4_raw_plots[[4]],
-  E = patchwork::wrap_elements(full = patchwork::patchworkGrob(p_fig4_e)),
   design = "
-  AAABBB
-  CCCDDD
-  EEE###
+  AB
+  CD
   "
-) +
-  patchwork::plot_layout(
-    heights = c(1, 1, 1.45)
-  )
+)
 
 ggsave(
-  file.path(main_dir, "Fig2_ds_annual_boxplots.png"),
+  file.path(main_dir, "Fig2_dynamic_storage_pca.png"),
   p_fig2,
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
@@ -762,14 +828,14 @@ ggsave(
   dpi = FIG_PREVIEW_DPI
 )
 ggsave(
-  file.path(main_pdf_dir, "Fig2_ds_annual_boxplots.pdf"),
+  file.path(main_pdf_dir, "Fig2_dynamic_storage_pca.pdf"),
   p_fig2,
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
 ggsave(
-  file.path(main_tiff_dir, "Fig2_ds_annual_boxplots.tiff"),
+  file.path(main_tiff_dir, "Fig2_dynamic_storage_pca.tiff"),
   p_fig2,
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
@@ -779,31 +845,37 @@ ggsave(
 )
 
 ggsave(
-  file.path(main_dir, "Fig4_mobile_storage.png"),
+  file.path(main_dir, "Fig3_mobile_storage.png"),
   p_fig4,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 12.0 * FIG_HEIGHT_SCALE,
+  height = 8.0 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = FIG_PREVIEW_DPI
 )
 ggsave(
-  file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"),
+  file.path(main_pdf_dir, "Fig3_mobile_storage.pdf"),
   p_fig4,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 12.0 * FIG_HEIGHT_SCALE,
+  height = 8.0 * FIG_HEIGHT_SCALE,
   bg = "white"
 )
 ggsave(
-  file.path(main_tiff_dir, "Fig4_mobile_storage.tiff"),
+  file.path(main_tiff_dir, "Fig3_mobile_storage.tiff"),
   p_fig4,
   width = 10.4 * FIG_WIDTH_SCALE,
-  height = 12.0 * FIG_HEIGHT_SCALE,
+  height = 8.0 * FIG_HEIGHT_SCALE,
   bg = "white",
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 )
 
-# remove older BF-only files not used in the final paper
+# remove older BF only files not used in the final paper
 unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
 unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))
 unlink(file.path(main_tiff_dir, "Fig4_chs_boxplots.tiff"))
+unlink(file.path(main_dir, "Fig2_ds_annual_boxplots.png"))
+unlink(file.path(main_pdf_dir, "Fig2_ds_annual_boxplots.pdf"))
+unlink(file.path(main_tiff_dir, "Fig2_ds_annual_boxplots.tiff"))
+unlink(file.path(main_dir, "Fig4_mobile_storage.png"))
+unlink(file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"))
+unlink(file.path(main_tiff_dir, "Fig4_mobile_storage.tiff"))

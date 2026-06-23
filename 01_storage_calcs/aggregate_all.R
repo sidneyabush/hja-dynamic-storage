@@ -1,6 +1,6 @@
-# assemble the annual and site-level metrics into the master tables
-# inputs: dynamic_dir/rbi_recessioncurve_annual.csv; dynamic_dir/storagedischarge_fdc_annual.csv; mobile_dir/annual_gw_prop_ca.csv; extended_dir/ds_depletion_annual.csv; eco_dir/stream_thermal_lowflow_metrics_annual.csv; mobile_dir/isotope_metrics_site.csv; +1 more CSV files
-# outputs: outputs/master/master_annual.csv; outputs/master/master_site.csv
+# assemble the annual and site level metrics into the master tables
+# inputs: dynamic_dir/rbi_recessioncurve_annual.csv, dynamic_dir/storagedischarge_fdc_annual.csv, mobile_dir/annual_gw_prop_ca.csv, extended_dir/ds_depletion_annual.csv, eco_dir/stream_thermal_lowflow_metrics_annual.csv, mobile_dir/isotope_metrics_site.csv, +1 more CSV files
+# outputs: outputs/master/master_annual.csv, outputs/master/master_site.csv
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -56,11 +56,11 @@ storage_fdc <- read_csv(
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
 
-# use the full-period site-level FDC in the later analysis steps
-# annual site-year FDC is used only for Figure 2 and the ANOVA/Tukey output
+# use the full period site level FDC in the later analysis steps
+# annual site year FDC is used only for Figure 2 and the ANOVA/Tukey output
 fdc_site_path <- file.path(dynamic_dir, "fdc_slopes_overall.csv")
 if (!file.exists(fdc_site_path)) {
-  stop("Missing required full-period FDC file: ", fdc_site_path)
+  stop("Missing full period FDC file: ", fdc_site_path)
 }
 
 fdc_site <- read_csv(
@@ -82,7 +82,7 @@ storage_fdc <- storage_fdc %>%
   mutate(FDC = dplyr::coalesce(FDC_site, FDC)) %>%
   select(-FDC_site)
 
-# BF = annual mean baseflow fraction from calcium-based hydrograph separation
+# BF = annual mean baseflow fraction from calcium based hydrograph separation
 chs_path <- file.path(mobile_dir, "annual_gw_prop_ca.csv")
 baseflow <- read_csv(
   chs_path,
@@ -190,7 +190,7 @@ HJA_avg <- HJA_annual %>%
 
 isotope_site_path <- file.path(mobile_dir, "isotope_metrics_site.csv")
 if (!file.exists(isotope_site_path)) {
-  stop("Missing required isotope site file: ", isotope_site_path)
+  stop("Missing isotope site file: ", isotope_site_path)
 }
 isotope_metrics <- read_csv(
   isotope_site_path,
@@ -327,7 +327,7 @@ if (isTRUE(WRITE_AUX_OUTPUTS)) {
   )
 }
 
-# ---- data-availability summary tables ----
+# data availability summary tables
 
 support_dir <- OUT_MET_SUPPORT_DIR
 dir.create(support_dir, recursive = TRUE, showWarnings = FALSE)
@@ -337,7 +337,7 @@ isotope_sites <- c(
 )
 site_info <- tibble(
   site = SITE_ORDER_HYDROMETRIC,
-  site_name = unname(SITE_NAMES[SITE_ORDER_HYDROMETRIC]),
+  site_name = SITE_ORDER_HYDROMETRIC,
   hydrometric = TRUE,
   chemistry = SITE_ORDER_HYDROMETRIC %in% SITE_ORDER_CHEMISTRY,
   isotopes = SITE_ORDER_HYDROMETRIC %in% isotope_sites

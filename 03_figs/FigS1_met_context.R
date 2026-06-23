@@ -1,6 +1,6 @@
 # make the monthly climate summary figure
 # monthly medians are shown with IQR from Jan through Dec
-# inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv; met_dir/precipitation_original_&_filled_1979_2023.csv; met_dir/swe_original_&_filled_1997_2023_v5.csv
+# inputs: met_dir/temperature_original_&_filled_1979_2023_v2.csv, met_dir/precipitation_original_&_filled_1979_2023.csv, met_dir/swe_original_&_filled_1997_2023_v5.csv
 # outputs: ms_materials/supp/FigS1_met_context.*
 # author: Sidney Bush
 # date: 2026-01-30
@@ -154,7 +154,7 @@ swe_monthly$month <- factor(
   labels = month_labels
 )
 
-# annual anomalies from water-year totals or means
+# annual anomalies from water year totals or means
 
 temp_annual <- temp_data %>%
   group_by(water_year) %>%
