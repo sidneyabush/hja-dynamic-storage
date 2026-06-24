@@ -2,10 +2,10 @@
 
 # inputs:
 # config.R
-# figure_functions.R
-# workflow_functions.R
-# hydromet_functions.R
-# model_functions.R
+# functions/figure_functions.R
+# functions/workflow_functions.R
+# functions/hydromet_functions.R
+# functions/model_functions.R
 # workflow input files listed in each script
 
 # outputs:

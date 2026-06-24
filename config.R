@@ -157,7 +157,7 @@ GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 # shared functions
 # config stays limited to paths and constants
-source(file.path(REPO_DIR, "figure_functions.R"))
-source(file.path(REPO_DIR, "workflow_functions.R"))
-source(file.path(REPO_DIR, "hydromet_functions.R"))
-source(file.path(REPO_DIR, "model_functions.R"))
+source(file.path(REPO_DIR, "functions", "figure_functions.R"))
+source(file.path(REPO_DIR, "functions", "workflow_functions.R"))
+source(file.path(REPO_DIR, "functions", "hydromet_functions.R"))
+source(file.path(REPO_DIR, "functions", "model_functions.R"))
