@@ -27,7 +27,7 @@ OUTPUT_DIR <- file.path(FINAL_WORKFLOW_ROOT, "outputs")
 FIGS_TABLES_PUB_DIR <- file.path(FINAL_WORKFLOW_ROOT, "figs_tables_pub")
 
 # published figure and table files
-# these folders are created by the workflow
+# run_all.R creates the main and supporting information folders before scripts write files
 MS_MAIN_DIR <- file.path(FIGS_TABLES_PUB_DIR, "main")
 MS_SUPP_DIR <- file.path(FIGS_TABLES_PUB_DIR, "supp")
 MS_FIG_MAIN_DIR <- MS_MAIN_DIR
@@ -49,7 +49,7 @@ MET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
 CATCHMENT_CHARACTERISTICS_DIR <- BASE_DATA_DIR
 
 # output folders
-# run_all.R creates these folders before the workflow starts
+# run_all.R creates the metrics and model folders before scripts write files
 OUT_METRICS_DIR <- file.path(OUTPUT_DIR, "metrics")
 OUT_MET_DYNAMIC_DIR <- file.path(OUT_METRICS_DIR, "dynamic")
 OUT_MET_MOBILE_DIR <- file.path(OUT_METRICS_DIR, "mobile")
@@ -104,13 +104,13 @@ WY_END <- 2020
 # baseflow fraction filters
 BF_MIN_OBS_PER_WY_CHEM <- 10
 
-# isotope metrics are used as site averages in this run
-# annual isotope outputs are not used in this run
+# isotope metrics are site averages for the manuscript models
+# annual isotope files are not written
 
 BF_EXCLUDE_SITES <- character(0)
 
 # storage metrics
-# this order is used across plots and tables
+# metric order for plots and tables
 STORAGE_METRIC_ORDER <- c(
   "RBI",
   "RCS",

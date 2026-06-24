@@ -14,6 +14,7 @@ librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-proj
 rm(list = ls())
 source("config.R")
 
+# save one figure file
 safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   tryCatch(
@@ -32,6 +33,7 @@ safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   )
 }
 
+# set output folders for the supporting information figure
 supp_dir <- MS_FIG_SUPP_DIR
 supp_pdf_dir <- MS_FIG_SUPP_PDF_DIR
 supp_tiff_dir <- MS_FIG_SUPP_TIFF_DIR
@@ -43,6 +45,7 @@ site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
+# compare site level dynamic metrics against site level mobile metrics
 dynamic_map <- c(
   RBI = "RBI_mean",
   RCS = "RCS_mean",
@@ -79,6 +82,7 @@ mobile_axis_labels_plotmath <- c(
   MTT = "plain(MTT)"
 )
 
+# calculate Pearson correlations and p values for each metric pair
 corr_df <- tidyr::expand_grid(
   Mobile = names(mobile_map),
   Dynamic = names(dynamic_map)
@@ -120,6 +124,7 @@ corr_df <- tidyr::expand_grid(
     sig_fontface = ifelse(!is.na(p) & p < 0.05, "bold", "plain")
   )
 
+# draw the full dynamic by mobile correlation matrix
 p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_text(aes(label = label, fontface = sig_fontface), size = FIG_TILE_TEXT_SIZE) +
@@ -156,6 +161,7 @@ p <- ggplot(corr_df, aes(x = Dynamic, y = Mobile, fill = r)) +
     legend.text = element_text(size = FIG_AXIS_TEXT_SIZE + 1)
   )
 
+# write Figure S4 in the three manuscript formats
 invisible(safe_ggsave(
   file.path(supp_dir, "FigS4_dynamic_mobile_corr.png"),
   p,

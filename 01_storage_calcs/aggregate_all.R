@@ -68,8 +68,8 @@ storage_fdc <- read_csv(
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
 assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
 
-# use the full period site level FDC in the later analysis steps
-# annual site year FDC is used only for Figure 2 and the ANOVA/Tukey output
+# use full period site level FDC for master_site, catchment models, and Figure 7
+# annual site year FDC is used for Figure 2 and the ANOVA/Tukey output
 fdc_site_path <- file.path(dynamic_dir, "fdc_slopes_overall.csv")
 fdc_site <- read_csv(
   fdc_site_path,

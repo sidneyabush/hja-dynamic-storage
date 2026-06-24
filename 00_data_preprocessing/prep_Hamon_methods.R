@@ -72,7 +72,7 @@ monthly_coef_zhang <- cal_window_raw %>%
     .groups = "drop"
   )
 
-# fallback to site mean and global median coefficients
+# fill missing monthly coefficients with site means, then the overall median
 site_mean_zhang <- monthly_coef_zhang %>%
   group_by(SITECODE) %>%
   summarise(coef_zhang_site = mean(coef_zhang_month), .groups = "drop")

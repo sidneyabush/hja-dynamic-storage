@@ -1,9 +1,5 @@
 # A Unified Framework for Dynamic and Mobile Storage Across Volcanic Montane Catchments
 
-This repository contains the reproducible analysis workflow for the manuscript submitted to *Water Resources Research*.
-
-Preliminary citation:
-
 Bush, S. A., Johnson, K., Segura, C., Perry, Z., Duffy, S., and Sullivan, P. L. (submitted). A Unified Framework for Dynamic and Mobile Storage Across Volcanic Montane Catchments. *Water Resources Research*.
 
 ## Abstract
@@ -25,7 +21,7 @@ The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outpu
 
 ## Software
 
-- Tested with `R 4.5.2`
+- `R 4.5.2`
 - Packages are listed in `install_packages.R`
 - Software citation metadata are provided in `CITATION.cff` and `.zenodo.json`
 - License: MIT
@@ -35,8 +31,6 @@ The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outpu
 The R code used to calculate storage metrics, run the analyses, and produce the manuscript figures and tables is developed at <https://github.com/sidneyabush/hja-dynamic-storage> and should be cited using the archived Zenodo software DOI after release. Data used by the workflow are publicly available from the sources cited below. The gap-filled meteorological inputs used by the workflow are derived from public H.J. Andrews Forest records.
 
 ## Data References
-
-Data citations are taken from the manuscript reference list.
 
 - Bell, D. M. (2023). Time-series of lidar data for the H. J. Andrews Experimental Forest and Willamette National Forest, 2008-2021 [Data set]. Long-Term Ecological Research; Forest Science Data Bank. Retrieved June 18, 2026, from <https://andlter.forestry.oregonstate.edu/data/abstract.aspx?dbcode=GI013>
 - Daly, C., Schulze, M. D., & McKee, W. A. (2025). Air temperature, relative humidity, dewpoint temperature, water vapor pressure deficit, and atmospheric pressure data from benchmark stations at the HJ Andrews Experimental Forest, 1957 to present [Data set]. Long-Term Ecological Research; Forest Science Data Bank. <https://doi.org/10.6073/pasta/5d4ab4b210165d6e860ebe58e0579e4e>

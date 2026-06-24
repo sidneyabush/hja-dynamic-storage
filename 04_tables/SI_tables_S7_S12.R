@@ -22,11 +22,13 @@ rm(list = ls())
 
 source("config.R")
 
+# constants used for formatting model tables
 ALPHA <- 0.05
 ECO_ORDER <- c("Q7Q5", "T7DMax")
 WS_ORDER <- STORAGE_METRIC_ORDER
 WS_TABLE_ORDER <- STORAGE_METRIC_ORDER
 
+# formatting functions used by Tables S8 to S12
 format_p <- function(x) {
   ifelse(
     is.finite(x),
@@ -80,6 +82,7 @@ compute_model_p_if_missing <- function(summary_df, id_col, n_col, r2_col, k_tbl)
 }
 
 load_eco_models <- function() {
+  # selected ecological response models become Table S11
   eco_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
   eco_res_file <- file.path(eco_dir, "storage_eco_response_mlr_results.csv")
   eco_sum_file <- file.path(eco_dir, "storage_eco_response_mlr_summary.csv")
@@ -132,6 +135,7 @@ load_eco_models <- function() {
 }
 
 load_ws_models <- function() {
+  # selected catchment characteristic models become Table S8
   ws_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
   ws_res_file <- file.path(ws_dir, "catchment_char_storage_mlr_results.csv")
   ws_sum_file <- file.path(ws_dir, "catchment_char_storage_mlr_summary.csv")
@@ -184,6 +188,7 @@ load_ws_models <- function() {
 }
 
 load_catchment_alt_models <- function() {
+  # supported catchment characteristic models become Table S9
   catch_alt_file <- file.path(
     OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
     "catchment_char_storage_mlr_aicc_lt2.csv"
@@ -231,6 +236,7 @@ load_catchment_alt_models <- function() {
 }
 
 load_eco_alt_models <- function() {
+  # supported ecological response models become Table S12
   eco_alt_file <- file.path(
     OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
     "storage_eco_response_mlr_aicc_lt2.csv"
@@ -275,12 +281,14 @@ load_eco_alt_models <- function() {
 dir.create(MS_TABLES_SUPP_DIR, recursive = TRUE, showWarnings = FALSE)
 
 write_table_s7 <- function() {
+  # Table S7 is created by the MTT sensitivity script
   source_file <- file.path(OUTPUT_DIR, "MTT_sensitivity", "TableS7_MTT_sensitivity.csv")
   table_s7 <- read_csv(source_file, show_col_types = FALSE)
   write_csv(table_s7, file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv"))
 }
 
 write_table_s8 <- function() {
+  # summarize the selected catchment characteristic models
   ws_models <- load_ws_models()
 
   ws_summary_table <- ws_models %>%
@@ -306,6 +314,7 @@ write_table_s8 <- function() {
 }
 
 write_table_s9 <- function() {
+  # list alternative catchment characteristic models with delta AICc <= 2
   catch_alt <- load_catchment_alt_models()
 
   write_csv(
@@ -315,6 +324,7 @@ write_table_s9 <- function() {
 }
 
 write_table_s11 <- function() {
+  # summarize the selected ecological response models
   eco_models <- load_eco_models()
 
   eco_summary_table <- eco_models %>%
@@ -337,6 +347,7 @@ write_table_s11 <- function() {
 }
 
 write_table_s12 <- function() {
+  # list alternative ecological response models with delta AICc <= 2
   eco_alt <- load_eco_alt_models()
 
   write_csv(
@@ -346,6 +357,7 @@ write_table_s12 <- function() {
 }
 
 write_table_s10 <- function() {
+  # combine residual diagnostics for both model sets
   catch_diag_file <- file.path(
     OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
     "catchment_char_storage_mlr_diagnostics.csv"

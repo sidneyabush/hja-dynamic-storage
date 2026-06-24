@@ -20,6 +20,7 @@ rm(list = ls())
 
 source("config.R")
 
+# write the sensitivity table separately from the main model outputs
 output_dir <- file.path(OUTPUT_DIR, "MTT_sensitivity")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -33,6 +34,7 @@ isotope_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
 damping_file <- file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv")
 main_eco_summary_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv")
 
+# load annual site year values and site level catchment predictors
 annual_df <- read_csv(annual_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
@@ -59,6 +61,7 @@ isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>
     .groups = "drop"
   )
 
+# damping ratio and Fyw stay fixed while MTT definitions are varied
 damping_raw <- read_csv(damping_file, show_col_types = FALSE)
 dr_col <- dplyr::case_when(
   "DR_Overall" %in% names(damping_raw) ~ "DR_Overall",
@@ -83,6 +86,7 @@ damping <- damping_raw %>%
     .groups = "drop"
   )
 
+# build early, late, and combined MTT alternatives from the source isotope table
 raw_mtt <- read_csv(isotope_file, show_col_types = FALSE) %>%
   mutate(
     site = standardize_site_code(trimws(site)),
@@ -136,6 +140,7 @@ clean_predictor_labels <- function(x) {
   out
 }
 
+# catchment MTT models use the same predictor search as the main catchment models
 candidate_sets_catch <- unlist(
   lapply(seq_len(8), function(k) {
     combn(
@@ -149,6 +154,7 @@ candidate_sets_catch <- unlist(
 )
 
 fit_catchment_mtt <- function(site_df_in) {
+  # fit one catchment predictor set
   fit_candidate <- function(df_in, predictors) {
     model_df <- df_in %>%
       dplyr::select(MTT, all_of(predictors)) %>%
@@ -240,6 +246,7 @@ fit_catchment_mtt <- function(site_df_in) {
   fits[[best_idx]]
 }
 
+# run the catchment MTT model for each alternate MTT definition
 catchment_results <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(defn) {
   site_tbl <- site_df_base %>%
     mutate(
@@ -276,6 +283,7 @@ catchment_results <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), fu
 }))
 
 fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
+  # ecological response models always keep wet season precipitation
   mandatory_predictors <- "Pws"
   storage_predictors <- c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw", "MTT")
   if (!include_mtt) {
@@ -290,6 +298,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
   candidate_sets <- c(candidate_sets, lapply(storage_combos, function(x) c("Pws", x)))
 
   fit_candidate <- function(df_in, response, predictors) {
+    # fit one ecological response predictor set
     predictors <- unique(predictors[predictors %in% names(df_in)])
     if (!("Pws" %in% predictors)) {
       return(NULL)
@@ -335,6 +344,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
     loocv <- calc_loocv_stats(formula(fit), model_df)
     diagnostics <- compute_residual_diagnostics(fit)
 
+    # calculate the overall model p value from the fitted F statistic
     fstat <- suppressWarnings(as.numeric(fit_sum$fstatistic))
     model_p <- if (!is.null(fstat) && length(fstat) >= 3 && all(is.finite(fstat[1:3]))) {
       pf(fstat[1], fstat[2], fstat[3], lower.tail = FALSE)
@@ -342,6 +352,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
       NA_real_
     }
 
+    # use standardized coefficients so Table S7 matches the main model tables
     coef_df <- as.data.frame(fit_sum$coefficients)
     coef_df$Predictor <- rownames(coef_df)
     rownames(coef_df) <- NULL
@@ -355,6 +366,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
       Beta_Std = as.numeric(coef(fit_beta)[-1])
     )
 
+    # store the AICc summary and selected coefficients for each MTT definition
     list(
       summary = tibble(
         Response = response,
@@ -393,6 +405,7 @@ fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
 }
 
 build_annual_model_df <- function(mtt_defn = NULL, include_mtt = TRUE) {
+  # add site isotope metrics to each annual site year record
   iso_tbl <- isotope_site_mean %>%
     dplyr::select(site, DR_site_mean, Fyw_site_mean)
 
@@ -413,9 +426,10 @@ build_annual_model_df <- function(mtt_defn = NULL, include_mtt = TRUE) {
       Fyw = Fyw_site_mean
     ) %>%
     { if (include_mtt) mutate(., MTT = MTT) else . } %>%
-    dplyr::select(-DR_site_mean, -Fyw_site_mean)
+  dplyr::select(-DR_site_mean, -Fyw_site_mean)
 }
 
+# fit ecological response models with alternate MTT definitions and without MTT
 eco_mtt_variants <- setdiff(unique(mtt_definitions$mtt_definition), "combined_mean")
 
 eco_with_mtt <- lapply(eco_mtt_variants, function(defn) {
@@ -457,10 +471,12 @@ main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
     AICc
   )
 
+# use the already selected main T7DMax model for the combined MTT case
 eco_summaries <- eco_summaries %>%
   filter(!(mtt_definition == "combined_mean" & Response == "T_7DMax")) %>%
   bind_rows(main_eco_summary)
 
+# assemble the final Table S7 rows and keep only T7DMax sensitivity results
 supp_table <- eco_summaries %>%
   mutate(
     response = dplyr::case_when(
@@ -502,6 +518,7 @@ catchment_supp_table <- catchment_results %>%
   mutate(`Section` = "Catchment MTT model") %>%
   arrange(`MTT Definition`)
 
+# combine ecological response and catchment MTT sensitivity results for Table S7
 supp_table_combined <- bind_rows(
   supp_table,
   catchment_supp_table

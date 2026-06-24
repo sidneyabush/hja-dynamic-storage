@@ -85,7 +85,7 @@ site_df <- read_csv(master_site_file, show_col_types = FALSE) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
 
-# keep simple classes with the numeric axes used for plotting
+# add geology and landslide classes beside numeric plotting axes
 site_classes <- site_df %>%
   transmute(
     site = as.character(site),
@@ -144,7 +144,7 @@ if (nrow(geology_complete) >= 3) {
     cumulative_variance = as.numeric(cumsum(geo_var_explained))
   )
 } else {
-  # keep output tables valid if too few complete catchments are available
+  # write empty PCA outputs when fewer than two catchments have complete physical data
   geology_scores <- geology_input %>%
     transmute(site, geology_pc1 = NA_real_, geology_pc2 = NA_real_)
 
@@ -197,7 +197,7 @@ mobile_with_bf_vals <- row_mean_min(
   min_non_na = 2L
 )
 
-# keep a no BF version in case the mobile axis needs to be checked separately
+# calculate a tracer only mobile axis for the sensitivity output
 mobile_no_bf_vals <- row_mean_min(
   tibble(
     MTT = metric_z$MTT_z,

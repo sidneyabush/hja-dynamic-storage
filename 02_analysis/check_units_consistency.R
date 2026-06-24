@@ -19,6 +19,7 @@ rm(list = ls())
 
 source("config.R")
 
+# save each unit result before printing the status summary
 check_log <- tibble(
   check = character(),
   status = character(),
@@ -42,6 +43,7 @@ add_check <- function(name, ok, detail) {
   }
 }
 
+# read each workflow table and record whether the file is present
 read_workflow_csv <- function(path, name) {
   ok <- file.exists(path)
   add_check(
@@ -57,6 +59,7 @@ read_workflow_csv <- function(path, name) {
   read_csv(path, show_col_types = FALSE)
 }
 
+# required columns must be present before values are compared
 require_columns <- function(df, cols, name) {
   missing <- setdiff(cols, names(df))
   add_check(
@@ -70,6 +73,7 @@ require_columns <- function(df, cols, name) {
   )
 }
 
+# repeated site or site year rows can silently duplicate model inputs
 require_unique_rows <- function(df, cols, name) {
   if (!all(cols %in% names(df))) {
     return(invisible(NULL))
@@ -92,6 +96,7 @@ require_unique_rows <- function(df, cols, name) {
   )
 }
 
+# ranges catch impossible values before modeling
 check_range <- function(df, col, low, high, name) {
   if (!(col %in% names(df))) {
     return(invisible(NULL))
@@ -126,6 +131,7 @@ max_rel_diff <- function(x, y) {
   max(abs(x[keep] - y[keep]) / abs(y[keep]), na.rm = TRUE)
 }
 
+# compare numeric values after joining two workflow tables
 check_table_match <- function(df_left, df_right, by, cols, left_name, right_name, tolerance = 1e-8) {
   joined <- df_left %>%
     select(all_of(by), all_of(cols)) %>%
@@ -151,6 +157,7 @@ check_table_match <- function(df_left, df_right, by, cols, left_name, right_name
   }
 }
 
+# load source and derived tables for unit comparisons
 met_q <- read_workflow_csv(
   file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv"),
   "catchments_met_q"
@@ -219,6 +226,7 @@ isotope_site <- read_workflow_csv(
 ) %>%
   mutate(site = standardize_site_code(if ("site" %in% names(.)) site else SITECODE))
 
+# require columns needed for unit and range comparisons
 require_columns(met_q, c("DATE", "site", "T_C", "P_mm_d", "Q_mm_d", "RH_d_pct", "VPD_kPa"), "catchments_met_q")
 require_columns(wb_daily, c("DATE", "site", "T_C", "P_mm_d", "Q_mm_d", "ET_mm_d"), "daily_water_balance")
 require_columns(discharge, c("DATE", "site", "MEAN_Q"), "discharge")
@@ -228,6 +236,7 @@ require_columns(master_annual, c("site", "year", "RBI", "RCS", "FDC", "SD", "BF"
 require_columns(master_site, c("site", "RBI_mean", "RCS_mean", "FDC_mean", "SD_mean", "BF_mean", "WB_mean", "MTT", "Fyw", "DR"), "master_site")
 require_columns(isotope_site, c("site", "MTT", "Fyw", "DR"), "isotope_metrics_site")
 
+# require one row per intended site or site year
 require_unique_rows(met_q, c("DATE", "site"), "catchments_met_q")
 require_unique_rows(wb_daily, c("DATE", "site"), "daily_water_balance")
 require_unique_rows(dynamic_annual, c("site", "year"), "storage_discharge_fdc_annual")
@@ -273,7 +282,7 @@ add_check(
   paste0("Joined ", nrow(q_check), " rows, max relative difference = ", signif(q_max_rel, 6))
 )
 
-# confirm that derived tables feed master tables without changing values
+# compare dynamic and isotope values against master tables
 check_table_match(
   dynamic_annual,
   master_annual,

@@ -90,8 +90,7 @@ met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
   filter(site %in% sites_keep, !is.na(date))
 assert_unique_keys(met_support, c("site", "date"), "met_support")
 
-# use the standardized Q_mm_d from the support table
-# this script should not do any later unit conversion
+# use Q_mm_d from catchments_met_q so low flow uses the same discharge depth as storage metrics
 discharge <- met_support %>%
   select(site, date, Q_mm_d, WATERYEAR) %>%
   arrange(site, date)

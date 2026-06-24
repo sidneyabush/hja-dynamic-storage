@@ -391,7 +391,7 @@ constrain_interpolated_values <- function(data) {
   return(data)
 }
 
-# combine station records and fill gaps where paired records support it
+# combine station records and fill gaps from nearby paired stations
 process_station_groups <- function(data, station_groups, variables) {
   interpolated_data <- data
   interpolated_pairs <- list()

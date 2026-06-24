@@ -27,6 +27,7 @@ isotope_dir <- ISOTOPE_DIR
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # BF from chemistry tracers and discharge
+# load daily discharge for the sites with chemistry records
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
     date = as.Date(DATE, "%m/%d/%Y"),
@@ -40,6 +41,7 @@ discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   select(SITECODE, date, MEAN_Q, WATERYEAR)
 
 calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
+  # pair tracer samples with same day discharge and keep sampled water years
   tracer_q <- tracer_daily %>%
     left_join(discharge_tbl %>% select(SITECODE, date, MEAN_Q), by = c("SITECODE", "date")) %>%
     filter(is.finite(tracer_value), is.finite(MEAN_Q), MEAN_Q > 0) %>%
@@ -54,6 +56,7 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
   tracer_q_kept <- tracer_q %>%
     semi_join(goodyears, by = c("SITECODE", "waterYear"))
 
+  # return an empty table when a tracer has no usable site years
   if (nrow(tracer_q_kept) == 0) {
     return(tibble(
       SITECODE = character(),
@@ -65,6 +68,7 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
     ))
   }
 
+  # define runoff and baseflow endmembers from each site's Ca distribution
   tracer_q_kept <- tracer_q_kept %>%
     group_by(SITECODE) %>%
     mutate(
@@ -101,6 +105,7 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
   annual
 }
 
+# prepare daily calcium values for chemical hydrograph separation
 chem_file <- file.path(ec_dir, "CF00201_v7.csv")
 chem <- read_csv(chem_file, show_col_types = FALSE) %>%
   mutate(
@@ -134,6 +139,7 @@ write.csv(
 
 # site isotope metrics (MTT, Fyw, DR)
 
+# read MTT and Fyw values from the isotope summary table
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),
   show_col_types = FALSE
@@ -157,7 +163,7 @@ mtt_fyw <- read_csv(
       ), na.rm = TRUE)
     ))),
     MTT_late = ifelse(is.nan(MTT_late), NA_real_, MTT_late),
-    # collapse older period specific labels into one MTT value
+    # collapse period specific labels into one MTT value
     MTT = rowMeans(cbind(MTT_early, MTT_late), na.rm = TRUE),
     MTT = ifelse(is.nan(MTT), NA_real_, MTT),
     Fyw = suppressWarnings(as.numeric(FYWM))
@@ -165,6 +171,7 @@ mtt_fyw <- read_csv(
   select(site, MTT, Fyw) %>%
   filter(!is.na(site), site != "")
 
+# read damping ratio values from the compiled isotope table
 damping <- read_csv(
   file.path(isotope_dir, "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
@@ -178,6 +185,7 @@ damping <- read_csv(
 
 site_template <- tibble(site = SITE_ORDER_HYDROMETRIC)
 
+# keep every hydrometric site in the isotope output, even when a metric is missing
 isotope_metrics_mean <- site_template %>%
   left_join(mtt_fyw, by = "site") %>%
   left_join(damping, by = "site") %>%

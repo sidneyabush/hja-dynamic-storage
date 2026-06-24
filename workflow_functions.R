@@ -1,4 +1,4 @@
-# shared workflow checks, folders, and site utilities
+# shared workflow functions, folders, and site utilities
 
 # inputs:
 # none
@@ -27,7 +27,7 @@ get_water_year_day <- function(date) {
   as.numeric(date - wy_start) + 1
 }
 
-# standard site codes used in outputs
+# site names used in output tables and figures
 # source files use several naming systems for the same sites
 standardize_site_code <- function(site_code) {
   site_code <- trimws(site_code)
@@ -111,7 +111,7 @@ CATCHMENT_PREDICTOR_LABELS <- c(
   "Pyro_per" = "Pyroclastic (%)"
 )
 
-# return a clean catchment predictor label
+# return a display label for one catchment predictor
 label_catchment_predictor <- function(x) {
   x_chr <- as.character(x)
   out <- unname(CATCHMENT_PREDICTOR_LABELS[x_chr])
@@ -120,7 +120,7 @@ label_catchment_predictor <- function(x) {
   out
 }
 
-# return clean labels for comma separated predictor lists
+# return display labels for comma separated predictor lists
 label_catchment_predictor_list <- function(x) {
   x_chr <- as.character(x)
   vapply(
@@ -143,7 +143,7 @@ label_catchment_predictor_list <- function(x) {
 # standardized site codes to leave out of analysis tables
 SITE_EXCLUDE_STANDARD <- unique(standardize_site_code(SITE_EXCLUDE_RAW))
 
-# files used by several scripts
+# source file paths resolved from config folders
 resolve_water_balance_daily_file <- function() {
   file.path(
     OUT_MET_SUPPORT_DIR,
@@ -159,9 +159,9 @@ resolve_catchment_characteristics_file <- function() {
   file.path(CATCHMENT_CHARACTERISTICS_DIR, "catchment_char.csv")
 }
 
-# check input columns before running the workflow
+# verify required input columns before running the workflow
 check_inputs <- function() {
-  # require readr for lightweight column checks
+  # read the headers without loading the full files
   if (!requireNamespace("readr", quietly = TRUE)) {
     stop(
       "Missing R package: readr. Run Rscript install_packages.R once, ",
@@ -198,7 +198,7 @@ check_inputs <- function() {
   invisible(TRUE)
 }
 
-# make folders used by the full workflow
+# create output folders listed in config.R
 make_output_dirs <- function() {
   dirs <- c(
     OUT_METRICS_DIR,
@@ -233,9 +233,9 @@ make_output_dirs <- function() {
   invisible(dirs)
 }
 
-# make sure the workflow wrote the files used by the manuscript
+# verify required manuscript figures, tables, and model files
 verify_outputs <- function() {
-  # require readr for manuscript output checks
+  # read output tables used to verify manuscript files
   if (!requireNamespace("readr", quietly = TRUE)) {
     stop(
       "Missing R package: readr. Run Rscript install_packages.R once, ",
@@ -307,7 +307,7 @@ verify_outputs <- function() {
 
   missing_outputs <- required_outputs[!file.exists(required_outputs)]
 
-  # missing manuscript outputs should stop the run
+  # required figures and tables must exist before the run is complete
   if (length(missing_outputs) > 0) {
     stop(
       paste0(
@@ -347,7 +347,7 @@ verify_outputs <- function() {
 
   annual <- readr::read_csv(master_annual_file, show_col_types = FALSE)
 
-  # check the master annual table before downstream manuscript checks
+  # master_annual must contain site-year rows before verifying manuscript files
   if (!all(c("site", "year") %in% names(annual))) {
     stop("master_annual is missing columns: site/year", call. = FALSE)
   }
@@ -371,7 +371,7 @@ verify_outputs <- function() {
 
   letters_df <- readr::read_csv(letters_path, show_col_types = FALSE)
 
-  # check Tukey grouping columns before checking site order
+  # Tukey letters should include every site shown in Figure 2 and Figure 3
   if (!all(c("metric", "site") %in% names(letters_df))) {
     stop("tukey_group_letters is missing columns: metric/site", call. = FALSE)
   }

@@ -23,6 +23,7 @@ librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, cowplot, cran_repo = "
 rm(list = ls())
 source("config.R")
 
+# set output folders for the main text figures
 main_dir <- MS_FIG_MAIN_DIR
 main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
 main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
@@ -40,6 +41,7 @@ pca_scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
 pca_loadings_file <- file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv")
 pca_variance_file <- file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv")
 
+# load annual values, site values, PCA results, and Tukey letters
 annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
@@ -83,11 +85,13 @@ pca_variance <- read_csv(pca_variance_file, show_col_types = FALSE)
 letters_df <- read_csv(letters_file, show_col_types = FALSE) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
+# shared display settings for the storage metric panels
 BOX_FILL_ALPHA <- 0.22
 POINT_ALPHA <- 0.55
 PANEL_BG <- "white"
 PANEL_BORDER <- "grey55"
 
+# functions for uncertainty bars, axis limits, and repeated styling
 first_finite <- function(x) {
   x <- suppressWarnings(as.numeric(x))
   x <- x[is.finite(x)]
@@ -127,216 +131,6 @@ theme_storage_panel <- function() {
       axis.title = element_text(size = FIG_AXIS_TITLE_SIZE),
       legend.position = "none"
     )
-}
-
-build_corr_triangle_panel <- function(
-  data_df,
-  metric_map,
-  metric_labels,
-  title,
-  legend_mode = c("inset", "side", "side_inner", "bottom", "left"),
-  axis_text_size = FIG_AXIS_TEXT_SIZE + 1,
-  title_margin_bottom = 9,
-  legend_scale = 1.32
-) {
-  legend_mode <- match.arg(legend_mode)
-  corr_input <- data_df %>%
-    select(any_of(unname(metric_map))) %>%
-    mutate(across(everything(), ~ suppressWarnings(as.numeric(.x))))
-
-  if (ncol(corr_input) < 2) {
-    return(patchwork::plot_spacer())
-  }
-
-  colnames(corr_input) <- names(metric_map)
-  corr_mat <- suppressWarnings(cor(corr_input, use = "pairwise.complete.obs"))
-  idx <- which(lower.tri(corr_mat), arr.ind = TRUE)
-  if (nrow(idx) == 0) {
-    return(patchwork::plot_spacer())
-  }
-
-  x_levels <- names(metric_map)[-length(metric_map)]
-  y_levels <- names(metric_map)[-1]
-
-  corr_pvals <- apply(idx, 1, function(rc) {
-    x <- corr_input[[rc[2]]]
-    y <- corr_input[[rc[1]]]
-    keep <- is.finite(x) & is.finite(y)
-
-    if (sum(keep) < 3) {
-      return(NA_real_)
-    }
-
-    suppressWarnings(
-      tryCatch(
-        cor.test(x[keep], y[keep], method = "pearson")$p.value,
-        error = function(e) NA_real_
-      )
-    )
-  })
-
-  corr_tri <- tibble(
-    row_metric = rownames(corr_mat)[idx[, 1]],
-    col_metric = colnames(corr_mat)[idx[, 2]],
-    r = corr_mat[idx],
-    p_value = as.numeric(corr_pvals)
-  ) %>%
-    mutate(
-      row_metric = factor(row_metric, levels = y_levels),
-      col_metric = factor(col_metric, levels = x_levels),
-      fontface = ifelse(is.finite(p_value) & p_value < 0.05, "bold", "plain"),
-      label = ifelse(
-        is.finite(r),
-        ifelse(abs(r) < 0.01, "|r|<0.01", sprintf("%.2f", r)),
-        ""
-      ),
-      label_size = ifelse(
-        is.finite(r) & abs(r) < 0.01,
-        FIG_TILE_TEXT_SIZE * 0.95,
-        FIG_TILE_TEXT_SIZE * 1.15
-      )
-    )
-
-  p_corr <- ggplot(corr_tri, aes(x = col_metric, y = row_metric, fill = r)) +
-    geom_tile(color = "white", linewidth = 0.3) +
-    geom_text(
-      aes(label = label, fontface = fontface, size = label_size),
-      family = "sans",
-      show.legend = FALSE
-    ) +
-    scale_size_identity() +
-    scale_fill_gradient2(
-      low = "firebrick3",
-      mid = "white",
-      high = "dodgerblue3",
-      midpoint = 0,
-      limits = c(-1, 1),
-      na.value = "grey85",
-      name = "Pearson's r"
-    ) +
-    scale_x_discrete(
-      labels = function(x) {
-        parsed <- metric_labels[x]
-        parsed[is.na(parsed)] <- x[is.na(parsed)]
-        parse(text = unname(parsed))
-      }
-    ) +
-    scale_y_discrete(
-      labels = function(x) {
-        parsed <- metric_labels[x]
-        parsed[is.na(parsed)] <- x[is.na(parsed)]
-        parse(text = unname(parsed))
-      }
-    ) +
-    labs(x = NULL, y = NULL, title = title) +
-    theme_storage_panel() +
-    theme(
-      aspect.ratio = 1,
-      plot.title = element_text(
-        size = FIG_STRIP_TEXT_SIZE + 2,
-        hjust = 0,
-        margin = margin(t = 1, r = 0, b = title_margin_bottom, l = 0)
-      ),
-      plot.title.position = "plot",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size = axis_text_size),
-      axis.text.y = element_text(size = axis_text_size),
-      legend.title = element_text(size = FIG_AXIS_TEXT_SIZE),
-      legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 1),
-      legend.box.margin = margin(0, 0, 0, 0),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.key.height = grid::unit(10, "pt"),
-      legend.key.width = grid::unit(8, "pt"),
-      plot.margin = margin(5.5, 0, 1.5, 5.5)
-    )
-
-  if (identical(legend_mode, "inset")) {
-    return(
-      p_corr +
-        theme(
-          legend.position = c(0.9, 0.35),
-          legend.justification = c(1, 0.5),
-          legend.background = element_rect(fill = scales::alpha("white", 0.85), color = NA)
-        )
-    )
-  }
-
-  if (identical(legend_mode, "bottom")) {
-    return(
-      p_corr +
-        guides(
-          fill = guide_colorbar(
-            title.position = "top",
-            direction = "horizontal",
-            barwidth = grid::unit(48, "pt"),
-            barheight = grid::unit(8, "pt")
-          )
-        ) +
-        theme(
-          legend.position = "bottom",
-          legend.justification = c(0.5, 0.5),
-          legend.direction = "horizontal",
-          legend.background = element_blank()
-        )
-    )
-  }
-
-  if (identical(legend_mode, "left")) {
-    corr_grob <- ggplotGrob(
-      p_corr +
-        theme(
-          legend.position = "left",
-          legend.justification = c(0.5, 0.5),
-          legend.background = element_blank()
-        )
-    )
-    guide_idx <- which(vapply(corr_grob$grobs, function(x) x$name, character(1)) == "guide-box")
-
-    if (length(guide_idx) == 0) {
-      return(p_corr + theme(legend.position = "none"))
-    }
-
-    legend_grob <- corr_grob$grobs[[guide_idx[1]]]
-    p_corr_main <- p_corr + theme(legend.position = "none")
-
-    return(
-      (patchwork::wrap_elements(legend_grob) | p_corr_main) +
-        plot_layout(widths = c(0.22, 1))
-    )
-  }
-
-  corr_grob <- ggplotGrob(
-    p_corr +
-      theme(
-        legend.position = "right",
-        legend.justification = c(0.5, 0.5),
-        legend.background = element_blank()
-      )
-  )
-  guide_idx <- which(vapply(corr_grob$grobs, function(x) x$name, character(1)) == "guide-box")
-
-  if (length(guide_idx) == 0) {
-    return(p_corr + theme(legend.position = "none"))
-  }
-
-  legend_grob <- corr_grob$grobs[[guide_idx[1]]]
-  legend_grob$widths <- legend_grob$widths * legend_scale
-  legend_grob$heights <- legend_grob$heights * legend_scale
-  p_corr_main <- p_corr + theme(legend.position = "none")
-
-  if (identical(legend_mode, "side_inner")) {
-    return(
-      (p_corr_main + theme(plot.margin = margin(4, 0, 0, 5.5)) |
-         patchwork::wrap_elements(legend_grob)) +
-        plot_layout(widths = c(1, 0.07))
-    )
-  }
-
-  (
-    p_corr_main + theme(plot.margin = margin(5.5, 0, 0, 0)) |
-      patchwork::plot_spacer() |
-      patchwork::wrap_elements(legend_grob)
-  ) +
-    plot_layout(widths = c(1, 0.10, 0.30))
 }
 
 equalize_plot_widths <- function(plot_list) {
@@ -403,6 +197,7 @@ fig2_y_labels <- c(
 )
 
 build_fig2_panel <- function(metric_key) {
+  # boxplots and Tukey letters share the same structure for all five metrics
   dat <- fig2_long %>% filter(metric == metric_key)
   let <- letters_fig2 %>% filter(metric == metric_key)
   y_lim <- calc_ylim(dat$value, let$y)
@@ -459,6 +254,7 @@ build_fig2_panel <- function(metric_key) {
 }
 
 build_fig2_pca_panel <- function() {
+  # the PCA panel uses site year scores and metric loading arrows
   pc1_pct <- ifelse(nrow(pca_variance) >= 1, 100 * pca_variance$Variance_Explained[1], NA_real_)
   pc2_pct <- ifelse(nrow(pca_variance) >= 2, 100 * pca_variance$Variance_Explained[2], NA_real_)
   pca_point_alpha <- 0.55
@@ -592,6 +388,7 @@ fig4_mobile_map <- c(
   MTT = "MTT"
 )
 
+# use DR, Fyw, and MTT uncertainty columns from the isotope source tables
 isotope_err <- tibble(site = SITE_ORDER_HYDROMETRIC)
 
 mtt_err <- read_csv(isotope_file, show_col_types = FALSE) %>%
@@ -668,6 +465,7 @@ fig4_y_labels <- c(
 )
 
 build_fig4_panel <- function(metric_key) {
+  # BF is annual and plotted as boxplots, isotope metrics are site values with uncertainty
   if (identical(metric_key, "BF")) {
     return(
       ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site)) +

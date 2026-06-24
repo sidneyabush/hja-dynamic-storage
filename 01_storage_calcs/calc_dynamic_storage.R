@@ -31,6 +31,7 @@ dir.create(output_dir_ed, recursive = TRUE, showWarnings = FALSE)
 
 # calculate RBI and recession slope (RCS) from Q
 
+# pair discharge with drainage area for each gaged catchment
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = standardize_site_code(SITECODE))
 
@@ -49,6 +50,7 @@ discharge <- read_csv(
   arrange(SITECODE, Date)
 
 calc_recession <- function(df) {
+  # keep gradual flow declines and fit the recession exponent
   tmp <- df %>%
     mutate(
       dQ = Q - lag(Q),
@@ -66,12 +68,14 @@ calc_recession <- function(df) {
 }
 
 calc_RBI <- function(df) {
+  # sum day to day flow changes relative to total annual flow
   tmp <- df %>% mutate(dQ = Q - lag(Q)) %>% filter(!is.na(dQ))
   total_Q <- sum(df$Q, na.rm = TRUE)
   props <- abs(tmp$dQ) / total_Q
   tibble(RBI = sum(props, na.rm = TRUE))
 }
 
+# calculate annual RBI and RCS for each catchment
 rbi_rcs_annual <- discharge %>%
   group_by(SITECODE, WATERYEAR) %>%
   group_map(
@@ -92,6 +96,7 @@ write_csv(rbi_rcs_annual, file.path(output_dir, "rbi_rcs_annual.csv"))
 
 wb_daily_file <- resolve_water_balance_daily_file()
 
+# use the daily water balance table for FDC, storage discharge, and WB metrics
 wb_df <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
     date = parse_date_time(DATE, orders = c("Ymd", "Y-m-d", "mdy", "dmy")) %>%
@@ -114,6 +119,7 @@ wb_df <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   arrange(site, date)
 
 compute_fdc <- function(Q) {
+  # empirical flow duration curve for positive daily discharge
   Qpos <- Q[Q > 0]
   Qs <- sort(Qpos, decreasing = TRUE)
   n <- length(Qs)
@@ -123,6 +129,7 @@ compute_fdc <- function(Q) {
 }
 
 get_Q <- function(fdc, P_exc) {
+  # interpolate Q99, Q50, or Q01 from the empirical FDC
   if (nrow(fdc) < 2) {
     return(NA_real_)
   }
@@ -130,10 +137,12 @@ get_Q <- function(fdc, P_exc) {
 }
 
 deltaS <- function(Qu, Ql, k, p) {
+  # storage change implied by the fitted recession relationship
   (Qu^(2 - p) - Ql^(2 - p)) / (k * (2 - p))
 }
 
 analyze <- function(df_sub) {
+  # calculate FDC quantiles and recession storage for one site or site year
   fdc <- compute_fdc(df_sub$Q)
   Q99 <- get_Q(fdc, 99)
   Q50 <- get_Q(fdc, 50)
@@ -217,11 +226,7 @@ analyze <- function(df_sub) {
   )
 }
 
-overall <- wb_df %>%
-  group_by(site) %>%
-  group_map(~ analyze(.x) %>% mutate(site = .y$site), .keep = TRUE) %>%
-  bind_rows()
-
+# annual storage values are used in Figure 2, ANOVA/Tukey tests, and ecological response models
 annual <- wb_df %>%
   group_by(site, wateryear) %>%
   group_map(
@@ -230,6 +235,7 @@ annual <- wb_df %>%
   ) %>%
   bind_rows()
 
+# full period FDC slopes are used in master_site, catchment models, and Figure 7
 fdc_slopes <- wb_df %>%
   filter(Q > 0) %>%
   group_by(site) %>%
@@ -260,6 +266,7 @@ fdc_curves_overall <- wb_df %>%
     .groups = "drop"
   )
 
+# annual FDC slopes are used for Figure 2 and ANOVA/Tukey output
 fdc_curves_wy <- wb_df %>%
   filter(Q > 0) %>%
   group_by(site, wateryear) %>%
@@ -276,13 +283,14 @@ fdc_curves_wy <- wb_df %>%
   ) %>%
   rename(WaterYear = wateryear)
 
-# site level full period FDC slope used in later analysis steps
+# full period FDC slope used in master_site
 fdc_slopes_site <- fdc_slopes %>%
   transmute(
     site = site,
     fdc_slope = fdc_slope
   )
 
+# Q5 used for eco response
 q5_annual <- wb_df %>%
   filter(month(date) >= 8, month(date) <= 10) %>%
   group_by(site, wateryear) %>%
@@ -325,6 +333,7 @@ write.csv(
 
 # calculate annual water balance depletion
 
+# keep only complete water years before calculating depletion
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
     SITECODE = standardize_site_code(SITECODE),
@@ -353,6 +362,7 @@ wb_daily <- wb_daily %>%
   semi_join(goodyears_wb, by = c("SITECODE", "waterYear"))
 
 calc_wb_depletion <- function(df_sub) {
+  # annual WB is the largest within year drawdown from cumulative P minus Q minus ET
   df_sub <- df_sub %>% arrange(DATE)
   ds_daily <- df_sub$P_mm_d - df_sub$Q_mm_d - df_sub$ET_mm_d
   wb_cum <- cumsum(ds_daily)

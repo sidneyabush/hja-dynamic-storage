@@ -29,7 +29,7 @@ wy_start <- 1997
 wy_end <- 2020
 wy_breaks <- seq(2000, wy_end, by = 5)
 
-# greyscale palette that prints cleanly
+# greyscale palette for Figure S1
 col_precip <- "#4D4D4D" # dark gray
 col_temp <- "#7A7A7A" # medium gray
 col_swe <- "#B0B0B0" # light gray

@@ -17,6 +17,7 @@ librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = 
 rm(list = ls())
 source("config.R")
 
+# load the framework axes, physical setting PCA loadings, and site metrics
 axes_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "unified_framework_site_axes.csv")
 loadings_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_loadings.csv")
 variance_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_variance.csv")
@@ -45,12 +46,12 @@ if (length(missing_biplot_sites) > 0) {
   )
 }
 
-# check the framework axes before plotting point colors and sizes
+# geology PC columns set point color and size in panel a
 if (!all(c("geology_pc1", "geology_pc2") %in% names(axes))) {
   stop("unified_framework_site_axes.csv is missing geology_pc1/geology_pc2")
 }
 
-# check the PCA loadings before drawing arrows
+# geology loading columns draw the arrows in panel b
 if (!all(c("geology_pc1_loading", "geology_pc2_loading") %in% names(loadings))) {
   stop("geology_composition_pca_loadings.csv is missing pca loading columns")
 }
@@ -58,6 +59,7 @@ if (!all(c("geology_pc1_loading", "geology_pc2_loading") %in% names(loadings))) 
 pc1_pct <- ifelse(nrow(variance) >= 1, 100 * variance$variance_explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(variance) >= 2, 100 * variance$variance_explained[2], NA_real_)
 
+# panel b uses the physical setting PCA scores and loading arrows
 pca_scores <- axes %>%
   transmute(
     site = as.character(site),
@@ -131,6 +133,7 @@ state_label_force <- 0.60
 state_label_force_pull <- 1.30
 state_label_nudge_scale <- 0.22
 
+# site labels are nudged from the PCA origin so the ordination stays readable
 pca_labels_general <- pca_scores %>%
   filter(!site %in% c("Mack", "Look", "WS09", "WS10")) %>%
   mutate(
@@ -154,6 +157,7 @@ pca_labels_ws9_ws10 <- pca_scores %>%
     nudge_y = if_else(site == "WS09", ws9_ws10_nudge * 0.95, -ws9_ws10_nudge * 0.95)
   )
 
+# draw the physical setting PCA panel
 p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
   geom_hline(yintercept = 0, linewidth = 0.5 * FIG9_ELEMENT_SCALE, color = "grey70") +
   geom_vline(xintercept = 0, linewidth = 0.5 * FIG9_ELEMENT_SCALE, color = "grey70") +
@@ -208,6 +212,7 @@ p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
     max.overlaps = Inf,
     show.legend = FALSE
   ) +
+  # Mack and Lookout labels need separate nudges because they sit close together
   geom_text_repel(
     data = pca_labels_ws9_ws10,
     aes(label = site, color = site),
@@ -276,7 +281,7 @@ required_mobile_dynamic_cols <- c(
 )
 missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
 
-# check complete case inputs used to decide panel b membership
+# complete storage metrics determine which catchments appear in panel a
 if (length(missing_required_cols) > 0) {
   stop(
     "master_site is missing columns for panel b filter: ",
@@ -295,6 +300,7 @@ eligible_sites_panel_b <- master_site %>%
   filter(eligible) %>%
   pull(site)
 
+# panel a keeps only sites with every storage metric needed for the framework
 plot_b <- axes %>%
   mutate(site = as.character(site)) %>%
   transmute(
@@ -349,12 +355,14 @@ label_nudge_y_br <- -max(0.10, 0.08 * y_span)
 label_nudge_x_ws07 <- -max(0.12, 0.08 * x_span)
 label_nudge_y_ws07 <- max(0.05, 0.04 * y_span)
 
+# manually nudge labels away from dense points in the storage framework panel
 plot_b_labels <- plot_b %>%
   mutate(
     nudge_x = if_else(site == "WS07", label_nudge_x_ws07, label_nudge_x_br),
     nudge_y = if_else(site == "WS07", label_nudge_y_ws07, label_nudge_y_br)
   )
 
+# draw the dynamic mobile storage framework panel
 p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
   geom_vline(
     xintercept = 0,
@@ -399,6 +407,7 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     linewidth = 0,
     label.padding = unit(0.25, "lines")
   ) +
+  # color and size carry the physical setting PCA scores into panel a
   scale_fill_gradient2(
     low = "#1b9e77",
     mid = "white",
@@ -472,6 +481,7 @@ fig7 <- p_state / p_geo +
 fig7_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
 fig7_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
 
+# write Figure 7 in the three manuscript formats
 nm <- "Fig7_dynamic_mobile_framework"
 save_figure_set(
   plot_obj = fig7,

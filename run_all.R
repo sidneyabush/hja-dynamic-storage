@@ -48,7 +48,7 @@ run_script <- function(path) {
   full <- file.path(repo_dir, path)
   status <- system2("Rscript", shQuote(full), stdout = "", stderr = "")
 
-  # stop the workflow if any script fails
+  # stop the workflow at the script that returns an error
   if (!identical(status, 0L)) {
     stop("Script failed: ", path)
   }
@@ -60,7 +60,7 @@ run_scripts <- function(paths) {
   }
 }
 
-# check input columns before running the workflow
+# verify required input columns before running the workflow
 check_inputs()
 
 # build the daily catchment forcing and ET tables
@@ -113,7 +113,7 @@ run_scripts(plot_scripts_supp)
 run_script("04_tables/SI_tables_S1_S6.R")
 run_script("04_tables/SI_tables_S7_S12.R")
 
-# make sure the manuscript files were written
+# verify required manuscript figures and supporting information tables
 verify_outputs()
 
 # close any open plots

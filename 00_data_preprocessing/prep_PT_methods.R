@@ -24,7 +24,7 @@ all_catchments_data <- read_csv(input_file, show_col_types = FALSE) %>%
 required_cols <- c("DATE", "SITECODE", "T_C", "RH_d_pct", "NR_Wm2_d")
 missing_cols <- setdiff(required_cols, names(all_catchments_data))
 
-# the PT calculation needs these met columns
+# PT calculation requires temperature, radiation, humidity, and date columns
 if (length(missing_cols) > 0) {
   stop(
     "Missing columns in catchments met file: ",
@@ -36,7 +36,7 @@ wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 input_min_date <- suppressWarnings(min(all_catchments_data$DATE, na.rm = TRUE))
 
-# check date coverage before trimming to the study period
+# PT calibration input must begin before the first water year
 if (is.finite(input_min_date) && input_min_date > wy_start_date) {
   stop(
     "Input support data begins at ",

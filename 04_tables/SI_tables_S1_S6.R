@@ -35,9 +35,11 @@ source("config.R")
 
 dir.create(MS_TABLES_SUPP_DIR, recursive = TRUE, showWarnings = FALSE)
 
+# study period used to summarize data availability
 study_start <- as.Date(sprintf("%d-10-01", WY_START - 1))
 study_end <- as.Date(sprintf("%d-09-30", WY_END))
 
+# formatting functions used by several SI tables
 clean_num <- function(x) {
   suppressWarnings(as.numeric(gsub("[^0-9.-]", "", as.character(x))))
 }
@@ -299,7 +301,8 @@ table_s5 <- bind_rows(lapply(names(site_mapping), function(source_site) {
 
 write_csv(table_s5, file.path(MS_TABLES_SUPP_DIR, "TableS5_met_station_assignments.csv"))
 
-# Table S6: isotope metric inputs and final site metrics
+# Table S6: isotope source values and site metrics used in models
+# MTT and Fyw source values are shown beside the model values
 mtt_fyw_raw <- read_csv(file.path(ISOTOPE_DIR, "MTT_FYW.csv"), show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
@@ -319,6 +322,7 @@ mtt_fyw_raw <- read_csv(file.path(ISOTOPE_DIR, "MTT_FYW.csv"), show_col_types = 
     FYWM = clean_num(FYWM)
   )
 
+# damping ratio source columns show which studies contribute to DR_Overall
 damping_raw <- read_csv(
   file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv"),
   show_col_types = FALSE
@@ -337,6 +341,7 @@ damping_raw <- read_csv(
     DR_Overall_err = clean_num(DR__err)
   )
 
+# isotope_metrics_site contains the model values used by the analysis workflow
 isotope_final <- read_csv(
   file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv"),
   show_col_types = FALSE

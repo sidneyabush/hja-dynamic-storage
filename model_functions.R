@@ -12,6 +12,7 @@
 # model selection, AICc, VIF filtering, and diagnostics
 # used by the catchment-control, ecological-response, and MTT sensitivity scripts
 
+# small sample correction for model comparison
 calc_aicc <- function(model_obj, n_obs) {
   k_params <- length(coef(model_obj)) + 1
   aic_val <- AIC(model_obj)
@@ -21,6 +22,7 @@ calc_aicc <- function(model_obj, n_obs) {
   aic_val + (2 * k_params * (k_params + 1)) / (n_obs - k_params - 1)
 }
 
+# leave one observation out at a time to calculate LOOCV RMSE and R2
 calc_loocv_stats <- function(model_formula, model_df, min_n = 6) {
   n <- nrow(model_df)
   if (n < min_n) {
@@ -57,6 +59,7 @@ calc_loocv_stats <- function(model_formula, model_df, min_n = 6) {
   )
 }
 
+# residual tests reported in the supporting information
 compute_residual_diagnostics <- function(model_obj) {
   pull_scalar <- function(obj, key) {
     val <- tryCatch(obj[[key]], error = function(e) NULL)
@@ -98,6 +101,7 @@ compute_residual_diagnostics <- function(model_obj) {
   )
 }
 
+# round numeric output columns before writing tables
 round_export_cols <- function(df, cols, digits = 3) {
   keep <- intersect(cols, names(df))
   if (length(keep) == 0) {
@@ -106,6 +110,7 @@ round_export_cols <- function(df, cols, digits = 3) {
   dplyr::mutate(df, dplyr::across(dplyr::all_of(keep), ~ signif(.x, digits)))
 }
 
+# standardize response names in model output files
 format_export_outcome <- function(x, strip_mean = TRUE, drop_underscores = TRUE) {
   out <- as.character(x)
   if (isTRUE(strip_mean)) {
@@ -117,6 +122,7 @@ format_export_outcome <- function(x, strip_mean = TRUE, drop_underscores = TRUE)
   out
 }
 
+# remove high VIF predictors unless they are protected by the model design
 apply_vif_filter <- function(model_obj, outcome, model_df, threshold, protected = character()) {
   fit <- model_obj
   protected <- as.character(protected)
@@ -157,6 +163,7 @@ apply_vif_filter <- function(model_obj, outcome, model_df, threshold, protected 
   fit
 }
 
+# avoid keeping strongly coupled catchment predictors in the same final model
 apply_correlated_predictor_rules_catchment <- function(model_obj, outcome, model_df) {
   refit_drop_var <- function(drop_var) {
     keep <- setdiff(setdiff(names(coef(model_obj_curr)), "(Intercept)"), drop_var)

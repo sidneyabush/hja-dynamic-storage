@@ -17,6 +17,7 @@ librarian::shelf(dplyr, readr, tidyr, ggplot2, ggtext, cran_repo = "https://clou
 rm(list = ls())
 source("config.R")
 
+# save one figure file
 safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
   tryCatch(
@@ -41,6 +42,7 @@ make_output_dirs <- function(...) {
   }
 }
 
+# normalize response names before plotting model outputs
 norm_response <- function(x) {
   out <- as.character(x)
   out[out == "Q_7Q5"] <- "Q7Q5"
@@ -49,6 +51,7 @@ norm_response <- function(x) {
 }
 
 make_fig4_catchment_controls <- function() {
+  # Figure 4 shows selected catchment controls for each storage metric
   output_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
   plot_dir <- MS_FIG_MAIN_DIR
   plot_pdf_dir <- MS_FIG_MAIN_PDF_DIR
@@ -89,6 +92,7 @@ make_fig4_catchment_controls <- function() {
   mlr_summary <- mlr_summary %>%
     left_join(predictor_count, by = "Outcome")
 
+  # older model output may not include the global model p value
   if (!("model_p_global" %in% names(mlr_summary))) {
     r2_num <- suppressWarnings(as.numeric(mlr_summary$R2))
     n_num <- suppressWarnings(as.numeric(mlr_summary$N))
@@ -116,6 +120,7 @@ make_fig4_catchment_controls <- function() {
       sig_fontface = ifelse(is.finite(p_value) & p_value <= 0.05, "bold", "plain")
     )
 
+  # attach adjusted R2 and model p values from the selected model summary
   adj_r2_lookup <- mlr_summary %>%
     mutate(
       Outcome_clean = gsub("_mean$", "", Outcome),
@@ -135,6 +140,7 @@ make_fig4_catchment_controls <- function() {
   beta_plot_df <- beta_plot_df %>%
     left_join(adj_r2_lookup, by = "Outcome")
 
+  # arrange predictors so geology, disturbance, and slope are easy to compare
   predictor_order <- c(
     "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
     "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"
@@ -188,6 +194,7 @@ make_fig4_catchment_controls <- function() {
     ) +
     coord_cartesian(clip = FIG_LABEL_CLIP)
 
+  # write Figure 4 in the three manuscript formats
   invisible(safe_ggsave(
     file.path(plot_dir, "Fig4_catchment_controls.png"),
     p_beta,
@@ -214,6 +221,7 @@ make_fig4_catchment_controls <- function() {
 }
 
 make_fig5_ecological_response_models <- function() {
+  # Figure 5 shows selected storage predictors for Q7Q5 and T7DMax
   output_dir <- OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR
   main_dir <- MS_FIG_MAIN_DIR
   main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
@@ -247,6 +255,7 @@ make_fig5_ecological_response_models <- function() {
 
   coef_raw <- read_csv(results_file, show_col_types = FALSE)
 
+  # keep only the selected model coefficients when all candidate sets are present
   if ("Candidate_Set" %in% names(coef_raw)) {
     selected_sets <- read_csv(summary_file, show_col_types = FALSE) %>%
       transmute(
@@ -296,6 +305,7 @@ make_fig5_ecological_response_models <- function() {
       label = ifelse(is.finite(Beta_Std), sprintf("%.2f", Beta_Std), "")
     )
 
+  # blank cells remain white so absent predictors are visually distinct
   p <- ggplot(plot_df, aes(x = Response, y = Predictor)) +
     geom_tile(fill = "white", color = "white", linewidth = 0.3) +
     geom_tile(
@@ -333,6 +343,7 @@ make_fig5_ecological_response_models <- function() {
       legend.text = element_text(size = FIG_AXIS_TEXT_SIZE - 4)
     )
 
+  # write Figure 5 in the three manuscript formats
   invisible(safe_ggsave(
     file.path(main_dir, "Fig5_ecological_response_models.png"),
     p,
@@ -359,6 +370,7 @@ make_fig5_ecological_response_models <- function() {
 }
 
 make_fig6_observed_predicted_ecological_responses <- function() {
+  # Figure 6 compares observed and predicted ecological response values
   main_dir <- MS_FIG_MAIN_DIR
   main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
   main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
@@ -381,6 +393,7 @@ make_fig6_observed_predicted_ecological_responses <- function() {
     ) %>%
     filter(Response %in% c("Q7Q5", "T7DMax"), is.finite(Observed), is.finite(Predicted))
 
+  # site symbols match the other main text figures
   response_labels <- c(
     "Q7Q5" = "a) Q7Q5",
     "T7DMax" = "b) T7DMax"
@@ -411,6 +424,7 @@ make_fig6_observed_predicted_ecological_responses <- function() {
     paste(format_predictor_label(parts), collapse = ", ")
   }
 
+  # place R2, RMSE, and selected predictors inside each panel
   model_stats <- read_csv(summary_file, show_col_types = FALSE) %>%
     transmute(
       Response = norm_response(Response),
@@ -495,6 +509,7 @@ make_fig6_observed_predicted_ecological_responses <- function() {
       legend.text = element_text(size = FIG_AXIS_TEXT_SIZE)
     )
 
+  # write Figure 6 in the three manuscript formats
   invisible(safe_ggsave(
     file.path(main_dir, "Fig6_observed_predicted_ecological_responses.png"),
     p_pred,

@@ -30,7 +30,7 @@ site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(!site %in% SITE_EXCLUDE_STANDARD)
 
-# use the combined site level MTT values
+# use the combined site level MTT values from isotope_metrics_site
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
 mtt_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
   mutate(
@@ -87,7 +87,7 @@ candidate_sets <- unlist(
   recursive = FALSE
 )
 
-# try one catchment-control model and return NULL when the data cannot support it
+# fit one catchment predictor set
 fit_candidate <- function(df_in, outcome, predictors) {
   model_input <- df_in
 
@@ -107,7 +107,7 @@ fit_candidate <- function(df_in, outcome, predictors) {
     dplyr::select(all_of(c(outcome, predictors))) %>%
     na.omit()
 
-  # skip models with too few complete sites
+  # require at least five complete sites for catchment models
   if (nrow(model_df) < MIN_N) {
     return(NULL)
   }
@@ -150,6 +150,7 @@ fit_candidate <- function(df_in, outcome, predictors) {
     return(NULL)
   }
 
+  # collect fit statistics for the selected candidate
   fit_sum <- summary(fit)
   rmse <- sqrt(mean(residuals(fit)^2, na.rm = TRUE))
   aic_val <- AIC(fit)
@@ -256,7 +257,7 @@ for (metric in STORAGE_METRIC_ORDER) {
   candidate_fits <- list()
   candidate_rows <- list()
 
-  # keep only candidates that fit cleanly for this metric
+  # keep candidate models that pass the data and VIF filters
   for (i in seq_along(candidate_sets)) {
     fit_obj <- fit_candidate(site_df, outcome, candidate_sets[[i]])
     if (is.null(fit_obj)) {
@@ -273,7 +274,7 @@ for (metric in STORAGE_METRIC_ORDER) {
     next
   }
 
-  # rank the surviving candidates for this metric
+  # rank retained candidate models by AICc
   selection_tbl <- bind_rows(candidate_rows) %>%
     mutate(delta_AICc = AICc - min(AICc, na.rm = TRUE)) %>%
     arrange(AICc)
@@ -305,6 +306,7 @@ diag_tbl <- bind_rows(all_diag) %>%
   )
 select_tbl <- bind_rows(all_select)
 
+# format labels and round numeric columns before writing catchment model files
 results_export <- results_tbl %>%
   mutate(
     Outcome = format_export_outcome(Outcome),
@@ -348,7 +350,7 @@ aicc_lt2_export <- select_tbl %>%
   ) %>%
   arrange(Outcome, delta_AICc, AICc, Candidate_Set)
 
-# these four files feed Figure 4 and Tables S8 to S10
+# write catchment model outputs for Figure 4 and Tables S8 to S10
 write.csv(
   results_export,
   file.path(output_dir, paste0(file_prefix, "_results.csv")),
@@ -383,7 +385,7 @@ annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
 data_all <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
-# Use site level isotope means (DR, Fyw, MTT) as eco model predictors
+# use site level isotope means (DR, Fyw, MTT) as eco model predictors
 isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
 isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
   mutate(
@@ -440,7 +442,7 @@ if (length(storage_predictors) > 0) {
   candidate_sets <- c(candidate_sets, lapply(storage_combos, function(x) c("Pws", x)))
 }
 
-# try one ecological-response model and return NULL when the data cannot support it
+# fit one ecological response predictor set
 fit_candidate <- function(df_in, response, predictors) {
   predictors <- unique(predictors[predictors %in% names(df_in)])
 
@@ -453,7 +455,7 @@ fit_candidate <- function(df_in, response, predictors) {
     dplyr::select(any_of(c("site", "year", response, predictors))) %>%
     na.omit()
 
-  # skip models with too few complete site years
+  # require at least 20 complete site years for ecological response models
   if (nrow(model_df) < MODEL_MIN_N) {
     return(NULL)
   }
@@ -525,6 +527,7 @@ fit_candidate <- function(df_in, response, predictors) {
     NA_real_
   }
 
+  # report VIF values only when more than one predictor is retained
   vif_df <- if (length(retained) > 1) {
     vif_vals <- tryCatch(vif(fit), error = function(e) NULL)
     if (is.null(vif_vals)) tibble(Predictor = retained, VIF = NA_real_)
@@ -533,6 +536,7 @@ fit_candidate <- function(df_in, response, predictors) {
     tibble(Predictor = retained, VIF = NA_real_)
   }
 
+  # standardize the response to calculate comparable beta values
   coef_df <- as.data.frame(fit_sum$coefficients)
   coef_df$Predictor <- rownames(coef_df)
   rownames(coef_df) <- NULL
@@ -567,6 +571,7 @@ fit_candidate <- function(df_in, response, predictors) {
 
   loocv <- calc_loocv_stats(formula(fit), model_df)
 
+  # summarize model fit and leave one out prediction error
   summary_out <- tibble(
     Site = "all_sites",
     Response = response,
@@ -585,6 +590,7 @@ fit_candidate <- function(df_in, response, predictors) {
     delta_RMSE_LOOCV_mean_runs_minus_model = loocv$mae - sqrt(mean(residuals(fit)^2, na.rm = TRUE))
   )
 
+  # store observed, predicted, and residual values for Figure 6
   pred_obs_out <- model_df %>%
     mutate(
       Site = if ("site" %in% names(model_df)) as.character(site) else "all_sites",
@@ -601,6 +607,7 @@ fit_candidate <- function(df_in, response, predictors) {
       Residual
     )
 
+  # keep residual diagnostics with the same labels as the summary table
   diagnostics_out <- compute_residual_diagnostics(fit) %>%
     mutate(
       Site = "all_sites",
@@ -634,7 +641,7 @@ for (response in response_vars) {
   fits <- list()
   summaries <- list()
 
-  # keep only candidates that fit cleanly for this response
+  # keep candidate models that pass the data and VIF filters
   for (i in seq_along(candidate_sets)) {
     fit_obj <- fit_candidate(data_all, response, candidate_sets[[i]])
     if (is.null(fit_obj)) next
@@ -646,7 +653,7 @@ for (response in response_vars) {
 
   if (length(fits) == 0) next
 
-  # rank the surviving candidates for this response
+  # rank retained candidate models by AICc
   selection_tbl <- bind_rows(summaries) %>%
     mutate(delta_AICc = AICc - min(AICc, na.rm = TRUE)) %>%
     arrange(AICc)
@@ -680,6 +687,7 @@ diagnostics <- bind_rows(diagnostics_list) %>%
   )
 selection <- bind_rows(selection_list)
 
+# format labels and round numeric columns before writing ecological response files
 results_export <- results %>%
   mutate(
     Response = format_export_outcome(Response, strip_mean = FALSE, drop_underscores = TRUE),
@@ -726,7 +734,7 @@ aicc_lt2_export <- selection %>%
     )
   )
 
-# these five files feed Figures 5 and 6 and Tables S10 to S12
+# write ecological response model outputs for Figures 5 and 6 and Tables S10 to S12
 write.csv(results_export, file.path(output_dir, paste0(file_prefix, "_results.csv")), row.names = FALSE)
 write.csv(summary_export, file.path(output_dir, paste0(file_prefix, "_summary.csv")), row.names = FALSE)
 write.csv(diagnostics_export, file.path(output_dir, paste0(file_prefix, "_diagnostics.csv")), row.names = FALSE)
