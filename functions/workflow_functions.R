@@ -178,7 +178,7 @@ check_inputs <- function() {
     )))
     missing_cols <- setdiff(cols, file_cols)
 
-    # missing columns usually mean a source file changed
+    # source files must include the columns used by the workflow
     if (length(missing_cols) > 0) {
       stop(
         "Missing columns in ",
@@ -326,13 +326,13 @@ verify_outputs <- function() {
     )
     bad_names <- names(table_df) == "" | is.na(names(table_df))
 
-    # blank headings make the supporting information tables hard to read
+    # supporting information table headings need names
     if (any(bad_names)) {
       stop("Table has missing column heading(s): ", table_file, call. = FALSE)
     }
     duplicated_names <- names(table_df)[duplicated(names(table_df))]
 
-    # repeated headings make the supporting information tables ambiguous
+    # supporting information table headings must be unique
     if (length(duplicated_names) > 0) {
       stop(
         "Table has duplicated column heading(s): ",
@@ -360,7 +360,7 @@ verify_outputs <- function() {
 
   unknown_sites <- setdiff(unique(as.character(annual$site)), SITE_ORDER_HYDROMETRIC)
 
-  # unknown site codes usually mean a source name was not standardized
+  # site codes must match the standardized site names
   if (length(unknown_sites) > 0) {
     stop(
       "Unknown site code(s) in master_annual: ",
@@ -371,7 +371,7 @@ verify_outputs <- function() {
 
   letters_df <- readr::read_csv(letters_path, show_col_types = FALSE)
 
-  # Tukey letters should include every site shown in Figure 2 and Figure 3
+  # Tukey letters must include every site shown in Figure 2 and Figure 3
   if (!all(c("metric", "site") %in% names(letters_df))) {
     stop("tukey_group_letters is missing columns: metric/site", call. = FALSE)
   }

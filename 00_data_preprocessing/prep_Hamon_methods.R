@@ -96,7 +96,7 @@ data <- data %>%
     )
   )
 
-# define calibration window using the new columns
+# use the calibration dates to fit the Hamon to PT relationship
 cal_window <- data %>%
   filter(DATE >= calibration_start, DATE <= calibration_end)
 
@@ -179,7 +179,7 @@ data <- data %>%
   ) %>%
   ungroup()
 
-# drop temporary coefficient and prediction columns
+# drop calibration columns before export
 data <- data %>%
   select(
     -contains("coef"),

@@ -92,7 +92,7 @@ make_fig4_catchment_controls <- function() {
   mlr_summary <- mlr_summary %>%
     left_join(predictor_count, by = "Outcome")
 
-  # older model output may not include the global model p value
+  # calculate the model p value if it is missing from the model summary
   if (!("model_p_global" %in% names(mlr_summary))) {
     r2_num <- suppressWarnings(as.numeric(mlr_summary$R2))
     n_num <- suppressWarnings(as.numeric(mlr_summary$N))
@@ -140,7 +140,7 @@ make_fig4_catchment_controls <- function() {
   beta_plot_df <- beta_plot_df %>%
     left_join(adj_r2_lookup, by = "Outcome")
 
-  # arrange predictors so geology, disturbance, and slope are easy to compare
+  # arrange predictors by geology, disturbance, and slope
   predictor_order <- c(
     "basin_slope", "Harvest", "Landslide_Total", "Landslide_Young",
     "Lava1_per", "Lava2_per", "Ash_Per", "Pyro_per"

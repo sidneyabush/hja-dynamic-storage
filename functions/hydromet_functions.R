@@ -456,14 +456,14 @@ process_station_groups <- function(data, station_groups, variables) {
       }
       interpolated_triplets[[triplet_name]] <- triplet
     } else {
-      # fall back to pairwise interpolation
-      fallback_pairs <- list(
+      # use pairwise interpolation when the three station fit is not available
+      pairwise_station_groups <- list(
         list(site1 = site1, site2 = site2),
         list(site1 = site1, site2 = site3),
         list(site1 = site2, site2 = site3)
       )
 
-      for (pair in fallback_pairs) {
+      for (pair in pairwise_station_groups) {
         for (var in variables) {
           interpolated_data <- interpolate_pair(interpolated_data, pair$site1, pair$site2, var)
         }

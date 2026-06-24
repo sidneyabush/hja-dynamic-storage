@@ -25,9 +25,9 @@ dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 sites_keep <- SITE_ORDER_HYDROMETRIC
 target_years <- WY_START:WY_END
 
-assert_unique_keys <- function(df, keys, df_name) {
+stop_if_repeated_rows <- function(df, columns, df_name) {
   dupes <- df %>%
-    count(across(all_of(keys)), name = "n") %>%
+    count(across(all_of(columns)), name = "n") %>%
     filter(n > 1)
 
   # stop if repeated rows would duplicate outputs
@@ -35,7 +35,7 @@ assert_unique_keys <- function(df, keys, df_name) {
     stop(
       paste0(
         "Repeated rows in ", df_name, " for columns (",
-        paste(keys, collapse = ", "), ")."
+        paste(columns, collapse = ", "), ")."
       )
     )
   }
@@ -88,7 +88,7 @@ met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
     WATERYEAR = get_water_year(date)
   ) %>%
   filter(site %in% sites_keep, !is.na(date))
-assert_unique_keys(met_support, c("site", "date"), "met_support")
+stop_if_repeated_rows(met_support, c("site", "date"), "met_support")
 
 # use Q_mm_d from catchments_met_q so low flow uses the same discharge depth as storage metrics
 discharge <- met_support %>%
@@ -115,7 +115,7 @@ precip_nov_may <- met_daily %>%
     precip_nov_may_mm = Pws
   ) %>%
   select(site, year, Pws, precip_nov_may_mm)
-assert_unique_keys(precip_nov_may, c("site", "year"), "precip_nov_may")
+stop_if_repeated_rows(precip_nov_may, c("site", "year"), "precip_nov_may")
 
 calc_7day_rolling <- function(df, value_col) {
   df %>%
@@ -152,7 +152,7 @@ t_7dmax <- temp_rolling %>%
     T_7DMax = temp_7d_avg_C
   ) %>%
   ungroup()
-assert_unique_keys(t_7dmax, c("site", "year"), "t_7dmax")
+stop_if_repeated_rows(t_7dmax, c("site", "year"), "t_7dmax")
 
 # Q5 of the 7-day average discharge in each water year
 q_7q5 <- discharge_rolling %>%
@@ -162,13 +162,13 @@ q_7q5 <- discharge_rolling %>%
     Q_7Q5 = quantile(Q_7d_avg_mm_d, probs = 0.05, na.rm = TRUE),
     .groups = "drop"
   )
-assert_unique_keys(q_7q5, c("site", "year"), "q_7q5")
+stop_if_repeated_rows(q_7q5, c("site", "year"), "q_7q5")
 
 master_metrics <- t_7dmax %>%
   full_join(q_7q5, by = c("site", "year")) %>%
   left_join(precip_nov_may, by = c("site", "year")) %>%
   arrange(site, year)
-assert_unique_keys(master_metrics, c("site", "year"), "master_metrics")
+stop_if_repeated_rows(master_metrics, c("site", "year"), "master_metrics")
 
 output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv")
 write_csv(master_metrics, output_file)

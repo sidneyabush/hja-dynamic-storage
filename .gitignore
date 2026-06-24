@@ -67,7 +67,7 @@ tmp_figures*/
 temp_outputs/
 _local/
 
-# Generated workflow folders
+# Workflow folders made by the analysis
 outputs/
 figs_tables_pub/
 inputs/

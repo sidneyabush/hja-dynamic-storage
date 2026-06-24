@@ -119,7 +119,7 @@ verify_outputs()
 # close any open plots
 try(grDevices::graphics.off(), silent = TRUE)
 
-# remove accidental Rplots.pdf
+# remove Rplots.pdf if R created one
 if (file.exists("Rplots.pdf")) {
   file.remove("Rplots.pdf")
 }

@@ -127,7 +127,7 @@ fit_candidate <- function(df_in, outcome, predictors) {
     error = function(e) NULL
   )
 
-  # skip candidates that cannot be fit by lm
+  # skip candidates when lm returns an error
   if (is.null(fit)) {
     return(NULL)
   }
@@ -475,7 +475,7 @@ fit_candidate <- function(df_in, response, predictors) {
   model_formula <- as.formula(paste(response, "~", paste(predictors, collapse = " + ")))
   fit <- tryCatch(lm(model_formula, data = model_df), error = function(e) NULL)
 
-  # skip candidates that cannot be fit by lm
+  # skip candidates when lm returns an error
   if (is.null(fit)) {
     return(NULL)
   }

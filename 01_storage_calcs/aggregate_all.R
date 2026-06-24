@@ -31,9 +31,9 @@ master_dir <- file.path(OUTPUT_DIR, "master")
 
 dir.create(master_dir, recursive = TRUE, showWarnings = FALSE)
 
-assert_unique_keys <- function(df, keys, df_name) {
+stop_if_repeated_rows <- function(df, columns, df_name) {
   dupes <- df %>%
-    count(across(all_of(keys)), name = "n") %>%
+    count(across(all_of(columns)), name = "n") %>%
     filter(n > 1)
 
   # stop if repeated rows would duplicate outputs
@@ -41,7 +41,7 @@ assert_unique_keys <- function(df, keys, df_name) {
     stop(
       paste0(
         "Repeated rows in ", df_name, " for columns (",
-        paste(keys, collapse = ", "), ")."
+        paste(columns, collapse = ", "), ")."
       )
     )
   }
@@ -55,7 +55,7 @@ rbi_recession <- read_csv(
   mutate(year = as.integer(year)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, RCS, RBI)
-assert_unique_keys(rbi_recession, c("site", "year"), "rbi_recession")
+stop_if_repeated_rows(rbi_recession, c("site", "year"), "rbi_recession")
 
 fdc_path <- file.path(dynamic_dir, "storage_discharge_fdc_annual.csv")
 storage_fdc <- read_csv(
@@ -66,7 +66,7 @@ storage_fdc <- read_csv(
   mutate(year = as.integer(year)) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, SD, FDC, Q99, Q50, Q01, Q5norm, CV_Q5norm)
-assert_unique_keys(storage_fdc, c("site", "year"), "storage_fdc")
+stop_if_repeated_rows(storage_fdc, c("site", "year"), "storage_fdc")
 
 # use full period site level FDC for master_site, catchment models, and Figure 7
 # annual site year FDC is used for Figure 2 and the ANOVA/Tukey output
@@ -83,7 +83,7 @@ fdc_site <- read_csv(
   ) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   select(site, FDC_site)
-assert_unique_keys(fdc_site, c("site"), "fdc_site")
+stop_if_repeated_rows(fdc_site, c("site"), "fdc_site")
 
 storage_fdc <- storage_fdc %>%
   left_join(fdc_site, by = "site") %>%
@@ -105,7 +105,7 @@ baseflow <- read_csv(
     BF = ifelse(site %in% BF_EXCLUDE_SITES, NA_real_, BF)
   ) %>%
   select(site, year, BF)
-assert_unique_keys(baseflow, c("site", "year"), "baseflow")
+stop_if_repeated_rows(baseflow, c("site", "year"), "baseflow")
 
 wb_path <- file.path(extended_dir, "ds_depletion_annual.csv")
 wb_storage <- read_csv(
@@ -118,7 +118,7 @@ wb_storage <- read_csv(
   mutate(WB = suppressWarnings(as.numeric(WB))) %>%
   filter(year >= WY_START, year <= WY_END) %>%
   select(site, year, WB)
-assert_unique_keys(wb_storage, c("site", "year"), "wb_storage")
+stop_if_repeated_rows(wb_storage, c("site", "year"), "wb_storage")
 
 thermal_lowflow <- read_csv(
   file.path(eco_dir, "stream_thermal_lowflow_metrics_annual.csv"),
@@ -157,7 +157,7 @@ thermal_lowflow <- thermal_lowflow %>%
   select(
     site, year, all_of(thermal_cols_output)
   )
-assert_unique_keys(thermal_lowflow, c("site", "year"), "thermal_lowflow")
+stop_if_repeated_rows(thermal_lowflow, c("site", "year"), "thermal_lowflow")
 
 HJA_annual <- rbi_recession %>%
   full_join(storage_fdc, by = c("site", "year")) %>%
@@ -167,7 +167,7 @@ HJA_annual <- rbi_recession %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site, year)
-assert_unique_keys(HJA_annual, c("site", "year"), "HJA_annual")
+stop_if_repeated_rows(HJA_annual, c("site", "year"), "HJA_annual")
 
 write.csv(HJA_annual,
           file.path(master_dir, MASTER_ANNUAL_FILE),
@@ -201,7 +201,7 @@ isotope_metrics <- read_csv(
   ) %>%
   select(site, MTT, Fyw, DR) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
-assert_unique_keys(isotope_metrics, c("site"), "isotope_metrics")
+stop_if_repeated_rows(isotope_metrics, c("site"), "isotope_metrics")
 
 HJA_avg <- HJA_avg %>%
   left_join(isotope_metrics, by = "site")
@@ -213,7 +213,7 @@ catchment_chars <- read_csv(
   rename(site = Site) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
-assert_unique_keys(catchment_chars, c("site"), "catchment_chars")
+stop_if_repeated_rows(catchment_chars, c("site"), "catchment_chars")
 
 HJA_avg <- HJA_avg %>%
   left_join(catchment_chars, by = "site")

@@ -20,7 +20,7 @@ master_site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 model_out_dir <- file.path(OUTPUT_DIR, "models", "unified_framework")
 dir.create(model_out_dir, recursive = TRUE, showWarnings = FALSE)
 
-safe_z <- function(x) {
+z_score_or_na <- function(x) {
   x_num <- as.numeric(x)
   s <- suppressWarnings(sd(x_num, na.rm = TRUE))
   if (!is.finite(s) || s <= 0) {
@@ -178,7 +178,7 @@ metric_oriented <- site_df %>%
   )
 
 metric_z <- metric_oriented %>%
-  mutate(across(-site, safe_z, .names = "{.col}_z"))
+  mutate(across(-site, z_score_or_na, .names = "{.col}_z"))
 
 # dynamic storage uses discharge regulation and seasonal depletion metrics
 dynamic_vals <- row_mean_min(
@@ -220,11 +220,11 @@ axes_site <- tibble(
   n_mobile_components_no_bf = mobile_no_bf_vals$n
 ) %>%
   mutate(
-    dynamic_storage_strength_z = safe_z(dynamic_storage_strength),
-    mobile_mixing_z = safe_z(mobile_mixing),
-    mobile_mixing_with_bf_z = safe_z(mobile_mixing_with_bf),
-    mobile_mixing_no_bf_z = safe_z(mobile_mixing_no_bf),
-    flow_path_partitioning_z = safe_z(BF_mean),
+    dynamic_storage_strength_z = z_score_or_na(dynamic_storage_strength),
+    mobile_mixing_z = z_score_or_na(mobile_mixing),
+    mobile_mixing_with_bf_z = z_score_or_na(mobile_mixing_with_bf),
+    mobile_mixing_no_bf_z = z_score_or_na(mobile_mixing_no_bf),
+    flow_path_partitioning_z = z_score_or_na(BF_mean),
     n_axes_available = rowSums(is.finite(cbind(dynamic_storage_strength_z, mobile_mixing_with_bf_z))),
     unified_state_index = ifelse(
       n_axes_available >= 2,

@@ -67,7 +67,7 @@ scaled_features <- HJA_clean %>%
     }
   }))
 
-# drop constant/all NA columns that cannot be scaled by PCA
+# drop columns that are constant or fully missing before PCA
 feature_sds <- scaled_features %>%
   summarise(across(all_of(features), ~ sd(.x, na.rm = TRUE)))
 feature_sds_vec <- as.numeric(feature_sds[1, ])
