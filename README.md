@@ -23,7 +23,7 @@ The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outpu
 
 - `R 4.5.2`
 - Packages are listed in `install_packages.R`
-- Software citation metadata are provided in `CITATION.cff` and `.zenodo.json`
+- Citation and archive metadata are provided in `CITATION.cff` and `.zenodo.json`
 - License: MIT
 
 ## Data References

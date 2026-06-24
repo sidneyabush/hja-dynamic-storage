@@ -4,7 +4,7 @@ type: software
 version: "1.0.0"
 license: "MIT"
 repository-code: "https://github.com/sidneyabush/hja-dynamic-storage"
-abstract: "R workflow used to reproduce the storage metric calculations, analyses, figures, and tables for a manuscript submitted to Water Resources Research."
+abstract: "R workflow used to reproduce the storage metric calculations, analyses, figures, and tables for the associated Water Resources Research manuscript."
 message: "If you use this software, please cite the archived Zenodo release."
 authors:
   - family-names: "Bush"
