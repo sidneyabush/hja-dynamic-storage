@@ -17,7 +17,7 @@ librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = 
 rm(list = ls())
 source("config.R")
 
-# load the framework axes, physical setting PCA loadings, and site metrics
+# load the framework axes, physical characteristics PCA loadings, and site metrics
 axes_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "unified_framework_site_axes.csv")
 loadings_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_loadings.csv")
 variance_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_variance.csv")
@@ -59,7 +59,7 @@ if (!all(c("geology_pc1_loading", "geology_pc2_loading") %in% names(loadings))) 
 pc1_pct <- ifelse(nrow(variance) >= 1, 100 * variance$variance_explained[1], NA_real_)
 pc2_pct <- ifelse(nrow(variance) >= 2, 100 * variance$variance_explained[2], NA_real_)
 
-# panel b uses the physical setting PCA scores and loading arrows
+# panel b uses the physical characteristics PCA scores and loading arrows
 pca_scores <- axes %>%
   transmute(
     site = as.character(site),
@@ -157,7 +157,7 @@ pca_labels_ws9_ws10 <- pca_scores %>%
     nudge_y = if_else(site == "WS09", ws9_ws10_nudge * 0.95, -ws9_ws10_nudge * 0.95)
   )
 
-# draw the physical setting PCA panel
+# draw the physical characteristics PCA panel
 p_geo <- ggplot(pca_scores, aes(x = geology_pc1, y = geology_pc2)) +
   geom_hline(yintercept = 0, linewidth = 0.5 * FIG9_ELEMENT_SCALE, color = "grey70") +
   geom_vline(xintercept = 0, linewidth = 0.5 * FIG9_ELEMENT_SCALE, color = "grey70") +
@@ -407,7 +407,7 @@ p_state <- ggplot(plot_b, aes(x = dynamic, y = mobile)) +
     linewidth = 0,
     label.padding = unit(0.25, "lines")
   ) +
-  # color and size carry the physical setting PCA scores into panel a
+  # color and size carry the physical characteristics PCA scores into panel a
   scale_fill_gradient2(
     low = "#1b9e77",
     mid = "white",

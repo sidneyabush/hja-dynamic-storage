@@ -69,9 +69,5 @@ _local/
 
 # Generated workflow folders
 outputs/
-
-ms_materials/
 figs_tables_pub/
-generated_outputs/
 inputs/
-scripts/

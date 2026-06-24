@@ -1,15 +1,15 @@
-# shared figure settings, labels, and save functions
+# shared figure options, labels, and save functions
 
 # inputs:
 # none
 
 # outputs:
-# figure settings and label functions loaded by config.R
+# figure options and label functions loaded by config.R
 
 # author: Sidney Bush
 # date: 2026-02-13
 
-# shared font sizes and export settings
+# shared font sizes and export options
 FIG_BASE_SIZE <- 18
 FIG_AXIS_TEXT_SIZE <- 16
 FIG_AXIS_TITLE_SIZE <- 18
@@ -23,7 +23,7 @@ FIG_HEIGHT_SCALE <- 1.35
 FIG_PREVIEW_DPI <- 300
 FIG_PRODUCTION_DPI <- 300
 
-# shared label spacing settings
+# shared label spacing
 FIG_LABEL_CLIP <- "off"
 FIG_LABEL_PLOT_MARGIN_PT <- 18
 

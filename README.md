@@ -17,7 +17,7 @@ Rscript run_all.R
 
 `install_packages.R` is a one-time setup step. `run_all.R` runs the full workflow.
 
-The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outputs to `HJA_FINAL_WORKFLOW_ROOT/outputs` and `HJA_FINAL_WORKFLOW_ROOT/figs_tables_pub`. Set `HJA_FINAL_WORKFLOW_ROOT` to the folder that stores the workflow data and publication figure and table files.
+The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outputs to `HJA_FINAL_WORKFLOW_ROOT/outputs` and `HJA_FINAL_WORKFLOW_ROOT/figs_tables_pub`. Set `HJA_FINAL_WORKFLOW_ROOT` to the folder that stores the workflow data and figure and table files.
 
 ## Software
 
@@ -25,10 +25,6 @@ The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outpu
 - Packages are listed in `install_packages.R`
 - Software citation metadata are provided in `CITATION.cff` and `.zenodo.json`
 - License: MIT
-
-## Code And Data Availability
-
-The R code used to calculate storage metrics, run the analyses, and produce the manuscript figures and tables is developed at <https://github.com/sidneyabush/hja-dynamic-storage> and should be cited using the archived Zenodo software DOI after release. Data used by the workflow are publicly available from the sources cited below. The gap-filled meteorological inputs used by the workflow are derived from public H.J. Andrews Forest records.
 
 ## Data References
 

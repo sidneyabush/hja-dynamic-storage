@@ -85,7 +85,7 @@ pca_variance <- read_csv(pca_variance_file, show_col_types = FALSE)
 letters_df <- read_csv(letters_file, show_col_types = FALSE) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-# shared display settings for the storage metric panels
+# shared display options for the storage metric panels
 BOX_FILL_ALPHA <- 0.22
 POINT_ALPHA <- 0.55
 PANEL_BG <- "white"

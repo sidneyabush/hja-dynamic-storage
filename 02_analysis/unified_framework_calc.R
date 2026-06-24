@@ -38,7 +38,7 @@ row_mean_min <- function(df_like, min_non_na = 1L) {
   list(mean = out, n = n_non_na)
 }
 
-# classify the dominant lithologic setting for each catchment
+# classify the dominant lithology for each catchment
 classify_geology <- function(lava1_per, lava2_per, ash_per, pyro_per, tie_tol = 5) {
   lava_total <- suppressWarnings(as.numeric(lava1_per)) + suppressWarnings(as.numeric(lava2_per))
   ash <- suppressWarnings(as.numeric(ash_per))
@@ -66,7 +66,7 @@ classify_geology <- function(lava1_per, lava2_per, ash_per, pyro_per, tie_tol = 
   out
 }
 
-# classify the dominant disturbance setting for each catchment
+# classify the dominant disturbance class for each catchment
 classify_geomorphology <- function(harvest_pct, landslide_total_pct) {
   harvest <- suppressWarnings(as.numeric(harvest_pct))
   landslide <- suppressWarnings(as.numeric(landslide_total_pct))
@@ -85,7 +85,7 @@ site_df <- read_csv(master_site_file, show_col_types = FALSE) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
 
-# add geology and landslide classes beside numeric plotting axes
+# add geology and landslide classes
 site_classes <- site_df %>%
   transmute(
     site = as.character(site),
@@ -107,7 +107,7 @@ geology_cols <- c(
 )
 geology_cols <- unique(geology_cols[geology_cols %in% names(site_df)])
 
-# use lithology and landslide variables for the physical setting PCA
+# use lithology and landslide variables for the physical characteristics PCA
 geology_input <- site_df %>%
   transmute(site = as.character(site), across(all_of(geology_cols), ~ suppressWarnings(as.numeric(.x))))
 

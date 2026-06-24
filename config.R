@@ -1,4 +1,4 @@
-# shared settings used by the analysis scripts
+# shared values used by the analysis scripts
 
 # inputs:
 # HJA_REPO_DIR and HJA_FINAL_WORKFLOW_ROOT environment variables, if set

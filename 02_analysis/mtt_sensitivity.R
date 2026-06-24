@@ -86,28 +86,26 @@ damping <- damping_raw %>%
     .groups = "drop"
   )
 
-# build early, late, and combined MTT alternatives from the source isotope table
+# build MTT1, MTT2, and combined MTT alternatives from the source isotope table
 raw_mtt <- read_csv(isotope_file, show_col_types = FALSE) %>%
   mutate(
     site = standardize_site_code(trimws(site)),
     MTT_early = suppressWarnings(as.numeric(MTT1)),
-    MTT_late_mean = dplyr::coalesce(
-      suppressWarnings(as.numeric(MTTM)),
-      rowMeans(cbind(
-        suppressWarnings(as.numeric(MTT2L)),
-        suppressWarnings(as.numeric(MTT2H))
-      ), na.rm = TRUE)
+    MTT_second_period = rowMeans(cbind(
+      suppressWarnings(as.numeric(MTT2L)),
+      suppressWarnings(as.numeric(MTT2H))
+    ), na.rm = TRUE
     )
   ) %>%
-  mutate(MTT_late_mean = ifelse(is.nan(MTT_late_mean), NA_real_, MTT_late_mean)) %>%
-  dplyr::select(site, MTT_early, MTT_late_mean) %>%
+  mutate(MTT_second_period = ifelse(is.nan(MTT_second_period), NA_real_, MTT_second_period)) %>%
+  dplyr::select(site, MTT_early, MTT_second_period) %>%
   filter(!is.na(site), site != "", site %in% SITE_ORDER_HYDROMETRIC)
 
 mtt_definitions <- raw_mtt %>%
   dplyr::transmute(
     site,
     early_only = MTT_early,
-    late_only = MTT_late_mean,
+    mtt2_only = MTT_second_period,
     combined_mean = NA_real_
   ) %>%
   left_join(
@@ -116,7 +114,7 @@ mtt_definitions <- raw_mtt %>%
   ) %>%
   mutate(combined_mean = MTT_site_mean) %>%
   pivot_longer(
-    cols = c(early_only, late_only, combined_mean),
+    cols = c(early_only, mtt2_only, combined_mean),
     names_to = "mtt_definition",
     values_to = "MTT"
   ) %>%
@@ -125,7 +123,7 @@ mtt_definitions <- raw_mtt %>%
 label_mtt_definition <- function(x) {
   dplyr::case_when(
     x == "early_only" ~ "MTT1 (McGuire et al., 2005; 2001-2003)",
-    x == "late_only" ~ "MTT2 (Segura, 2015-2018)",
+    x == "mtt2_only" ~ "MTT2 (Segura, 2015-2018)",
     x == "combined_mean" ~ "Combined MTT (mean of MTT1 and MTT2)",
     x == "none" ~ "No MTT",
     TRUE ~ as.character(x)
