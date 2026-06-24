@@ -10,12 +10,6 @@ Bush, S. A., Johnson, K., Segura, C., Perry, Z., Duffy, S., and Sullivan, P. L. 
 
 Subsurface storage regulates streamflow variability, sustains low flows, and moderates stream temperatures, but is difficult to measure directly and is therefore typically inferred from stream flow and chemistry data. We analyzed long-term hydrometric, chemical, and isotopic records from Lookout Creek and nine subcatchments in the H.J. Andrews Experimental Forest, Oregon, USA, to evaluate how commonly used storage metrics covary and relate to ecologically relevant hydrologic and thermal responses. We developed a unified framework combining dynamic storage inferred from streamflow, extended-dynamic storage represented by catchment water-balance deficit, and mobile storage characterized by calcium-derived baseflow fraction and isotope-derived mixing and transport metrics. Across this heterogeneous volcanic landscape, storage metrics varied among catchments but did not produce a single consistent high-to-low storage ranking of catchments. Relationships among storage metrics followed several clear patterns but varied in strength: isotope-derived mobile metrics were most strongly related to flashiness and storage-discharge behavior, whereas baseflow fraction was higher in catchments with greater storage-discharge estimates and lower in flashier catchments. Geology, slope, and landslide extent further organized variation among catchments. Storage metrics retained in predictive models differed between stream low-flow and thermal responses. Annual seven-day low-flow discharge was most strongly associated with dynamic and extended-dynamic storage metrics and wet-season precipitation, whereas annual maximum seven-day stream temperature retained both flow-based and tracer-based storage metrics, indicating that thermal responses reflect both discharge regulation and source-water mixing. These results support a multi-metric framework that interprets subsurface storage using complementary storage indicators, rather than any single metric.
 
-## Repository Purpose
-
-This repository reruns the analysis used in the paper on dynamic, extended-dynamic, and mobile storage in H.J. Andrews catchments.
-
-It recreates the paper figures, tables, and supporting information outputs from input files stored in a separate workflow folder. Data are publicly available from the H.J. Andrews Forest Science Data Bank and related public data products. The gap-filled meteorological files used by the workflow are derived from public H.J. Andrews records.
-
 ## Quick Start
 
 From the repository folder, run:
@@ -28,20 +22,6 @@ Rscript run_all.R
 `install_packages.R` is a one-time setup step. `run_all.R` runs the full workflow.
 
 The workflow reads inputs from `HJA_FINAL_WORKFLOW_ROOT/inputs` and writes outputs to `HJA_FINAL_WORKFLOW_ROOT/outputs` and `HJA_FINAL_WORKFLOW_ROOT/figs_tables_pub`. Set `HJA_FINAL_WORKFLOW_ROOT` to the folder that stores the workflow data and publication figure and table files.
-
-## How To Review The Code
-
-Start with `run_all.R`, which lists the full workflow in the order scripts are run. `config.R` stores shared paths, settings, site order, metric groups, and output folder names. Shared code is split by purpose: `figure_functions.R` stores figure settings and labels, `workflow_functions.R` stores site utilities and workflow checks, `hydromet_functions.R` stores the meteorological forcing functions, and `model_functions.R` stores regression model functions.
-
-Workflow folders:
-
-- `00_data_preprocessing`: builds daily meteorological, discharge, and evapotranspiration inputs
-- `01_storage_calcs`: calculates storage metrics and ecological response variables
-- `02_analysis`: runs summary statistics, PCA, regression models, MTT sensitivity analysis, and unit checks
-- `03_figs`: makes main-text and supporting information figures
-- `04_tables`: writes supporting information tables made by the R workflow
-
-Input files, model outputs, manuscript figures, manuscript tables, and preview files are intentionally written outside the Git repository.
 
 ## Software
 
