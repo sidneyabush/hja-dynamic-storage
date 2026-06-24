@@ -1,4 +1,11 @@
 # shared settings used by the analysis scripts
+
+# inputs:
+# HJA_REPO_DIR and HJA_FINAL_WORKFLOW_ROOT environment variables, if set
+
+# outputs:
+# shared workflow paths, constants, and shared functions
+
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -17,14 +24,12 @@ FINAL_WORKFLOW_ROOT <- normalizePath(
 )
 BASE_DATA_DIR <- file.path(FINAL_WORKFLOW_ROOT, "inputs")
 OUTPUT_DIR <- file.path(FINAL_WORKFLOW_ROOT, "outputs")
-MS_MATERIALS_DIR <- file.path(FINAL_WORKFLOW_ROOT, "ms_materials")
-EXPLORATORY_PLOTS_DIR <- file.path(OUTPUT_DIR, "exploratory_plots")
-UNIFIED_FRAMEWORK_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "unified_framework")
+FIGS_TABLES_PUB_DIR <- file.path(FINAL_WORKFLOW_ROOT, "figs_tables_pub")
 
-# manuscript figures and tables
+# published figure and table files
 # these folders are created by the workflow
-MS_MAIN_DIR <- file.path(MS_MATERIALS_DIR, "main")
-MS_SUPP_DIR <- file.path(MS_MATERIALS_DIR, "supp")
+MS_MAIN_DIR <- file.path(FIGS_TABLES_PUB_DIR, "main")
+MS_SUPP_DIR <- file.path(FIGS_TABLES_PUB_DIR, "supp")
 MS_FIG_MAIN_DIR <- MS_MAIN_DIR
 MS_FIG_SUPP_DIR <- MS_SUPP_DIR
 MS_FIG_MAIN_PDF_DIR <- file.path(MS_MAIN_DIR, "pdf")
@@ -42,13 +47,6 @@ ISOTOPE_DIR <- BASE_DATA_DIR
 STREAM_TEMP_DIR <- BASE_DATA_DIR
 MET_DIR <- file.path(BASE_DATA_DIR, "all_hydromet")
 CATCHMENT_CHARACTERISTICS_DIR <- BASE_DATA_DIR
-
-EXPLORATORY_ET_METHODS_DIR <- file.path(EXPLORATORY_PLOTS_DIR, "et_methods")
-
-# output options
-# leave optional files off for the standard manuscript run
-WRITE_TABLE_OUTPUTS <- FALSE
-WRITE_AUX_OUTPUTS <- FALSE
 
 # output folders
 # run_all.R creates these folders before the workflow starts
@@ -70,9 +68,6 @@ OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR <- file.path(
   OUT_STATS_DIR,
   "storage_eco_response_mlr"
 )
-
-OUT_TABLES_DIR <- file.path(OUTPUT_DIR, "tables")
-OUT_TABLES_MLR_DIR <- file.path(OUT_TABLES_DIR, "mlr")
 
 # sites
 # order used for streamflow metrics, figures, and most tables
@@ -107,7 +102,6 @@ WY_START <- 1997
 WY_END <- 2020
 
 # baseflow fraction filters
-BF_MIN_DAYS_PER_WY <- 300
 BF_MIN_OBS_PER_WY_CHEM <- 10
 
 # isotope metrics are used as site averages in this run
@@ -161,5 +155,9 @@ SITECODE_RECODE_TO_GSMACK <- c("GSWSMC" = "GSMACK")
 GSLOOK_COMPOSITE_COMPONENT_SITES <- c("GSWS01", "GSWS06", "LONGER", "COLD")
 
 
-# shared functions, plot settings, and labels
-source(file.path(REPO_DIR, "utils.R"))
+# shared functions
+# config stays limited to paths and constants
+source(file.path(REPO_DIR, "figure_functions.R"))
+source(file.path(REPO_DIR, "workflow_functions.R"))
+source(file.path(REPO_DIR, "hydromet_functions.R"))
+source(file.path(REPO_DIR, "model_functions.R"))

@@ -1,57 +1,26 @@
 # Figure 7 dynamic mobile storage framework
-# inputs: outputs/models/unified_framework/*.csv
-# outputs: ms_materials/main/Fig7_dynamic_mobile_framework.*, exploratory panel files
+
+# inputs:
+# outputs/models/unified_framework/unified_framework_site_axes.csv
+# outputs/models/unified_framework/geology_composition_pca_loadings.csv
+# outputs/models/unified_framework/geology_composition_pca_variance.csv
+# outputs/master/master_site.csv
+
+# outputs:
+# figs_tables_pub/main/Fig7_dynamic_mobile_framework.*
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, ggplot2, ggrepel, patchwork, scales, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 source("config.R")
 
-safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
-  dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
-  ext <- tools::file_ext(filename)
-  tmp_file <- tempfile(
-    pattern = "fig7_",
-    tmpdir = tempdir(),
-    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
-  )
-  tryCatch(
-    {
-      if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
-      } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
-      }
-      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
-      unlink(tmp_file)
-      if (!isTRUE(ok)) {
-        stop("Failed to copy rendered file to destination")
-      }
-      TRUE
-    },
-    error = function(e) {
-      unlink(tmp_file)
-      warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
-      FALSE
-    }
-  )
-}
-
-main_dir <- MS_FIG_MAIN_DIR
-main_pdf_dir <- MS_FIG_MAIN_PDF_DIR
-main_tiff_dir <- MS_FIG_MAIN_TIFF_DIR
-for (d in c(main_dir, main_pdf_dir, main_tiff_dir)) {
-  dir.create(d, recursive = TRUE, showWarnings = FALSE)
-}
-
 axes_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "unified_framework_site_axes.csv")
 loadings_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_loadings.csv")
 variance_file <- file.path(OUTPUT_DIR, "models", "unified_framework", "geology_composition_pca_variance.csv")
 master_site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
-
-for (f in c(axes_file, loadings_file, variance_file, master_site_file)) {
-  if (!file.exists(f)) stop("Missing file: ", f)
-}
 
 axes <- read_csv(axes_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(as.character(site))) %>%
@@ -76,10 +45,12 @@ if (length(missing_biplot_sites) > 0) {
   )
 }
 
+# check the framework axes before plotting point colors and sizes
 if (!all(c("geology_pc1", "geology_pc2") %in% names(axes))) {
   stop("unified_framework_site_axes.csv is missing geology_pc1/geology_pc2")
 }
 
+# check the PCA loadings before drawing arrows
 if (!all(c("geology_pc1_loading", "geology_pc2_loading") %in% names(loadings))) {
   stop("geology_composition_pca_loadings.csv is missing pca loading columns")
 }
@@ -304,6 +275,8 @@ required_mobile_dynamic_cols <- c(
   "BF_mean", "DR", "Fyw", "MTT"
 )
 missing_required_cols <- setdiff(required_mobile_dynamic_cols, names(master_site))
+
+# check complete case inputs used to decide panel b membership
 if (length(missing_required_cols) > 0) {
   stop(
     "master_site is missing columns for panel b filter: ",
@@ -339,6 +312,7 @@ plot_b <- axes %>%
     is.finite(pc2)
   )
 
+# require enough complete sites to draw the dynamic mobile panel
 if (nrow(plot_b) < 3) {
   stop("Not enough complete-case sites for panel b")
 }
@@ -499,32 +473,9 @@ fig7_width <- 12.8 * FIG_WIDTH_SCALE * FIG9_EXPORT_SCALE
 fig7_height <- 16.4 * FIG_HEIGHT_SCALE * FIG9_EXPORT_SCALE
 
 nm <- "Fig7_dynamic_mobile_framework"
-invisible(safe_ggsave(
-  file.path(main_dir, paste0(nm, ".png")),
-  fig7,
-  width = fig7_width,
-  height = fig7_height,
-  dpi = FIG_PREVIEW_DPI
-))
-invisible(safe_ggsave(
-  file.path(main_pdf_dir, paste0(nm, ".pdf")),
-  fig7,
+save_figure_set(
+  plot_obj = fig7,
+  file_base = nm,
   width = fig7_width,
   height = fig7_height
-))
-invisible(safe_ggsave(
-  file.path(main_tiff_dir, paste0(nm, ".tiff")),
-  fig7,
-  width = fig7_width,
-  height = fig7_height,
-  dpi = FIG_PRODUCTION_DPI,
-  compression = "lzw"
-))
-invisible(safe_ggsave(
-  file.path(UNIFIED_FRAMEWORK_DIR, paste0(nm, ".png")),
-  fig7,
-  width = fig7_width,
-  height = fig7_height,
-  dpi = FIG_PREVIEW_DPI
-))
-unlink(Sys.glob(file.path(c(main_dir, main_pdf_dir, main_tiff_dir), "Fig9_*")))
+)

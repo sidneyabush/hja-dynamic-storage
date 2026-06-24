@@ -1,6 +1,15 @@
 # test for significant differences among sites in storage metrics
-# inputs: outputs/master/master_annual.csv, outputs/metrics/dynamic/fdc_slopes_wy.csv
-# outputs: outputs/models/anova_tukey/*.csv
+
+# inputs:
+# outputs/master/master_annual.csv
+# outputs/metrics/dynamic/fdc_slopes_wy.csv
+
+# outputs:
+# outputs/models/anova_tukey/anova_results.csv
+# outputs/models/anova_tukey/tukey_hsd_results.csv
+# outputs/models/anova_tukey/tukey_group_letters.csv
+# outputs/models/anova_tukey/storage_metrics_summary_stats_by_site.csv
+
 # author: Sidney Bush
 # date: 2026-01-23
 
@@ -31,34 +40,26 @@ HJA_annual <- read_csv(
 
 # for ANOVA/Tukey only, use annual FDC slopes (site year) from dynamic metrics output
 fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
-fdc_annual <- if (file.exists(fdc_wy_file)) {
-  fdc_raw <- read_csv(fdc_wy_file, show_col_types = FALSE)
-  if ("WaterYear" %in% names(fdc_raw) && !("wateryear" %in% names(fdc_raw))) {
-    fdc_raw <- fdc_raw %>% rename(wateryear = WaterYear)
-  }
-  if ("Slope" %in% names(fdc_raw) && !("value" %in% names(fdc_raw))) {
-    fdc_raw <- fdc_raw %>% rename(value = Slope)
-  }
-  fdc_raw %>%
-    transmute(
-      site = standardize_site_code(site),
-      wateryear = as.integer(wateryear),
-      value = as.numeric(value)
-    ) %>%
-    filter(
-      site %in% site_order,
-      wateryear >= WY_START,
-      wateryear <= WY_END,
-      is.finite(value)
-    ) %>%
-    mutate(site = factor(site, levels = site_order))
-} else {
-  tibble(
-    site = factor(levels = site_order),
-    wateryear = integer(),
-    value = numeric()
-  )
+fdc_raw <- read_csv(fdc_wy_file, show_col_types = FALSE)
+if ("WaterYear" %in% names(fdc_raw) && !("wateryear" %in% names(fdc_raw))) {
+  fdc_raw <- fdc_raw %>% rename(wateryear = WaterYear)
 }
+if ("Slope" %in% names(fdc_raw) && !("value" %in% names(fdc_raw))) {
+  fdc_raw <- fdc_raw %>% rename(value = Slope)
+}
+fdc_annual <- fdc_raw %>%
+  transmute(
+    site = standardize_site_code(site),
+    wateryear = as.integer(wateryear),
+    value = as.numeric(value)
+  ) %>%
+  filter(
+    site %in% site_order,
+    wateryear >= WY_START,
+    wateryear <= WY_END,
+    is.finite(value)
+  ) %>%
+  mutate(site = factor(site, levels = site_order))
 
 # Q5norm and CV_Q5norm are ecological response variables, and MTT/Fyw/DR are
 # site level isotope metrics, so they are excluded from annual ANOVA/Tukey tests.
@@ -96,6 +97,7 @@ metric_data_long <- bind_rows(lapply(storage_metrics, function(metric_name) {
   metric_df %>% mutate(metric = metric_name)
 }))
 
+# stop if no metrics have enough data for group comparisons
 if (nrow(metric_data_long) == 0) {
   stop("No valid metric data available for ANOVA/Tukey.")
 }
@@ -181,38 +183,6 @@ if (nrow(tukey_group_letters) > 0) {
             file.path(output_dir, "tukey_group_letters.csv"),
             row.names = FALSE)
 }
-
-site_means <- HJA_annual %>%
-  mutate(site = factor(site, levels = site_order)) %>%
-  select(site) %>%
-  distinct() %>%
-  tidyr::crossing(metric = storage_metrics) %>%
-  left_join(
-    metric_data_long %>%
-      group_by(site, metric) %>%
-      summarise(
-        mean = mean(value, na.rm = TRUE),
-        sd = sd(value, na.rm = TRUE),
-        .groups = "drop"
-      ),
-    by = c("site", "metric")
-  ) %>%
-  tidyr::pivot_wider(
-    names_from = metric,
-    values_from = c(mean, sd),
-    names_glue = "{metric}_{.value}"
-  ) %>%
-  select(
-    site,
-    dplyr::all_of(unlist(lapply(storage_metrics, function(m) c(paste0(m, "_mean"), paste0(m, "_sd")))))
-  ) %>%
-  mutate(site = factor(site, levels = site_order)) %>%
-  arrange(site) %>%
-  mutate(site = as.character(site))
-
-write.csv(site_means,
-          file.path(output_dir, "site_means_storage_metrics.csv"),
-          row.names = FALSE)
 
 site_summary_stats <- HJA_annual %>%
   mutate(site = factor(site, levels = site_order)) %>%

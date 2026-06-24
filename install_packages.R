@@ -1,5 +1,13 @@
-# one time package setup
-# run this once, then run run_all.R
+# install required R packages for the workflow
+
+# inputs:
+# none
+
+# outputs:
+# required R packages installed locally
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 required_packages <- c(
   "car",

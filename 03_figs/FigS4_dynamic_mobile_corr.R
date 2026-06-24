@@ -1,6 +1,13 @@
 # Figure S4 dynamic and mobile storage correlation matrix
-# inputs: outputs/master/master_site.csv
-# outputs: ms_materials/supp/FigS4_dynamic_mobile_corr.*
+
+# inputs:
+# outputs/master/master_site.csv
+
+# outputs:
+# figs_tables_pub/supp/FigS4_dynamic_mobile_corr.*
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
 
@@ -9,28 +16,16 @@ source("config.R")
 
 safe_ggsave <- function(filename, plot_obj, width, height, dpi = NULL, ...) {
   dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
-  ext <- tools::file_ext(filename)
-  tmp_file <- tempfile(
-    pattern = "figs4_",
-    tmpdir = tempdir(),
-    fileext = ifelse(nzchar(ext), paste0(".", ext), "")
-  )
   tryCatch(
     {
       if (is.null(dpi)) {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, bg = "white", ...)
+        ggplot2::ggsave(filename, plot_obj, width = width, height = height, bg = "white", ...)
       } else {
-        ggplot2::ggsave(tmp_file, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
-      }
-      ok <- file.copy(tmp_file, filename, overwrite = TRUE)
-      unlink(tmp_file)
-      if (!isTRUE(ok)) {
-        stop("Failed to copy rendered file to destination")
+        ggplot2::ggsave(filename, plot_obj, width = width, height = height, dpi = dpi, bg = "white", ...)
       }
       TRUE
     },
     error = function(e) {
-      unlink(tmp_file)
       warning("Failed to save plot: ", filename, " (", conditionMessage(e), ")")
       FALSE
     }
@@ -45,10 +40,6 @@ for (d in c(supp_dir, supp_pdf_dir, supp_tiff_dir)) {
 }
 
 site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
-if (!file.exists(site_file)) {
-  stop("Missing file: ", site_file)
-}
-
 site_df <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC)
 
@@ -69,6 +60,7 @@ mobile_map <- c(
 dynamic_map <- dynamic_map[dynamic_map %in% names(site_df)]
 mobile_map <- mobile_map[mobile_map %in% names(site_df)]
 
+# stop if the master site table no longer has dynamic or mobile metrics
 if (length(dynamic_map) == 0 || length(mobile_map) == 0) {
   stop("Needed dynamic/mobile metric columns are missing from master_site.csv")
 }
@@ -186,11 +178,3 @@ invisible(safe_ggsave(
   dpi = FIG_PRODUCTION_DPI,
   compression = "lzw"
 ))
-
-# remove older isotope only correlation files not used in the final paper
-unlink(file.path(MS_FIG_MAIN_DIR, "Fig5_iso_annual.png"))
-unlink(file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_iso_annual.pdf"))
-unlink(file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_iso_annual.tiff"))
-unlink(file.path(MS_FIG_MAIN_DIR, "Fig5_dynamic_mobile_corr.png"))
-unlink(file.path(MS_FIG_MAIN_PDF_DIR, "Fig5_dynamic_mobile_corr.pdf"))
-unlink(file.path(MS_FIG_MAIN_TIFF_DIR, "Fig5_dynamic_mobile_corr.tiff"))

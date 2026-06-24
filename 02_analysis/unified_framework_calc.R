@@ -1,6 +1,15 @@
-# calculate unified framework axes and geology landslide pca outputs
-# inputs: outputs/master/master_site.csv
-# outputs: outputs/models/unified_framework/*.csv
+# calculate unified framework axes and geology and landslide PCA outputs
+
+# inputs:
+# outputs/master/master_site.csv
+
+# outputs:
+# outputs/models/unified_framework/unified_framework_site_axes.csv
+# outputs/models/unified_framework/geology_composition_pca_loadings.csv
+# outputs/models/unified_framework/geology_composition_pca_variance.csv
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, cran_repo = "https://cloud.r-project.org")
 
@@ -8,10 +17,6 @@ rm(list = ls())
 source("config.R")
 
 master_site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
-if (!file.exists(master_site_file)) {
-  stop("Missing file: ", master_site_file)
-}
-
 model_out_dir <- file.path(OUTPUT_DIR, "models", "unified_framework")
 dir.create(model_out_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -24,6 +29,7 @@ safe_z <- function(x) {
   (x_num - mean(x_num, na.rm = TRUE)) / s
 }
 
+# average metrics only when enough values are available
 row_mean_min <- function(df_like, min_non_na = 1L) {
   mat <- as.matrix(df_like)
   n_non_na <- rowSums(is.finite(mat))
@@ -32,6 +38,7 @@ row_mean_min <- function(df_like, min_non_na = 1L) {
   list(mean = out, n = n_non_na)
 }
 
+# classify the dominant lithologic setting for each catchment
 classify_geology <- function(lava1_per, lava2_per, ash_per, pyro_per, tie_tol = 5) {
   lava_total <- suppressWarnings(as.numeric(lava1_per)) + suppressWarnings(as.numeric(lava2_per))
   ash <- suppressWarnings(as.numeric(ash_per))
@@ -59,6 +66,7 @@ classify_geology <- function(lava1_per, lava2_per, ash_per, pyro_per, tie_tol = 
   out
 }
 
+# classify the dominant disturbance setting for each catchment
 classify_geomorphology <- function(harvest_pct, landslide_total_pct) {
   harvest <- suppressWarnings(as.numeric(harvest_pct))
   landslide <- suppressWarnings(as.numeric(landslide_total_pct))
@@ -77,6 +85,7 @@ site_df <- read_csv(master_site_file, show_col_types = FALSE) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
 
+# keep simple classes with the numeric axes used for plotting
 site_classes <- site_df %>%
   transmute(
     site = as.character(site),
@@ -98,6 +107,7 @@ geology_cols <- c(
 )
 geology_cols <- unique(geology_cols[geology_cols %in% names(site_df)])
 
+# use lithology and landslide variables for the physical setting PCA
 geology_input <- site_df %>%
   transmute(site = as.character(site), across(all_of(geology_cols), ~ suppressWarnings(as.numeric(.x))))
 
@@ -105,6 +115,7 @@ geology_complete <- geology_input %>%
   filter(if_all(all_of(geology_cols), is.finite))
 
 if (nrow(geology_complete) >= 3) {
+  # scores locate catchments and loadings define the PCA axes
   geology_pca <- prcomp(
     geology_complete[, geology_cols],
     center = TRUE,
@@ -133,6 +144,7 @@ if (nrow(geology_complete) >= 3) {
     cumulative_variance = as.numeric(cumsum(geo_var_explained))
   )
 } else {
+  # keep output tables valid if too few complete catchments are available
   geology_scores <- geology_input %>%
     transmute(site, geology_pc1 = NA_real_, geology_pc2 = NA_real_)
 
@@ -149,6 +161,8 @@ if (nrow(geology_complete) >= 3) {
   )
 }
 
+# orient metrics so higher values mean greater storage expression
+# RBI, DR, and Fyw are reversed before averaging
 metric_oriented <- site_df %>%
   transmute(
     site = as.character(site),
@@ -166,11 +180,13 @@ metric_oriented <- site_df %>%
 metric_z <- metric_oriented %>%
   mutate(across(-site, safe_z, .names = "{.col}_z"))
 
+# dynamic storage uses discharge regulation and seasonal depletion metrics
 dynamic_vals <- row_mean_min(
   metric_z[, c("RBI_inv_z", "RCS_z", "FDC_z", "SD_z", "WB_depletion_mag_z")],
   min_non_na = 4L
 )
 
+# mobile storage uses tracer metrics and Ca derived baseflow fraction
 mobile_with_bf_vals <- row_mean_min(
   tibble(
     MTT = metric_z$MTT_z,
@@ -180,6 +196,8 @@ mobile_with_bf_vals <- row_mean_min(
   ),
   min_non_na = 2L
 )
+
+# keep a no BF version in case the mobile axis needs to be checked separately
 mobile_no_bf_vals <- row_mean_min(
   tibble(
     MTT = metric_z$MTT_z,
@@ -189,6 +207,7 @@ mobile_no_bf_vals <- row_mean_min(
   min_non_na = 2L
 )
 
+# z score the dynamic and mobile axes across catchments for Figure 7
 axes_site <- tibble(
   site = metric_oriented$site,
   dynamic_storage_strength = dynamic_vals$mean,
@@ -219,12 +238,7 @@ axes_site <- tibble(
   arrange(site) %>%
   mutate(site = as.character(site))
 
+# write the tables used by the Figure 7 plotting script
 write_csv(axes_site, file.path(model_out_dir, "unified_framework_site_axes.csv"))
 write_csv(geology_loadings, file.path(model_out_dir, "geology_composition_pca_loadings.csv"))
 write_csv(geology_variance, file.path(model_out_dir, "geology_composition_pca_variance.csv"))
-
-if (isTRUE(WRITE_TABLE_OUTPUTS)) {
-  table_out_dir <- file.path(OUTPUT_DIR, "tables", "unified_framework")
-  dir.create(table_out_dir, recursive = TRUE, showWarnings = FALSE)
-  write_csv(axes_site, file.path(table_out_dir, "unified_framework_site_axes.csv"))
-}

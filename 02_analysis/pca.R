@@ -1,6 +1,13 @@
 # perform PCA on annual storage metrics to identify dominant structure
-# inputs: outputs/master/master_annual.csv
-# outputs: outputs/models/pca/pca_loadings.csv, pca_scores_pc1_pc2.csv, pca_variance_explained.csv
+
+# inputs:
+# outputs/master/master_annual.csv
+
+# outputs:
+# outputs/models/pca/pca_loadings.csv
+# outputs/models/pca/pca_scores_pc1_pc2.csv
+# outputs/models/pca/pca_variance_explained.csv
+
 # author: Pamela Sullivan (original), Sidney Bush (adapted)
 # date: 2026-01-23
 
@@ -67,6 +74,7 @@ feature_sds_vec <- as.numeric(feature_sds[1, ])
 names(feature_sds_vec) <- names(feature_sds)
 features_kept <- names(feature_sds_vec)[is.finite(feature_sds_vec) & feature_sds_vec > 0]
 
+# stop if no usable PCA inputs remain after cleaning
 if (length(features_kept) == 0) {
   stop("PCA failed: all candidate features are constant or missing after cleaning.")
 }
@@ -102,4 +110,4 @@ write.csv(pca_df %>% select(site, year, PC1, PC2),
           row.names = FALSE)
 
 # Catchment characteristics are screened directly in MLR using constrained
-# predictor sets and iterative VIF filtering.
+# predictor sets and iterative VIF filtering

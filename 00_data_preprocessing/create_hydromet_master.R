@@ -1,9 +1,13 @@
 # build daily catchment met and discharge inputs for WY 1997-2020
 
 # inputs:
-# met_dir/ms00102_v9.csv
-# met_dir/ms05025_v3.csv
-# discharge_dir/hf00402_v14.csv
+# met_dir/Temperature_original_&_filled_1979_2023_v2.csv
+# met_dir/Precipitation_original_&_filled_1979_2023.csv
+# met_dir/SWE_original_&_filled_1997_2023_v5.csv
+# met_dir/MS00102_v9.csv
+# met_dir/MS05025_v3.csv
+# discharge_dir/HF00402_v14.csv
+# catchment_characteristics_dir/drainage_area.csv
 
 # outputs:
 # out_met_support_dir/catchments_met_q.csv
@@ -11,7 +15,7 @@
 # author: Sidney Bush
 # date: 2026-02-13
 
-librarian::shelf(readr, dplyr, lubridate, tidyr, ggplot2, cran_repo = "https://cloud.r-project.org")
+librarian::shelf(readr, dplyr, lubridate, tidyr, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
@@ -21,93 +25,16 @@ met_dir <- MET_DIR
 discharge_dir <- DISCHARGE_DIR
 catchment_dir <- CATCHMENT_CHARACTERISTICS_DIR
 output_dir <- OUT_MET_SUPPORT_DIR
-exploratory_plot_dir <- EXPLORATORY_ET_METHODS_DIR
 wy_start_date <- as.Date(sprintf("%d-10-01", WY_START - 1))
 wy_end_date <- as.Date(sprintf("%d-09-30", WY_END))
 
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# MET station assignments by catchment and variable
-# Single stations are used directly, two and three station groups are gap filled with interpolation functions
+# assign met stations by catchment and variable
+# single stations are used directly, paired stations fill each other's gaps
+site_mapping <- get_met_station_assignments()
 
-site_mapping <- list(
-  # lower elevation catchments use PRIMET
-  "GSWS09" = list(
-    temp = c("PRIMET"),
-    precip = c("PRIMET"),
-    rh = c("PRIMET", "CS2MET"),
-    netrad = c("PRIMET")
-  ),
-  "GSWS10" = list(
-    temp = c("PRIMET"),
-    precip = c("PRIMET"),
-    rh = c("PRIMET", "CS2MET"),
-    netrad = c("PRIMET")
-  ),
-  "GSWS01" = list(
-    temp = c("PRIMET"),
-    precip = c("PRIMET"),
-    rh = c("PRIMET", "CS2MET"),
-    netrad = c("PRIMET")
-  ),
-  "GSWS02" = list(
-    temp = c("PRIMET"),
-    precip = c("PRIMET"),
-    rh = c("PRIMET", "CS2MET"),
-    netrad = c("PRIMET")
-  ),
-  "GSWS03" = list(
-    temp = c("PRIMET"),
-    precip = c("PRIMET"),
-    rh = c("PRIMET", "CS2MET"),
-    netrad = c("PRIMET")
-  ),
-
-  # Mack Creek uses CENMET and UPLMET
-  "GSMACK" = list(
-    temp = c("CENMET", "UPLMET"),
-    precip = c("GSMACK", "UPLMET"),
-    rh = c("CENMET", "UPLMET"),
-    netrad = c("VANMET")
-  ),
-
-  # upper elevation catchments use H15MET and VANMET
-  "GSWS06" = list(
-    temp = c("H15MET", "VANMET"),
-    precip = c("H15MET"),
-    rh = c("H15MET", "VANMET", "WS7MET"),
-    netrad = c("VANMET")
-  ),
-  "GSWS07" = list(
-    temp = c("H15MET", "VANMET"),
-    precip = c("H15MET"),
-    rh = c("H15MET", "VANMET", "WS7MET"),
-    netrad = c("VANMET")
-  ),
-  "GSWS08" = list(
-    temp = c("H15MET", "VANMET"),
-    precip = c("H15MET"),
-    rh = c("H15MET", "VANMET", "WS7MET"),
-    netrad = c("VANMET")
-  ),
-
-  # Lookout Creek tributaries
-  "LONGER" = list(
-    temp = c("CENMET"),
-    precip = c("CENMET"),
-    rh = c("CENMET"),
-    netrad = c("VANMET")
-  ),
-
-  "COLD" = list(
-    temp = c("CENMET", "UPLMET"),
-    precip = c("CENMET", "UPLMET"),
-    rh = c("CENMET", "UPLMET"),
-    netrad = c("VANMET")
-  )
-)
-
-# Meteorological data:(filled from Attias (2025; Appendix A from raw data base data))
+# met inputs start from the Attias (2025) gap-filled station files
 Temp <- make_inter_long(
   "Temperature_original_&_filled_1979_2023_v2.csv",
   "Temp",
@@ -163,14 +90,13 @@ combined_met_clean <- combined_met %>%
   group_by(DATE, SITECODE) %>%
   summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
 
-# VPD is calculated inside the interpolation function
+# VPD is calculated after temperature and relative humidity have been filled
 variables <- c("T_C", "P_mm_d", "RH_d_pct", "NR_Wm2_d")
 
 results <- process_station_groups(
   combined_met_clean,
   station_groups,
-  variables,
-  plot_dir = exploratory_plot_dir
+  variables
 )
 
 interpolated_data <- results$data

@@ -1,4 +1,17 @@
 # run the full analysis after running install_packages.R
+
+# inputs:
+# config.R
+# figure_functions.R
+# workflow_functions.R
+# hydromet_functions.R
+# model_functions.R
+# workflow input files listed in each script
+
+# outputs:
+# outputs/*
+# figs_tables_pub/*
+
 # author: Sidney Bush
 # date: 2026-02-13
 
@@ -17,15 +30,9 @@ if (!nzchar(repo_dir)) {
 
 repo_dir <- normalizePath(repo_dir, winslash = "/", mustWork = FALSE)
 
-if (!file.exists(file.path(repo_dir, "config.R"))) {
-  stop(
-    "Could not find the repository folder. Run this script from the repository folder ",
-    "or set HJA_REPO_DIR to that folder."
-  )
-}
-
 setwd(repo_dir)
 
+# require librarian because each script uses librarian::shelf
 if (!requireNamespace("librarian", quietly = TRUE)) {
   stop(
     "Missing R package: librarian. Run Rscript install_packages.R once, ",
@@ -39,10 +46,9 @@ make_output_dirs()
 
 run_script <- function(path) {
   full <- file.path(repo_dir, path)
-  if (!file.exists(full)) {
-    stop("Missing script: ", full)
-  }
   status <- system2("Rscript", shQuote(full), stdout = "", stderr = "")
+
+  # stop the workflow if any script fails
   if (!identical(status, 0L)) {
     stop("Script failed: ", path)
   }
@@ -54,7 +60,7 @@ run_scripts <- function(paths) {
   }
 }
 
-# check input files before running the workflow
+# check input columns before running the workflow
 check_inputs()
 
 # build the daily catchment forcing and ET tables
@@ -82,8 +88,7 @@ stats_scripts <- c(
   "02_analysis/storage_sum_stats.R",
   "02_analysis/pca.R",
   "02_analysis/unified_framework_calc.R",
-  "02_analysis/mlr_catchment_char.R",
-  "02_analysis/mlr_eco_response.R",
+  "02_analysis/mlr_catchment_eco.R",
   "02_analysis/mtt_sensitivity.R"
 )
 run_scripts(stats_scripts)
@@ -91,9 +96,7 @@ run_scripts(stats_scripts)
 # make the main text figures
 plot_scripts_core <- c(
   "03_figs/Fig2_Fig3_storage_metrics.R",
-  "03_figs/Fig4_catchment_controls.R",
-  "03_figs/Fig5_ecological_response_models.R",
-  "03_figs/Fig6_observed_predicted_ecological_responses.R",
+  "03_figs/Fig4_Fig5_Fig6_model_figures.R",
   "03_figs/Fig7_dynamic_mobile_framework.R"
 )
 run_scripts(plot_scripts_core)
@@ -106,37 +109,17 @@ plot_scripts_supp <- c(
 )
 run_scripts(plot_scripts_supp)
 
-# remove old supporting information outputs
-old_supp_files <- c(
-  "FigS4_catchment_mlr_diagnostics.png",
-  "FigS4_dynamic_mobile_scatter_matrix.png",
-  "FigS5_eco_mlr_diagnostics.png",
-  "FigS6_dynamic_mobile_scatter_matrix.png",
-  "FigSX_dynamic_metrics_corr.png",
-  "FigSX_mobile_metrics_corr.png",
-  "FigSX_pca_Pws_anomaly.png",
-  "FigSX_chs_ec_vs_ca_by_site.png",
-  "FigSX_chs_ec_vs_ca_overall.png",
-  "Table_SX_mlr_model_diagnostics.csv",
-  "TableS9_mlr_model_diagnostics.csv"
-)
-old_supp_pdf_files <- unique(c(
-  sub("\\.(png|csv)$", ".pdf", old_supp_files[grepl("\\.(png|csv)$", old_supp_files)]),
-  "FigSX_pca_scree.pdf"
-))
-unlink(file.path(MS_FIG_SUPP_DIR, old_supp_files))
-unlink(file.path(MS_FIG_SUPP_PDF_DIR, old_supp_pdf_files))
-
 # write the supporting information tables
+run_script("04_tables/SI_tables_S1_S6.R")
 run_script("04_tables/SI_tables_S7_S12.R")
 
-# check that the outputs were written
+# make sure the manuscript files were written
 verify_outputs()
 
 # close any open plots
 try(grDevices::graphics.off(), silent = TRUE)
 
-# remove any accidental Rplots.pdf
+# remove accidental Rplots.pdf
 if (file.exists("Rplots.pdf")) {
-  unlink("Rplots.pdf")
+  file.remove("Rplots.pdf")
 }

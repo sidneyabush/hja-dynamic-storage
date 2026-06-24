@@ -1,17 +1,20 @@
 # calculate thermal, low flow, and wet season precipitation metrics
-# inputs: discharge_dir/HF00402_v14.csv, out_met_support_dir/catchments_met_q.csv
-# outputs: outputs/metrics/eco/stream_thermal_lowflow_metrics_annual.csv
+
+# inputs:
+# stream_temp_dir/HT00451_v10.txt
+# out_met_support_dir/catchments_met_q.csv
+
+# outputs:
+# outputs/metrics/eco/stream_thermal_lowflow_metrics_annual.csv
+
 # author: Sidney Bush
 # date: 2026-01-23
 
-librarian::shelf(dplyr, lubridate, readr, tidyr, zoo, ggplot2, patchwork, cran_repo = "https://cloud.r-project.org")
+librarian::shelf(dplyr, lubridate, readr, zoo, cran_repo = "https://cloud.r-project.org")
 
 rm(list = ls())
 
 source("config.R")
-
-
-theme_set(theme_pub(base_size = 12))
 
 base_dir      <- BASE_DATA_DIR
 output_dir    <- OUT_MET_ECO_DIR
@@ -26,10 +29,12 @@ assert_unique_keys <- function(df, keys, df_name) {
   dupes <- df %>%
     count(across(all_of(keys)), name = "n") %>%
     filter(n > 1)
+
+  # stop if repeated rows would duplicate outputs
   if (nrow(dupes) > 0) {
     stop(
       paste0(
-        "Non-unique join keys detected in ", df_name, " for keys (",
+        "Repeated rows in ", df_name, " for columns (",
         paste(keys, collapse = ", "), ")."
       )
     )
@@ -37,10 +42,6 @@ assert_unique_keys <- function(df, keys, df_name) {
 }
 
 temp_file <- file.path(temp_dir, "HT00451_v10.txt")
-if (!file.exists(temp_file)) {
-  stop("Missing stream temperature file: ", temp_file)
-}
-
 temp_raw <- read_csv(temp_file, show_col_types = FALSE) %>%
   mutate(
     date = as.Date(DATE_TIME),
@@ -58,6 +59,7 @@ temp_daily <- temp_raw %>%
   ) %>%
   filter(!is.na(temp_mean_C))
 
+# stop early if the stream temperature file does not include enough study sites
 if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
   available_streams <- temp_raw %>%
     distinct(site) %>%
@@ -66,24 +68,17 @@ if (nrow(temp_daily) == 0 || n_distinct(temp_daily$site) < 3) {
 
   stop(
     paste0(
-      "Stream temperature inputs do not cover hydrometric analysis sites. ",
+      "Not enough stream temperature data for the analysis sites. ",
       "Found stream IDs: ", paste(available_streams, collapse = ", "), ". ",
-      "Analysis sites are: ", paste(sites_keep, collapse = ", "), "."
+      "Sites needed: ", paste(sites_keep, collapse = ", "), "."
     )
   )
 }
 
-# WS09 has no stream temperature record in HT00451
-# keep WS09 in the annual master tables and leave the temperature outputs as NA
+# WS09 has no stream temperature record
+# keep WS09 in the annual master tables but leave the temperature outputs as NA
 
 met_support_file <- file.path(OUT_MET_SUPPORT_DIR, "catchments_met_q.csv")
-if (!file.exists(met_support_file)) {
-  stop(
-    "Missing paired met support file: ", met_support_file,
-    ". Run 00_data_preprocessing/create_hydromet_master.R first."
-  )
-}
-
 met_support <- read_csv(met_support_file, show_col_types = FALSE) %>%
   mutate(
     date = as.Date(DATE, tryFormats = c("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y")),
@@ -105,7 +100,6 @@ met_daily <- met_support %>%
   select(site, date, P_mm_d)
 
 # wet season precipitation from November through May
-# Nov Dec 2019 plus Jan May 2020 are assigned to water year 2020
 precip_nov_may <- met_daily %>%
   mutate(
     month_num = month(date),
@@ -171,87 +165,11 @@ q_7q5 <- discharge_rolling %>%
   )
 assert_unique_keys(q_7q5, c("site", "year"), "q_7q5")
 
-# representative date at the Q5 threshold
-q_7q5_date <- discharge_rolling %>%
-  filter(year %in% target_years, !is.na(Q_7d_avg_mm_d)) %>%
-  inner_join(q_7q5, by = c("site", "year")) %>%
-  group_by(site, year) %>%
-  slice_min(abs(Q_7d_avg_mm_d - Q_7Q5), n = 1, with_ties = FALSE) %>%
-  select(
-    site,
-    year,
-    date_q_7q5 = date
-  ) %>%
-  ungroup()
-assert_unique_keys(q_7q5_date, c("site", "year"), "q_7q5_date")
-
-# temperature at the Q5 low flow date
-# t_at_q7q5 = temperature on the representative Q5 date
-temp_at_q5 <- q_7q5_date %>%
-  left_join(
-    temp_daily %>%
-      select(site, date, temp_mean_C) %>%
-      rename(T_at_Q7Q5 = temp_mean_C),
-    by = c("site", "date_q_7q5" = "date")
-  )
-assert_unique_keys(temp_at_q5, c("site", "year"), "temp_at_q5")
-
-# q5_cv = coefficient of variation of stream temperature during the low flow period
-# this uses daily mean stream temperature from Aug through Oct
-# lower values suggest stronger thermal buffering by subsurface storage
-temp_cv_lowflow <- temp_daily %>%
-  mutate(
-    year = get_water_year(date),
-    month_num = month(date)
-  ) %>%
-  filter(year %in% target_years, month_num %in% 8:10) %>%  # Aug Oct
-  group_by(site, year) %>%
-  summarise(
-    temp_mean = mean(temp_mean_C, na.rm = TRUE),
-    temp_sd = sd(temp_mean_C, na.rm = TRUE),
-    n_days = n(),
-    .groups = "drop"
-  ) %>%
-  mutate(Q5_CV = temp_sd / temp_mean) %>%
-  select(site, year, Q5_CV)
-assert_unique_keys(temp_cv_lowflow, c("site", "year"), "temp_cv_lowflow")
-
 master_metrics <- t_7dmax %>%
   full_join(q_7q5, by = c("site", "year")) %>%
-  left_join(q_7q5_date, by = c("site", "year")) %>%
-  left_join(temp_at_q5, by = c("site", "year", "date_q_7q5")) %>%
   left_join(precip_nov_may, by = c("site", "year")) %>%
-  left_join(temp_cv_lowflow, by = c("site", "year")) %>%
-# keep both column names for compatibility
-  mutate(
-    max_temp_7d_C = T_7DMax,
-    q5_7d_mm_d = Q_7Q5,
-    min_Q_7d_mm_d = Q_7Q5,
-    temp_at_q5_7d_C = T_at_Q7Q5,
-    temp_at_min_Q_7d_C = T_at_Q7Q5,
-    precip_nov_may_mm = ifelse(is.na(precip_nov_may_mm), Pws, precip_nov_may_mm)
-  ) %>%
-  mutate(
-    SITECODE = site,
-    wateryear = year
-  ) %>%
   arrange(site, year)
 assert_unique_keys(master_metrics, c("site", "year"), "master_metrics")
 
 output_file <- file.path(output_dir, "stream_thermal_lowflow_metrics_annual.csv")
 write_csv(master_metrics, output_file)
-
-summary_stats <- master_metrics %>%
-  group_by(site) %>%
-  summarise(
-    n_years = n(),
-    t_7dmax_mean = mean(T_7DMax, na.rm = TRUE),
-    t_7dmax_sd   = sd(T_7DMax, na.rm = TRUE),
-    q_7q5_mean   = mean(Q_7Q5, na.rm = TRUE),
-    q_7q5_sd     = sd(Q_7Q5, na.rm = TRUE),
-    p_wetseason_mean = mean(Pws, na.rm = TRUE),
-    p_wetseason_sd   = sd(Pws, na.rm = TRUE),
-    Q5_CV_mean = mean(Q5_CV, na.rm = TRUE),
-    Q5_CV_sd   = sd(Q5_CV, na.rm = TRUE),
-    .groups = "drop"
-  )

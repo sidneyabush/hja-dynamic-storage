@@ -1,6 +1,16 @@
 # Supporting information storage metric correlation figures
-# inputs: outputs/master/*.csv
-# outputs: ms_materials/supp/FigS2_dynamic_storage_corr.* and FigS3_mobile_storage_corr.*
+
+# inputs:
+# outputs/master/master_annual.csv
+# outputs/master/master_site.csv
+# outputs/metrics/dynamic/fdc_slopes_wy.csv
+
+# outputs:
+# figs_tables_pub/supp/FigS2_dynamic_storage_corr.*
+# figs_tables_pub/supp/FigS3_mobile_storage_corr.*
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, scales, cran_repo = "https://cloud.r-project.org")
 
@@ -18,38 +28,32 @@ annual_file <- file.path(OUTPUT_DIR, "master", MASTER_ANNUAL_FILE)
 site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 fdc_wy_file <- file.path(OUT_MET_DYNAMIC_DIR, "fdc_slopes_wy.csv")
 
-for (f in c(annual_file, site_file)) {
-  if (!file.exists(f)) stop("Missing file: ", f)
-}
-
 annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
-if (file.exists(fdc_wy_file)) {
-  fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
-    mutate(
-      site = standardize_site_code(as.character(site)),
-      year = suppressWarnings(as.numeric(
-        if ("WaterYear" %in% names(.)) WaterYear else if ("year" %in% names(.)) year else NA_real_
-      )),
-      FDC_annual = suppressWarnings(as.numeric(
-        if ("Slope" %in% names(.)) Slope else if ("fdc_slope" %in% names(.)) fdc_slope else if ("FDC" %in% names(.)) FDC else NA_real_
-      ))
-    ) %>%
-    filter(site %in% SITE_ORDER_HYDROMETRIC, is.finite(year)) %>%
-    select(site, year, FDC_annual) %>%
-    distinct(site, year, .keep_all = TRUE)
+fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
+  mutate(
+    site = standardize_site_code(as.character(site)),
+    year = suppressWarnings(as.numeric(
+      if ("WaterYear" %in% names(.)) WaterYear else if ("year" %in% names(.)) year else NA_real_
+    )),
+    FDC_annual = suppressWarnings(as.numeric(
+      if ("Slope" %in% names(.)) Slope else if ("fdc_slope" %in% names(.)) fdc_slope else if ("FDC" %in% names(.)) FDC else NA_real_
+    ))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, is.finite(year)) %>%
+  select(site, year, FDC_annual) %>%
+  distinct(site, year, .keep_all = TRUE)
 
-  annual <- annual %>%
-    mutate(site_chr = as.character(site)) %>%
-    left_join(fdc_wy, by = c("site_chr" = "site", "year" = "year")) %>%
-    mutate(
-      FDC = dplyr::coalesce(FDC_annual, FDC),
-      site = factor(site_chr, levels = SITE_ORDER_HYDROMETRIC)
-    ) %>%
-    select(-site_chr, -FDC_annual)
-}
+annual <- annual %>%
+  mutate(site_chr = as.character(site)) %>%
+  left_join(fdc_wy, by = c("site_chr" = "site", "year" = "year")) %>%
+  mutate(
+    FDC = dplyr::coalesce(FDC_annual, FDC),
+    site = factor(site_chr, levels = SITE_ORDER_HYDROMETRIC)
+  ) %>%
+  select(-site_chr, -FDC_annual)
 
 site_summary <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
@@ -60,13 +64,20 @@ make_corr_matrix <- function(data_df, metric_map, metric_labels, parse_metric_la
     select(any_of(unname(metric_map))) %>%
     mutate(across(everything(), ~ suppressWarnings(as.numeric(.x))))
 
-  if (ncol(corr_input) < 2) stop("At least two metrics are needed for a correlation plot.")
+  # require at least two metrics to calculate pairwise correlations
+  if (ncol(corr_input) < 2) {
+    stop("At least two metrics are needed for a correlation plot.")
+  }
 
   colnames(corr_input) <- names(metric_map)
   corr_mat <- suppressWarnings(cor(corr_input, use = "pairwise.complete.obs"))
 
   idx <- which(lower.tri(corr_mat), arr.ind = TRUE)
-  if (nrow(idx) == 0) stop("At least two metrics are needed for a correlation plot.")
+
+  # require at least one lower-triangle cell to plot
+  if (nrow(idx) == 0) {
+    stop("At least two metrics are needed for a correlation plot.")
+  }
 
   x_levels <- names(metric_map)[-length(metric_map)]
   y_levels <- names(metric_map)[-1]

@@ -1,6 +1,22 @@
 # Figures 2 and 3 storage metrics
-# inputs: outputs/master/*.csv, anova/Tukey outputs, isotope inputs
-# outputs: ms_materials/main/Fig2_dynamic_storage_pca.*, Fig3_mobile_storage.*
+
+# inputs:
+# outputs/master/master_annual.csv
+# outputs/master/master_site.csv
+# outputs/models/anova_tukey/tukey_group_letters.csv
+# outputs/models/pca/pca_scores_pc1_pc2.csv
+# outputs/models/pca/pca_loadings.csv
+# outputs/models/pca/pca_variance_explained.csv
+# outputs/metrics/dynamic/fdc_slopes_wy.csv
+# isotope_dir/MTT_FYW.csv
+# isotope_dir/DampingRatios_2025-07-07.csv
+
+# outputs:
+# figs_tables_pub/main/Fig2_dynamic_storage_pca.*
+# figs_tables_pub/main/Fig3_mobile_storage.*
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tidyr, ggplot2, patchwork, cowplot, cran_repo = "https://cloud.r-project.org")
 
@@ -24,47 +40,33 @@ pca_scores_file <- file.path(OUT_STATS_PCA_DIR, "pca_scores_pc1_pc2.csv")
 pca_loadings_file <- file.path(OUT_STATS_PCA_DIR, "pca_loadings.csv")
 pca_variance_file <- file.path(OUT_STATS_PCA_DIR, "pca_variance_explained.csv")
 
-for (f in c(
-  annual_file,
-  site_file,
-  isotope_file,
-  damping_file,
-  pca_scores_file,
-  pca_loadings_file,
-  pca_variance_file
-)) {
-  if (!file.exists(f)) stop("Missing file: ", f)
-}
-
 annual <- read_csv(annual_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
 # use annual site year FDC slopes in Figure 2
-if (file.exists(fdc_wy_file)) {
-  fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
-    mutate(
-      site = standardize_site_code(as.character(site)),
-      year = suppressWarnings(as.numeric(
-        if ("WaterYear" %in% names(.)) WaterYear else if ("year" %in% names(.)) year else NA_real_
-      )),
-      FDC_annual = suppressWarnings(as.numeric(
-        if ("Slope" %in% names(.)) Slope else if ("fdc_slope" %in% names(.)) fdc_slope else if ("FDC" %in% names(.)) FDC else NA_real_
-      ))
-    ) %>%
-    filter(site %in% SITE_ORDER_HYDROMETRIC, is.finite(year)) %>%
-    select(site, year, FDC_annual) %>%
-    distinct(site, year, .keep_all = TRUE)
+fdc_wy <- read_csv(fdc_wy_file, show_col_types = FALSE) %>%
+  mutate(
+    site = standardize_site_code(as.character(site)),
+    year = suppressWarnings(as.numeric(
+      if ("WaterYear" %in% names(.)) WaterYear else if ("year" %in% names(.)) year else NA_real_
+    )),
+    FDC_annual = suppressWarnings(as.numeric(
+      if ("Slope" %in% names(.)) Slope else if ("fdc_slope" %in% names(.)) fdc_slope else if ("FDC" %in% names(.)) FDC else NA_real_
+    ))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC, is.finite(year)) %>%
+  select(site, year, FDC_annual) %>%
+  distinct(site, year, .keep_all = TRUE)
 
-  annual <- annual %>%
-    mutate(site_chr = as.character(site)) %>%
-    left_join(fdc_wy, by = c("site_chr" = "site", "year" = "year")) %>%
-    mutate(
-      FDC = dplyr::coalesce(FDC_annual, FDC),
-      site = factor(site_chr, levels = SITE_ORDER_HYDROMETRIC)
-    ) %>%
-    select(-site_chr, -FDC_annual)
-}
+annual <- annual %>%
+  mutate(site_chr = as.character(site)) %>%
+  left_join(fdc_wy, by = c("site_chr" = "site", "year" = "year")) %>%
+  mutate(
+    FDC = dplyr::coalesce(FDC_annual, FDC),
+    site = factor(site_chr, levels = SITE_ORDER_HYDROMETRIC)
+  ) %>%
+  select(-site_chr, -FDC_annual)
 
 site_summary <- read_csv(site_file, show_col_types = FALSE) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
@@ -78,12 +80,8 @@ pca_scores <- read_csv(pca_scores_file, show_col_types = FALSE) %>%
 pca_loadings <- read_csv(pca_loadings_file, show_col_types = FALSE)
 pca_variance <- read_csv(pca_variance_file, show_col_types = FALSE)
 
-letters_df <- if (file.exists(letters_file)) {
-  read_csv(letters_file, show_col_types = FALSE) %>%
-    mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
-} else {
-  tibble(metric = character(), site = factor(levels = SITE_ORDER_HYDROMETRIC), group_letter = character())
-}
+letters_df <- read_csv(letters_file, show_col_types = FALSE) %>%
+  mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC))
 
 BOX_FILL_ALPHA <- 0.22
 POINT_ALPHA <- 0.55
@@ -563,7 +561,7 @@ p_fig2_right <- p_fig2_b / p_fig2_d / p_fig2_f +
 p_fig2 <- (p_fig2_left | p_fig2_right) +
   plot_layout(widths = c(1, 1))
 
-# keep the older BF boxplot code because the BF panel is reused in Figure 3
+# baseflow fraction data for Figure 3
 fig4_df <- annual %>%
   select(site, year, BF) %>%
   filter(is.finite(BF))
@@ -587,31 +585,6 @@ chs_counts <- tibble(site = factor(SITE_ORDER_HYDROMETRIC, levels = SITE_ORDER_H
 
 fig4_x_labels <- setNames(as.character(chs_counts$site), as.character(chs_counts$site))
 
-p_fig4_legacy <- ggplot(fig4_df, aes(x = site, y = BF, fill = site, color = site)) +
-  geom_boxplot(width = 0.65, outlier.shape = NA, alpha = BOX_FILL_ALPHA, linewidth = 0.8) +
-  geom_jitter(width = 0.13, alpha = POINT_ALPHA, size = FIG_POINT_SIZE_SMALL + 0.2) +
-  geom_text(
-    data = letters_fig4,
-    aes(x = site, y = y, label = group_letter),
-    inherit.aes = FALSE,
-    size = FIG_ANNOT_TEXT_SIZE + 0.2,
-    color = "grey35"
-  ) +
-  scale_fill_manual(values = SITE_COLORS, drop = FALSE) +
-  scale_color_manual(values = SITE_COLORS, drop = FALSE) +
-  scale_x_discrete(
-    limits = SITE_ORDER_HYDROMETRIC,
-    labels = fig4_x_labels,
-    drop = FALSE
-  ) +
-  coord_cartesian(ylim = calc_ylim(fig4_df$BF, letters_fig4$y), clip = "off") +
-  labs(x = NULL, y = "Baseflow Fraction (BF)") +
-  theme_storage_panel() +
-  theme(
-    axis.text.x = element_text(angle = 0, hjust = 0.5, size = FIG_AXIS_TEXT_SIZE + 1),
-    axis.title = element_text(size = FIG_AXIS_TITLE_SIZE + 1)
-  )
-
 # Figure 3 mobile storage panels
 fig4_mobile_map <- c(
   DR = "DR",
@@ -621,58 +594,49 @@ fig4_mobile_map <- c(
 
 isotope_err <- tibble(site = SITE_ORDER_HYDROMETRIC)
 
-if (file.exists(isotope_file)) {
-  mtt_err <- read_csv(isotope_file, show_col_types = FALSE) %>%
-    mutate(
-      site = standardize_site_code(as.character(site)),
-      Fyw_err = rowMeans(
-        cbind(
-          suppressWarnings(as.numeric(FYWL_SD)),
-          suppressWarnings(as.numeric(FYWH_SD))
-        ),
-        na.rm = TRUE
+mtt_err <- read_csv(isotope_file, show_col_types = FALSE) %>%
+  mutate(
+    site = standardize_site_code(as.character(site)),
+    Fyw_err = rowMeans(
+      cbind(
+        suppressWarnings(as.numeric(FYWL_SD)),
+        suppressWarnings(as.numeric(FYWH_SD))
       ),
-      MTT_early_window_err = suppressWarnings(as.numeric(MTT1_SD)),
-      MTT_late_window_err = rowMeans(
-        cbind(
-          suppressWarnings(as.numeric(MTT2L_SD)),
-          suppressWarnings(as.numeric(MTT2H_SD))
-        ),
-        na.rm = TRUE
+      na.rm = TRUE
+    ),
+    MTT_early_window_err = suppressWarnings(as.numeric(MTT1_SD)),
+    MTT_late_window_err = rowMeans(
+      cbind(
+        suppressWarnings(as.numeric(MTT2L_SD)),
+        suppressWarnings(as.numeric(MTT2H_SD))
       ),
-      MTT_err = rowMeans(cbind(MTT_early_window_err, MTT_late_window_err), na.rm = TRUE),
-      Fyw_err = ifelse(is.nan(Fyw_err), NA_real_, Fyw_err),
-      MTT_late_window_err = ifelse(is.nan(MTT_late_window_err), NA_real_, MTT_late_window_err),
-      MTT_err = ifelse(is.nan(MTT_err), NA_real_, MTT_err)
-    ) %>%
-    filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-    group_by(site) %>%
-    summarise(
-      Fyw_err = first_finite(Fyw_err),
-      MTT_err = first_finite(MTT_err),
-      .groups = "drop"
-    )
+      na.rm = TRUE
+    ),
+    MTT_err = rowMeans(cbind(MTT_early_window_err, MTT_late_window_err), na.rm = TRUE),
+    Fyw_err = ifelse(is.nan(Fyw_err), NA_real_, Fyw_err),
+    MTT_late_window_err = ifelse(is.nan(MTT_late_window_err), NA_real_, MTT_late_window_err),
+    MTT_err = ifelse(is.nan(MTT_err), NA_real_, MTT_err)
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  group_by(site) %>%
+  summarise(
+    Fyw_err = first_finite(Fyw_err),
+    MTT_err = first_finite(MTT_err),
+    .groups = "drop"
+  )
 
-  isotope_err <- isotope_err %>% left_join(mtt_err, by = "site")
-} else {
-  isotope_err <- isotope_err %>%
-    mutate(Fyw_err = NA_real_, MTT_err = NA_real_)
-}
+isotope_err <- isotope_err %>% left_join(mtt_err, by = "site")
 
-if (file.exists(damping_file)) {
-  dr_err <- read_csv(damping_file, show_col_types = FALSE) %>%
-    mutate(
-      site = standardize_site_code(as.character(site)),
-      DR_err = suppressWarnings(as.numeric(DR__err))
-    ) %>%
-    filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
-    group_by(site) %>%
-    summarise(DR_err = first_finite(DR_err), .groups = "drop")
+dr_err <- read_csv(damping_file, show_col_types = FALSE) %>%
+  mutate(
+    site = standardize_site_code(as.character(site)),
+    DR_err = suppressWarnings(as.numeric(DR__err))
+  ) %>%
+  filter(site %in% SITE_ORDER_HYDROMETRIC) %>%
+  group_by(site) %>%
+  summarise(DR_err = first_finite(DR_err), .groups = "drop")
 
-  isotope_err <- isotope_err %>% left_join(dr_err, by = "site")
-} else {
-  isotope_err$DR_err <- NA_real_
-}
+isotope_err <- isotope_err %>% left_join(dr_err, by = "site")
 
 fig5_err_long <- isotope_err %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
@@ -819,63 +783,22 @@ p_fig4 <- patchwork::wrap_plots(
   "
 )
 
-ggsave(
-  file.path(main_dir, "Fig2_dynamic_storage_pca.png"),
+save_figure_set(
   p_fig2,
+  "Fig2_dynamic_storage_pca",
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 12.0 * FIG_HEIGHT_SCALE,
-  bg = "white",
-  dpi = FIG_PREVIEW_DPI
-)
-ggsave(
-  file.path(main_pdf_dir, "Fig2_dynamic_storage_pca.pdf"),
-  p_fig2,
-  width = 10.4 * FIG_WIDTH_SCALE,
-  height = 12.0 * FIG_HEIGHT_SCALE,
-  bg = "white"
-)
-ggsave(
-  file.path(main_tiff_dir, "Fig2_dynamic_storage_pca.tiff"),
-  p_fig2,
-  width = 10.4 * FIG_WIDTH_SCALE,
-  height = 12.0 * FIG_HEIGHT_SCALE,
-  bg = "white",
-  dpi = FIG_PRODUCTION_DPI,
-  compression = "lzw"
+  png_dir = main_dir,
+  pdf_dir = main_pdf_dir,
+  tiff_dir = main_tiff_dir
 )
 
-ggsave(
-  file.path(main_dir, "Fig3_mobile_storage.png"),
+save_figure_set(
   p_fig4,
+  "Fig3_mobile_storage",
   width = 10.4 * FIG_WIDTH_SCALE,
   height = 8.0 * FIG_HEIGHT_SCALE,
-  bg = "white",
-  dpi = FIG_PREVIEW_DPI
+  png_dir = main_dir,
+  pdf_dir = main_pdf_dir,
+  tiff_dir = main_tiff_dir
 )
-ggsave(
-  file.path(main_pdf_dir, "Fig3_mobile_storage.pdf"),
-  p_fig4,
-  width = 10.4 * FIG_WIDTH_SCALE,
-  height = 8.0 * FIG_HEIGHT_SCALE,
-  bg = "white"
-)
-ggsave(
-  file.path(main_tiff_dir, "Fig3_mobile_storage.tiff"),
-  p_fig4,
-  width = 10.4 * FIG_WIDTH_SCALE,
-  height = 8.0 * FIG_HEIGHT_SCALE,
-  bg = "white",
-  dpi = FIG_PRODUCTION_DPI,
-  compression = "lzw"
-)
-
-# remove older BF only files not used in the final paper
-unlink(file.path(main_dir, "Fig4_chs_boxplots.png"))
-unlink(file.path(main_pdf_dir, "Fig4_chs_boxplots.pdf"))
-unlink(file.path(main_tiff_dir, "Fig4_chs_boxplots.tiff"))
-unlink(file.path(main_dir, "Fig2_ds_annual_boxplots.png"))
-unlink(file.path(main_pdf_dir, "Fig2_ds_annual_boxplots.pdf"))
-unlink(file.path(main_tiff_dir, "Fig2_ds_annual_boxplots.tiff"))
-unlink(file.path(main_dir, "Fig4_mobile_storage.png"))
-unlink(file.path(main_pdf_dir, "Fig4_mobile_storage.pdf"))
-unlink(file.path(main_tiff_dir, "Fig4_mobile_storage.tiff"))

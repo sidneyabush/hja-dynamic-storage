@@ -1,5 +1,20 @@
 # write supporting information Tables S7 to S12
-# uses model outputs and MTT sensitivity output
+
+# inputs:
+# outputs/MTT_sensitivity/TableS7_MTT_sensitivity.csv
+# outputs/models/catchment_char_storage_mlr/*.csv
+# outputs/models/storage_eco_response_mlr/*.csv
+
+# outputs:
+# figs_tables_pub/supp/TableS7_MTT_sensitivity.csv
+# figs_tables_pub/supp/TableS8_catchment_char_storage_mlr_model_stats.csv
+# figs_tables_pub/supp/TableS9_catchment_alt_models_unique_deltaAICc_le2_BF.csv
+# figs_tables_pub/supp/TableS10_mlr_model_diagnostics.csv
+# figs_tables_pub/supp/TableS11_storage_eco_response_mlr_model_stats.csv
+# figs_tables_pub/supp/TableS12_eco_alt_models_unique_deltaAICc_le2_BF.csv
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tibble, cran_repo = "https://cloud.r-project.org")
 
@@ -69,13 +84,6 @@ load_eco_models <- function() {
   eco_res_file <- file.path(eco_dir, "storage_eco_response_mlr_results.csv")
   eco_sum_file <- file.path(eco_dir, "storage_eco_response_mlr_summary.csv")
 
-  if (!file.exists(eco_res_file) || !file.exists(eco_sum_file)) {
-    stop(
-      "Missing eco model inputs: storage_eco_response_mlr_results.csv and storage_eco_response_mlr_summary.csv were not found in ",
-      eco_dir
-    )
-  }
-
   eco_res <- read_csv(eco_res_file, show_col_types = FALSE) %>%
     transmute(
       model_id = gsub("_", "", as.character(Response), fixed = TRUE),
@@ -127,13 +135,6 @@ load_ws_models <- function() {
   ws_dir <- OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR
   ws_res_file <- file.path(ws_dir, "catchment_char_storage_mlr_results.csv")
   ws_sum_file <- file.path(ws_dir, "catchment_char_storage_mlr_summary.csv")
-
-  if (!file.exists(ws_res_file) || !file.exists(ws_sum_file)) {
-    stop(
-      "Missing catchment model inputs: catchment_char_storage_mlr_results.csv and catchment_char_storage_mlr_summary.csv were not found in ",
-      ws_dir
-    )
-  }
 
   ws_res <- read_csv(ws_res_file, show_col_types = FALSE) %>%
     transmute(
@@ -187,10 +188,6 @@ load_catchment_alt_models <- function() {
     OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
     "catchment_char_storage_mlr_aicc_lt2.csv"
   )
-  if (!file.exists(catch_alt_file)) {
-    return(NULL)
-  }
-
   read_csv(catch_alt_file, show_col_types = FALSE) %>%
     transmute(
       `Response Variable` = gsub("_mean$", "", as.character(Outcome)),
@@ -238,10 +235,6 @@ load_eco_alt_models <- function() {
     OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
     "storage_eco_response_mlr_aicc_lt2.csv"
   )
-  if (!file.exists(eco_alt_file)) {
-    return(NULL)
-  }
-
   read_csv(eco_alt_file, show_col_types = FALSE) %>%
     transmute(
       `Response Variable` = as.character(Response),
@@ -283,16 +276,8 @@ dir.create(MS_TABLES_SUPP_DIR, recursive = TRUE, showWarnings = FALSE)
 
 write_table_s7 <- function() {
   source_file <- file.path(OUTPUT_DIR, "MTT_sensitivity", "TableS7_MTT_sensitivity.csv")
-  if (!file.exists(source_file)) {
-    source_file <- file.path(OUTPUT_DIR, "MTT_sensitivity", "TableS5_MTT_sensitivity.csv")
-  }
-  if (!file.exists(source_file)) {
-    stop("Missing MTT sensitivity table: ", source_file)
-  }
-
   table_s7 <- read_csv(source_file, show_col_types = FALSE)
   write_csv(table_s7, file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv"))
-  unlink(file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"))
 }
 
 write_table_s8 <- function() {
@@ -316,35 +301,21 @@ write_table_s8 <- function() {
 
   write_csv(
     ws_summary_table,
-    file.path(
-      OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
-      "catchment_char_storage_mlr_model_stats_table.csv"
-    )
-  )
-
-  write_csv(
-    ws_summary_table,
     file.path(MS_TABLES_SUPP_DIR, "TableS8_catchment_char_storage_mlr_model_stats.csv")
   )
-  unlink(file.path(MS_TABLES_MAIN_DIR, "Table4_catchment_char_storage_mlr_model_stats.csv"))
 }
 
 write_table_s9 <- function() {
   catch_alt <- load_catchment_alt_models()
-  if (is.null(catch_alt)) {
-    stop("Missing catchment alternative model input file")
-  }
 
   write_csv(
     catch_alt,
     file.path(MS_TABLES_SUPP_DIR, "TableS9_catchment_alt_models_unique_deltaAICc_le2_BF.csv")
   )
-  unlink(file.path(MS_TABLES_SUPP_DIR, "TableS6_catchment_alt_models_unique_deltaAICc_le2_BF.csv"))
 }
 
-write_table_s10 <- function() {
+write_table_s11 <- function() {
   eco_models <- load_eco_models()
-  ws_models <- load_ws_models()
 
   eco_summary_table <- eco_models %>%
     transmute(
@@ -359,126 +330,82 @@ write_table_s10 <- function() {
     arrange(`Eco-response variable`) %>%
     mutate(`Eco-response variable` = as.character(`Eco-response variable`))
 
-  all_models <- bind_rows(eco_models, ws_models) %>%
-    mutate(
-      model_group = factor(model_group, levels = c("Catchment characteristics", "Eco response pooled")),
-      row_rank = case_when(
-        model_group == "Catchment characteristics" ~ match(response_variable, WS_ORDER),
-        model_group == "Eco response pooled" ~ match(response_variable, ECO_ORDER),
-        TRUE ~ 999L
-      )
-    ) %>%
-    arrange(model_group, row_rank) %>%
-    transmute(
-      `Model Group` = as.character(model_group),
-      `Response Variable` = ifelse(
-        model_group == "Catchment characteristics",
-        label_metric_abbrev(response_variable),
-        response_variable
-      ),
-      `Selected Predictor(s)` = clean_predictor_labels(selected_predictors),
-      `R2` = r2,
-      `Adj R2 marked` = adj_r2_marked,
-      `RMSE` = rmse,
-      `LOOCV RMSE` = rmse_loocv,
-      `AICc` = aicc,
-      `Model p` = model_p_text,
-      `Model significant (alpha=0.05)` = model_significant_alpha_0_05
-    )
-
-  dir.create(OUT_STATS_DIR, recursive = TRUE, showWarnings = FALSE)
-  write_csv(all_models, file.path(OUT_STATS_DIR, "mlr_all_models_listed.csv"))
-
   write_csv(
     eco_summary_table,
-    file.path(MS_TABLES_SUPP_DIR, "TableS10_storage_eco_response_mlr_model_stats.csv")
+    file.path(MS_TABLES_SUPP_DIR, "TableS11_storage_eco_response_mlr_model_stats.csv")
   )
-  unlink(file.path(MS_TABLES_MAIN_DIR, "Table5_storage_eco_response_mlr_model_stats.csv"))
-}
-
-write_table_s11 <- function() {
-  eco_alt <- load_eco_alt_models()
-  if (is.null(eco_alt)) {
-    stop("Missing ecological response alternative model input file")
-  }
-
-  write_csv(
-    eco_alt,
-    file.path(MS_TABLES_SUPP_DIR, "TableS11_eco_alt_models_unique_deltaAICc_le2_BF.csv")
-  )
-  unlink(file.path(MS_TABLES_SUPP_DIR, "TableS7_eco_alt_models_unique_deltaAICc_le2_BF.csv"))
 }
 
 write_table_s12 <- function() {
+  eco_alt <- load_eco_alt_models()
+
+  write_csv(
+    eco_alt,
+    file.path(MS_TABLES_SUPP_DIR, "TableS12_eco_alt_models_unique_deltaAICc_le2_BF.csv")
+  )
+}
+
+write_table_s10 <- function() {
   catch_diag_file <- file.path(
     OUT_MODELS_CATCHMENT_CHAR_STORAGE_MLR_DIR,
     "catchment_char_storage_mlr_diagnostics.csv"
   )
-  catch_diag_tbl <- tibble()
-  if (file.exists(catch_diag_file)) {
-    catch_diag <- read_csv(catch_diag_file, show_col_types = FALSE)
-    catch_diag_tbl <- catch_diag %>%
-      transmute(
-        `MLR model set` = "Catchment characteristics",
-        `Response Variable` = label_metric_abbrev(gsub("_mean$", "", as.character(Outcome))),
-        `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
-        `Shapiro-Wilk p-value` = ifelse(
-          is.finite(shapiro_p),
-          paste0(
-            format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE),
-            ifelse(shapiro_p < 0.05, "*", "")
-          ),
-          NA_character_
+  catch_diag <- read_csv(catch_diag_file, show_col_types = FALSE)
+  catch_diag_tbl <- catch_diag %>%
+    transmute(
+      `MLR model set` = "Catchment characteristics",
+      `Response Variable` = label_metric_abbrev(gsub("_mean$", "", as.character(Outcome))),
+      `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
+      `Shapiro-Wilk p-value` = ifelse(
+        is.finite(shapiro_p),
+        paste0(
+          format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE),
+          ifelse(shapiro_p < 0.05, "*", "")
         ),
-        `Non-constant Variance Test p-value` = ifelse(
-          is.finite(ncv_p),
-          paste0(
-            format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE),
-            ifelse(ncv_p < 0.05, "*", "")
-          ),
-          NA_character_
-        )
+        NA_character_
+      ),
+      `Non-constant Variance Test p-value` = ifelse(
+        is.finite(ncv_p),
+        paste0(
+          format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE),
+          ifelse(ncv_p < 0.05, "*", "")
+        ),
+        NA_character_
       )
-  }
+    )
 
   eco_diag_file <- file.path(
     OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR,
     "storage_eco_response_mlr_diagnostics.csv"
   )
-  eco_diag_tbl <- tibble()
-  if (file.exists(eco_diag_file)) {
-    eco_diag <- read_csv(eco_diag_file, show_col_types = FALSE)
-    eco_diag_tbl <- eco_diag %>%
-      transmute(
-        `MLR model set` = "Ecological responses",
-        `Response Variable` = as.character(Response),
-        `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
-        `Shapiro-Wilk p-value` = ifelse(
-          is.finite(shapiro_p),
-          paste0(
-            format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE),
-            ifelse(shapiro_p < 0.05, "*", "")
-          ),
-          NA_character_
+  eco_diag <- read_csv(eco_diag_file, show_col_types = FALSE)
+  eco_diag_tbl <- eco_diag %>%
+    transmute(
+      `MLR model set` = "Ecological responses",
+      `Response Variable` = as.character(Response),
+      `Residual Sample Size (n)` = suppressWarnings(as.numeric(n_residuals)),
+      `Shapiro-Wilk p-value` = ifelse(
+        is.finite(shapiro_p),
+        paste0(
+          format(signif(shapiro_p, 3), scientific = TRUE, trim = TRUE),
+          ifelse(shapiro_p < 0.05, "*", "")
         ),
-        `Non-constant Variance Test p-value` = ifelse(
-          is.finite(ncv_p),
-          paste0(
-            format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE),
-            ifelse(ncv_p < 0.05, "*", "")
-          ),
-          NA_character_
-        )
+        NA_character_
+      ),
+      `Non-constant Variance Test p-value` = ifelse(
+        is.finite(ncv_p),
+        paste0(
+          format(signif(ncv_p, 3), scientific = TRUE, trim = TRUE),
+          ifelse(ncv_p < 0.05, "*", "")
+        ),
+        NA_character_
       )
-  }
+    )
 
-  diag_table <- bind_rows(catch_diag_tbl, eco_diag_tbl)
-  if (nrow(diag_table) > 0) {
-    diag_table <- diag_table %>%
-      arrange(`MLR model set`, `Response Variable`)
-    write_csv(diag_table, file.path(MS_TABLES_SUPP_DIR, "TableS12_mlr_model_diagnostics.csv"))
-    unlink(file.path(MS_TABLES_SUPP_DIR, "TableS8_mlr_model_diagnostics.csv"))
-  }
+  diag_table <- bind_rows(catch_diag_tbl, eco_diag_tbl) %>%
+    arrange(`MLR model set`, `Response Variable`)
+
+  write_csv(diag_table, file.path(MS_TABLES_SUPP_DIR, "TableS10_mlr_model_diagnostics.csv"))
 }
 
 write_table_s7()

@@ -1,6 +1,17 @@
 # calculate hydrometric dynamic storage metrics (RBI/RCS + SD/FDC) by site and water year
-# inputs: discharge_dir/HF00402_v14.csv, catchment_characteristics_dir/drainage_area.csv, out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
-# outputs: outputs/metrics/dynamic/*.csv, outputs/metrics/extended_dynamic/ds_depletion_annual.csv
+
+# inputs:
+# discharge_dir/HF00402_v14.csv
+# catchment_characteristics_dir/drainage_area.csv
+# out_met_support_dir/daily_water_balance_et_hamon_zhang_coeff_interp.csv
+
+# outputs:
+# outputs/metrics/dynamic/rbi_rcs_annual.csv
+# outputs/metrics/dynamic/fdc_slopes_overall.csv
+# outputs/metrics/dynamic/fdc_slopes_wy.csv
+# outputs/metrics/dynamic/storage_discharge_fdc_annual.csv
+# outputs/metrics/extended_dynamic/ds_depletion_annual.csv
+
 # author: Sidney Bush
 # date: 2026-02-14
 
@@ -18,7 +29,7 @@ sites_keep <- SITE_ORDER_HYDROMETRIC
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir_ed, recursive = TRUE, showWarnings = FALSE)
 
-# part 1: RBI and recession slope (RCS) from discharge
+# calculate RBI and recession slope (RCS) from Q
 
 da_df <- read_csv(resolve_drainage_area_file(), show_col_types = FALSE) %>%
   mutate(SITECODE = standardize_site_code(SITECODE))
@@ -77,10 +88,9 @@ rbi_rcs_annual <- discharge %>%
 
 write_csv(rbi_rcs_annual, file.path(output_dir, "rbi_rcs_annual.csv"))
 
-# part 2: storage discharge and fdc metrics from water balance
+# calculate storage discharge and FDC metrics from water balance data
 
 wb_daily_file <- resolve_water_balance_daily_file()
-stopifnot(file.exists(wb_daily_file))
 
 wb_df <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
@@ -220,28 +230,6 @@ annual <- wb_df %>%
   ) %>%
   bind_rows()
 
-areas_ha <- tibble(
-  SITECODE = c(
-    "GSWS01", "GSWS02", "GSWS03", "GSWS06", "GSWS07",
-    "GSWS08", "GSWS09", "GSWS10", "Mack", "Look"
-  ),
-  area_ha = c(96, 60, 101, 13.0, 15.4, 21.4, 8.5, 10.2, 580, 6242)
-)
-
-add_vol <- function(df_in) {
-  df_in %>%
-    left_join(areas_ha, by = c("site" = "SITECODE")) %>%
-    mutate(
-      area_m2 = area_ha * 10000,
-      S_annual_m3 = (S_annual_mm / 1000) * area_m2,
-      S_high_med_m3 = (S_high_med_mm / 1000) * area_m2,
-      S_med_low_m3 = (S_med_low_mm / 1000) * area_m2
-    )
-}
-
-overall_vol <- add_vol(overall)
-annual_vol <- add_vol(annual)
-
 fdc_slopes <- wb_df %>%
   filter(Q > 0) %>%
   group_by(site) %>%
@@ -316,27 +304,6 @@ annual <- annual %>%
   left_join(cv_q5norm, by = "site")
 
 write.csv(
-  overall_vol,
-  file = file.path(output_dir, "storage_overall_per_site.csv"),
-  row.names = FALSE
-)
-write.csv(
-  annual,
-  file = file.path(
-    output_dir,
-    "storage_discharge_method_annual_mm_metrics_per_site_wateryear.csv"
-  ),
-  row.names = FALSE
-)
-write.csv(
-  annual_vol,
-  file = file.path(
-    output_dir,
-    "storage_discharge_method_annual_vol_per_site_wateryear.csv"
-  ),
-  row.names = FALSE
-)
-write.csv(
   fdc_curves_overall,
   file = file.path(output_dir, "fdc_slopes_overall.csv"),
   row.names = FALSE
@@ -356,7 +323,7 @@ write.csv(
   row.names = FALSE
 )
 
-# part 3: extended dynamic storage (wb max within year depletion)
+# calculate annual water balance depletion
 
 wb_daily <- read.csv(wb_daily_file, stringsAsFactors = FALSE) %>%
   mutate(
@@ -413,25 +380,6 @@ wb_summary <- wb_daily %>%
   group_by(SITECODE, waterYear) %>%
   group_modify(~ calc_wb_depletion(.x)) %>%
   ungroup()
-
-write.csv(
-  wb_summary %>%
-    mutate(
-      peak_storage_wyd = get_water_year_day(peak_storage_date),
-      depletion_wyd = get_water_year_day(depletion_date)
-    ) %>%
-    select(
-      SITECODE,
-      waterYear,
-      peak_storage_date,
-      depletion_date,
-      peak_storage_wyd,
-      depletion_wyd,
-      WB
-    ),
-  file.path(output_dir_ed, "ds_depletion_date.csv"),
-  row.names = FALSE
-)
 
 write.csv(
   wb_summary %>%

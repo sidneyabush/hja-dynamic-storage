@@ -1,6 +1,18 @@
 # test whether alternate MTT definitions change the main model conclusions
-# inputs: isotope files, master tables, and main storage eco model outputs
-# outputs: outputs/MTT_sensitivity/*.csv, ms_materials/supp/TableS7_MTT_sensitivity.csv
+
+# inputs:
+# outputs/master/master_annual.csv
+# outputs/master/master_site.csv
+# isotope_dir/MTT_FYW.csv
+# isotope_dir/DampingRatios_2025-07-07.csv
+# outputs/metrics/mobile/isotope_metrics_site.csv
+# outputs/models/storage_eco_response_mlr/storage_eco_response_mlr_summary.csv
+
+# outputs:
+# outputs/MTT_sensitivity/TableS7_MTT_sensitivity.csv
+
+# author: Sidney Bush
+# date: 2026-02-13
 
 librarian::shelf(dplyr, readr, tidyr, tibble, MASS, car, cran_repo = "https://cloud.r-project.org")
 
@@ -20,13 +32,6 @@ site_file <- file.path(OUTPUT_DIR, "master", MASTER_SITE_FILE)
 isotope_file <- file.path(ISOTOPE_DIR, "MTT_FYW.csv")
 damping_file <- file.path(ISOTOPE_DIR, "DampingRatios_2025-07-07.csv")
 main_eco_summary_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_summary.csv")
-main_eco_results_file <- file.path(OUT_MODELS_STORAGE_ECO_RESPONSE_MLR_DIR, "storage_eco_response_mlr_results.csv")
-
-required_files <- c(annual_file, site_file, isotope_file, damping_file, main_eco_summary_file, main_eco_results_file)
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop("Missing file(s): ", paste(missing_files, collapse = ", "))
-}
 
 annual_df <- read_csv(annual_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
@@ -36,11 +41,7 @@ site_df_base <- read_csv(site_file, show_col_types = FALSE) %>%
   mutate(site = standardize_site_code(site)) %>%
   filter(site %in% SITE_ORDER_HYDROMETRIC, !site %in% SITE_EXCLUDE_STANDARD)
 
-isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site_mean.csv")
-if (!file.exists(isotope_site_mean_file)) {
-  stop("Missing isotope site mean file: ", isotope_site_mean_file)
-}
-
+isotope_site_mean_file <- file.path(OUT_MET_MOBILE_DIR, "isotope_metrics_site.csv")
 isotope_site_mean <- read_csv(isotope_site_mean_file, show_col_types = FALSE) %>%
   mutate(
     site = if ("site" %in% names(.)) site else SITECODE,
@@ -64,6 +65,8 @@ dr_col <- dplyr::case_when(
   "DR" %in% names(damping_raw) ~ "DR",
   TRUE ~ NA_character_
 )
+
+# stop if the damping ratio source table changed column names
 if (is.na(dr_col)) {
   stop("No damping-ratio column found in: ", damping_file)
 }
@@ -115,20 +118,6 @@ mtt_definitions <- raw_mtt %>%
   ) %>%
   arrange(mtt_definition, site)
 
-write_csv(mtt_definitions, file.path(output_dir, "mtt_site_definitions.csv"))
-
-mtt_availability <- mtt_definitions %>%
-  group_by(mtt_definition) %>%
-  summarise(
-    n_sites = sum(is.finite(MTT)),
-    min_mtt = ifelse(any(is.finite(MTT)), min(MTT, na.rm = TRUE), NA_real_),
-    max_mtt = ifelse(any(is.finite(MTT)), max(MTT, na.rm = TRUE), NA_real_),
-    mean_mtt = ifelse(any(is.finite(MTT)), mean(MTT, na.rm = TRUE), NA_real_),
-    .groups = "drop"
-  )
-
-write_csv(mtt_availability, file.path(output_dir, "mtt_definition_summary.csv"))
-
 label_mtt_definition <- function(x) {
   dplyr::case_when(
     x == "early_only" ~ "MTT1 (McGuire et al., 2005; 2001-2003)",
@@ -146,61 +135,6 @@ clean_predictor_labels <- function(x) {
   out <- gsub("\\bPyro_per\\b", "Pyroclastic", out)
   out
 }
-
-metric_map_site <- c(
-  "RBI" = "RBI_mean",
-  "RCS" = "RCS_mean",
-  "FDC" = "FDC_mean",
-  "SD" = "SD_mean",
-  "WB" = "WB_mean",
-  "BF" = "BF_mean"
-)
-
-pairwise_corr <- function(df, x, y) {
-  keep <- is.finite(df[[x]]) & is.finite(df[[y]])
-  n_keep <- sum(keep)
-  if (n_keep < 3) {
-    return(tibble(
-      n = n_keep,
-      r = NA_real_,
-      p_value = NA_real_
-    ))
-  }
-  ct <- suppressWarnings(cor.test(df[[x]][keep], df[[y]][keep]))
-  tibble(
-    n = n_keep,
-    r = unname(ct$estimate),
-    p_value = ct$p.value
-  )
-}
-
-site_corrs <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(defn) {
-  iso_tbl <- mtt_definitions %>%
-    filter(mtt_definition == defn) %>%
-    dplyr::select(site, MTT) %>%
-    left_join(isotope_site_mean %>% dplyr::select(site, Fyw_site_mean), by = "site") %>%
-    rename(Fyw = Fyw_site_mean) %>%
-    left_join(damping, by = "site")
-
-  site_tbl <- site_df_base %>%
-    dplyr::select(site, all_of(unname(metric_map_site))) %>%
-    left_join(iso_tbl, by = "site")
-
-  bind_rows(lapply(c("RBI", "RCS", "FDC", "SD", "WB", "BF", "DR", "Fyw"), function(metric) {
-    metric_col <- if (metric %in% names(metric_map_site)) metric_map_site[[metric]] else metric
-    pairwise_corr(site_tbl, metric_col, "MTT") %>%
-      mutate(
-        mtt_definition = defn,
-        comparison_metric = metric
-      )
-  }))
-}))
-
-write_csv(
-  site_corrs %>%
-    dplyr::select(mtt_definition, comparison_metric, n, r, p_value),
-  file.path(output_dir, "mtt_site_level_correlations.csv")
-)
 
 candidate_sets_catch <- unlist(
   lapply(seq_len(8), function(k) {
@@ -340,22 +274,6 @@ catchment_results <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), fu
   }
   fit_obj$summary %>% mutate(mtt_definition = defn, .before = 1)
 }))
-
-catchment_coefficients <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(defn) {
-  site_tbl <- site_df_base %>%
-    mutate(
-      basin_slope = if ("basin_slope" %in% names(.)) basin_slope else Slope_mean
-    ) %>%
-    dplyr::select(site, basin_slope, Harvest, Landslide_Total, Landslide_Young,
-           Lava1_per, Lava2_per, Ash_Per, Pyro_per) %>%
-    left_join(mtt_definitions %>% filter(mtt_definition == defn) %>% dplyr::select(site, MTT), by = "site")
-  fit_obj <- fit_catchment_mtt(site_tbl)
-  if (is.null(fit_obj)) return(NULL)
-  fit_obj$coefficients %>% mutate(mtt_definition = defn, .before = 1)
-}))
-
-write_csv(catchment_results, file.path(output_dir, "mtt_catchment_model_summary.csv"))
-write_csv(catchment_coefficients, file.path(output_dir, "mtt_catchment_model_coefficients.csv"))
 
 fit_eco_models_full <- function(annual_df_in, include_mtt = TRUE) {
   mandatory_predictors <- "Pws"
@@ -516,15 +434,6 @@ eco_summaries <- bind_rows(lapply(names(eco_with_mtt), function(defn) {
       mutate(mtt_definition = "none", model_variant = "without_mtt", .before = 1)
   )
 
-eco_coefficients <- bind_rows(lapply(names(eco_with_mtt), function(defn) {
-  eco_with_mtt[[defn]]$coefficients %>%
-    mutate(mtt_definition = defn, model_variant = "with_mtt", .before = 1)
-})) %>%
-  bind_rows(
-    eco_without_mtt$coefficients %>%
-      mutate(mtt_definition = "none", model_variant = "without_mtt", .before = 1)
-  )
-
 main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
   mutate(Response = as.character(Response)) %>%
   filter(Response == "T7DMax") %>%
@@ -548,163 +457,9 @@ main_eco_summary <- read_csv(main_eco_summary_file, show_col_types = FALSE) %>%
     AICc
   )
 
-# Keep the main text combined MTT result as the reference row
-# The sensitivity run only refits the alternate MTT definitions
-main_eco_results <- read_csv(main_eco_results_file, show_col_types = FALSE) %>%
-  mutate(Response = as.character(Response)) %>%
-  filter(Response == "T7DMax") %>%
-  transmute(
-    mtt_definition = "combined_mean",
-    model_variant = "with_mtt",
-    Response = Response,
-    Predictor = Predictor,
-    estimate = Beta_Std,
-    p_value,
-    Beta_Std
-  )
-
 eco_summaries <- eco_summaries %>%
   filter(!(mtt_definition == "combined_mean" & Response == "T_7DMax")) %>%
   bind_rows(main_eco_summary)
-
-eco_coefficients <- eco_coefficients %>%
-  filter(!(mtt_definition == "combined_mean" & Response == "T_7DMax")) %>%
-  bind_rows(main_eco_results)
-
-write_csv(eco_summaries, file.path(output_dir, "mtt_eco_model_summary.csv"))
-write_csv(eco_coefficients, file.path(output_dir, "mtt_eco_model_coefficients.csv"))
-
-key_results <- eco_summaries %>%
-  dplyr::select(mtt_definition, model_variant, Response, Predictors_Final, R2_adj, RMSE_LOOCV, R2_LOOCV, n) %>%
-  arrange(Response, model_variant, mtt_definition)
-
-write_csv(key_results, file.path(output_dir, "mtt_sensitivity_key_results.csv"))
-
-safe_z <- function(x) {
-  x_num <- as.numeric(x)
-  s <- suppressWarnings(sd(x_num, na.rm = TRUE))
-  if (!is.finite(s) || s <= 0) {
-    return(rep(NA_real_, length(x_num)))
-  }
-  (x_num - mean(x_num, na.rm = TRUE)) / s
-}
-
-row_mean_min <- function(df_like, min_non_na = 1L) {
-  mat <- as.matrix(df_like)
-  n_non_na <- rowSums(is.finite(mat))
-  out <- rowMeans(mat, na.rm = TRUE)
-  out[n_non_na < min_non_na] <- NA_real_
-  tibble(mean = out, n = n_non_na)
-}
-
-conceptual_axis_tbl <- bind_rows(lapply(unique(mtt_definitions$mtt_definition), function(defn) {
-  site_tbl <- site_df_base %>%
-    dplyr::select(site, RBI_mean, RCS_mean, FDC_mean, SD_mean, WB_mean, BF_mean) %>%
-    left_join(damping, by = "site") %>%
-    left_join(isotope_site_mean %>% dplyr::select(site, Fyw_site_mean), by = "site") %>%
-    rename(Fyw = Fyw_site_mean) %>%
-    left_join(
-      mtt_definitions %>% filter(mtt_definition == defn) %>% dplyr::select(site, MTT),
-      by = "site"
-    )
-
-  metric_oriented <- site_tbl %>%
-    dplyr::transmute(
-      site,
-      RBI_inv = -RBI_mean,
-      RCS = RCS_mean,
-      FDC = FDC_mean,
-      SD = SD_mean,
-      WB_depletion_mag = WB_mean,
-      DR_inv = -DR,
-      Fyw_inv = -Fyw,
-      MTT = MTT,
-      BF = BF_mean
-    )
-
-  metric_z <- metric_oriented %>%
-    mutate(across(-site, safe_z, .names = "{.col}_z"))
-
-  dynamic_vals <- row_mean_min(
-    metric_z[, c("RBI_inv_z", "RCS_z", "FDC_z", "SD_z", "WB_depletion_mag_z")],
-    min_non_na = 4L
-  )
-
-  mobile_vals <- row_mean_min(
-    tibble(
-      MTT = metric_z$MTT_z,
-      DR = metric_z$DR_inv_z,
-      Fyw = metric_z$Fyw_inv_z,
-      BF = metric_z$BF_z
-    ),
-    min_non_na = 2L
-  )
-
-  tibble(
-    mtt_definition = defn,
-    site = metric_oriented$site,
-    dynamic_storage_strength = dynamic_vals$mean,
-    mobile_mixing_with_bf = mobile_vals$mean,
-    n_mobile_components = mobile_vals$n,
-    eligible_panel_b = is.finite(metric_oriented$RBI_inv) &
-      is.finite(metric_oriented$RCS) &
-      is.finite(metric_oriented$FDC) &
-      is.finite(metric_oriented$SD) &
-      is.finite(metric_oriented$WB_depletion_mag) &
-      is.finite(metric_oriented$BF) &
-      is.finite(metric_oriented$DR_inv) &
-      is.finite(metric_oriented$Fyw_inv) &
-      is.finite(metric_oriented$MTT)
-  )
-}))
-
-write_csv(conceptual_axis_tbl, file.path(output_dir, "mtt_conceptual_axis_sensitivity.csv"))
-
-panel_b_summary <- conceptual_axis_tbl %>%
-  filter(eligible_panel_b) %>%
-  group_by(mtt_definition) %>%
-  summarise(
-    n_panel_b_sites = n(),
-    sites_panel_b = paste(site, collapse = ", "),
-    .groups = "drop"
-  )
-
-write_csv(panel_b_summary, file.path(output_dir, "mtt_conceptual_panel_b_summary.csv"))
-
-scope_tbl <- tibble(
-  analysis_component = c(
-    "Dynamic/extended-dynamic PCA (Figure 2)",
-    "ANOVA + Tukey HSD for annual site differences (Figure 2, BF in Figure 3a)",
-    "Mobile storage descriptive MTT values (Figure 3d, Table 1)",
-    "Dynamic-mobile correlation matrix (Figure S4)",
-    "Catchment-control model for MTT (Figure 4, Table S8)",
-    "Low-flow eco model Q7Q5 (Figure 5, Table S10)",
-    "Temperature eco model T7DMax (Figure 5, Table S10)",
-    "Conceptual framework mobile axis / panel a eligibility (Figure 7)"
-  ),
-  affected_by_mtt_definition = c(
-    "No",
-    "No",
-    "Yes",
-    "Yes",
-    "Yes",
-    "No",
-    "Yes",
-    "Yes"
-  ),
-  note = c(
-    "PCA uses RBI, RCS, FDC, SD, and WB only.",
-    "ANOVA/Tukey only use annual RBI, RCS, FDC, SD, WB, and BF.",
-    "Reported site-level MTT values depend directly on the chosen site-level definition.",
-    "Correlations involving MTT change across early, late, and combined definitions.",
-    "Selected predictor and model support for MTT vary across definitions.",
-    "Selected Q7Q5 model is identical with early-only, late-only, combined, and no-MTT variants.",
-    "Selected T7DMax model and fit vary across MTT definitions and when MTT is omitted.",
-    "Mobile-axis values and the complete-case site set can change when MTT availability changes."
-  )
-)
-
-write_csv(scope_tbl, file.path(output_dir, "mtt_sensitivity_scope.csv"))
 
 supp_table <- eco_summaries %>%
   mutate(
@@ -781,37 +536,6 @@ supp_table_combined <- bind_rows(
   )
 
 write_csv(supp_table_combined, file.path(output_dir, "TableS7_MTT_sensitivity.csv"))
-
-write_csv(
-  supp_table_combined,
-  file.path(MS_TABLES_SUPP_DIR, "TableS7_MTT_sensitivity.csv")
-)
-unlink(file.path(output_dir, "TableS5_MTT_sensitivity.csv"))
-unlink(file.path(MS_TABLES_SUPP_DIR, "TableS5_MTT_sensitivity.csv"))
-
-summary_lines <- c(
-  "# MTT Sensitivity Summary",
-  "",
-  "This analysis compares manuscript conclusions under alternative site-level MTT definitions.",
-  "",
-  "## MTT Definitions",
-  paste0(
-    "- ", mtt_availability$mtt_definition,
-    ": n_sites=", mtt_availability$n_sites,
-    ", mean=", signif(mtt_availability$mean_mtt, 3)
-  ),
-  "",
-  "## Key Eco Model Results",
-  paste0(
-    "- ", key_results$Response,
-    " [", key_results$mtt_definition, "/", key_results$model_variant, "]: ",
-    key_results$Predictors_Final,
-    " | adj_R2=", signif(key_results$R2_adj, 3),
-    " | LOOCV_R2=", signif(key_results$R2_LOOCV, 3)
-  )
-)
-
-writeLines(summary_lines, file.path(output_dir, "README_MTT_sensitivity.md"))
 
 try(grDevices::graphics.off(), silent = TRUE)
 quit(save = "no", status = 0, runLast = FALSE)

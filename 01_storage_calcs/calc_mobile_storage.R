@@ -1,8 +1,17 @@
 # calculate mobile storage metrics (BF + isotope metrics)
-# inputs: discharge_dir/HF00402_v14.csv, ec_dir/CF01201_v4.txt, ec_dir/CF00201_v7.csv, isotope_dir/MTT_FYW.csv, isotope_dir/dampingratios_2025-07-07.csv
-# outputs: outputs/metrics/mobile/annual_gw_prop_ca.csv, outputs/metrics/mobile/isotope_metrics_site.csv
+
+# inputs:
+# discharge_dir/HF00402_v14.csv
+# ec_dir/CF00201_v7.csv
+# isotope_dir/MTT_FYW.csv
+# isotope_dir/DampingRatios_2025-07-07.csv
+
+# outputs:
+# outputs/metrics/mobile/annual_gw_prop_ca.csv
+# outputs/metrics/mobile/isotope_metrics_site.csv
+
 # author: Keira Johnson (original BF), Sidney Bush
-# date: 2026-03-09
+# date: 2026-03-09 (updated by SB)
 
 librarian::shelf(dplyr, readr, lubridate, cran_repo = "https://cloud.r-project.org")
 
@@ -17,8 +26,7 @@ isotope_dir <- ISOTOPE_DIR
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# part 1: BF from chemistry tracers and discharge
-
+# BF from chemistry tracers and discharge
 discharge <- read.csv(file.path(discharge_dir, "HF00402_v14.csv")) %>%
   mutate(
     date = as.Date(DATE, "%m/%d/%Y"),
@@ -47,15 +55,14 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
     semi_join(goodyears, by = c("SITECODE", "waterYear"))
 
   if (nrow(tracer_q_kept) == 0) {
-    annual <- tibble(
+    return(tibble(
       SITECODE = character(),
       waterYear = integer(),
       BF = numeric(),
       median_bf = numeric(),
       sd_bf = numeric(),
       n_obs = integer()
-    )
-    return(list(annual = annual, goodyears = goodyears))
+    ))
   }
 
   tracer_q_kept <- tracer_q_kept %>%
@@ -91,54 +98,14 @@ calc_bf_from_tracer <- function(tracer_daily, discharge_tbl, min_obs_per_wy) {
       sd_bf = ifelse(is.nan(sd_bf), NA_real_, sd_bf)
     )
 
-  list(annual = annual, goodyears = goodyears)
+  annual
 }
-
-ec_file <- file.path(ec_dir, "CF01201_v4.txt")
-if (!file.exists(ec_file)) {
-  stop("Missing EC file: ", ec_file)
-}
-ec_inst <- read_csv(ec_file, show_col_types = FALSE)
-
-ec_daily <- ec_inst %>%
-  mutate(
-    date = as.Date(DATE_TIME),
-    SITECODE = standardize_site_code(SITECODE),
-    tracer_value = suppressWarnings(as.numeric(EC_INST))
-  ) %>%
-  filter(
-    SITECODE %in% SITE_ORDER_CHEMISTRY,
-    is.finite(tracer_value)
-  ) %>%
-  group_by(SITECODE, date) %>%
-  summarise(tracer_value = mean(tracer_value, na.rm = TRUE), .groups = "drop") %>%
-  filter(is.finite(tracer_value))
-
-ec_bf <- calc_bf_from_tracer(ec_daily, discharge, BF_MIN_DAYS_PER_WY)
-annual_bf_prop <- ec_bf$annual %>%
-  rename(n_days = n_obs)
-
-write.csv(
-  annual_bf_prop,
-  file.path(output_dir, "annual_gw_prop.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  ec_bf$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_day_counts_kept.csv"),
-  row.names = FALSE
-)
 
 chem_file <- file.path(ec_dir, "CF00201_v7.csv")
-if (!file.exists(chem_file)) {
-  stop("Missing chemistry file: ", chem_file)
-}
 chem <- read_csv(chem_file, show_col_types = FALSE) %>%
   mutate(
     date = as.Date(DATE_TIME),
     SITECODE = standardize_site_code(SITECODE),
-    COND = suppressWarnings(as.numeric(COND)),
     CA = suppressWarnings(as.numeric(CA)),
     waterYear = get_water_year(date)
   ) %>%
@@ -148,26 +115,15 @@ chem <- read_csv(chem_file, show_col_types = FALSE) %>%
     waterYear <= WY_END
   )
 
-chem_ec_daily <- chem %>%
-  group_by(SITECODE, date) %>%
-  summarise(tracer_value = mean(COND, na.rm = TRUE), .groups = "drop") %>%
-  filter(is.finite(tracer_value))
-
 chem_ca_daily <- chem %>%
   group_by(SITECODE, date) %>%
   summarise(tracer_value = mean(CA, na.rm = TRUE), .groups = "drop") %>%
   filter(is.finite(tracer_value))
 
-ec_chem_bf <- calc_bf_from_tracer(chem_ec_daily, discharge, BF_MIN_OBS_PER_WY_CHEM)
-ca_bf <- calc_bf_from_tracer(chem_ca_daily, discharge, BF_MIN_OBS_PER_WY_CHEM)
-
-annual_bf_prop_ec_chem <- ec_chem_bf$annual
-annual_bf_prop_ca <- ca_bf$annual
-
-write.csv(
-  annual_bf_prop_ec_chem,
-  file.path(output_dir, "annual_gw_prop_ec_chem.csv"),
-  row.names = FALSE
+annual_bf_prop_ca <- calc_bf_from_tracer(
+  chem_ca_daily,
+  discharge,
+  BF_MIN_OBS_PER_WY_CHEM
 )
 
 write.csv(
@@ -176,170 +132,7 @@ write.csv(
   row.names = FALSE
 )
 
-write.csv(
-  ec_chem_bf$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_obs_counts_ec_chem_kept.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  ca_bf$goodyears %>% arrange(SITECODE, waterYear),
-  file.path(OUT_MET_SUPPORT_DIR, "bf_wy_obs_counts_ca_kept.csv"),
-  row.names = FALSE
-)
-
-comparison <- annual_bf_prop %>%
-  select(
-    SITECODE,
-    waterYear,
-    BF_EC = BF,
-    n_days_ec = n_days
-  ) %>%
-  full_join(
-    annual_bf_prop_ca %>%
-      select(
-        SITECODE,
-        waterYear,
-        BF_CA = BF,
-        n_obs_ca = n_obs
-      ),
-    by = c("SITECODE", "waterYear")
-  ) %>%
-  mutate(
-    diff_ca_minus_ec = BF_CA - BF_EC
-  ) %>%
-  arrange(SITECODE, waterYear)
-
-safe_cor <- function(x, y) {
-  keep <- is.finite(x) & is.finite(y)
-  if (sum(keep) < 2) {
-    return(NA_real_)
-  }
-  cor(x[keep], y[keep])
-}
-
-safe_cor_spearman <- function(x, y) {
-  keep <- is.finite(x) & is.finite(y)
-  if (sum(keep) < 2) {
-    return(NA_real_)
-  }
-  cor(x[keep], y[keep], method = "spearman")
-}
-
-safe_mean <- function(x) {
-  if (!any(is.finite(x))) {
-    return(NA_real_)
-  }
-  mean(x, na.rm = TRUE)
-}
-
-safe_rmse <- function(x, y) {
-  d <- x - y
-  keep <- is.finite(d)
-  if (sum(keep) == 0) {
-    return(NA_real_)
-  }
-  sqrt(mean(d[keep]^2))
-}
-
-safe_lm_intercept <- function(x, y) {
-  keep <- is.finite(x) & is.finite(y)
-  if (sum(keep) < 2) {
-    return(NA_real_)
-  }
-  coef(lm(y[keep] ~ x[keep]))[1]
-}
-
-safe_lm_slope <- function(x, y) {
-  keep <- is.finite(x) & is.finite(y)
-  if (sum(keep) < 2) {
-    return(NA_real_)
-  }
-  coef(lm(y[keep] ~ x[keep]))[2]
-}
-
-site_summary <- comparison %>%
-  group_by(SITECODE) %>%
-  summarise(
-    n_years_ec_ca = sum(is.finite(BF_EC) & is.finite(BF_CA)),
-    corr_ec_vs_ca = safe_cor(BF_EC, BF_CA),
-    mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
-    rmse_ca_vs_ec = safe_rmse(BF_CA, BF_EC),
-    .groups = "drop"
-  )
-
-overall_n_years_ec_ca <- sum(is.finite(comparison$BF_EC) & is.finite(comparison$BF_CA))
-
-overall_summary <- tibble(
-  n_years_ec_ca = overall_n_years_ec_ca,
-  corr_ec_vs_ca = safe_cor(comparison$BF_EC, comparison$BF_CA),
-  mean_diff_ca_minus_ec = safe_mean(comparison$diff_ca_minus_ec),
-  rmse_ca_vs_ec = safe_rmse(comparison$BF_CA, comparison$BF_EC)
-)
-
-site_year_pairs_ec_ca <- comparison %>%
-  filter(is.finite(BF_EC), is.finite(BF_CA)) %>%
-  transmute(
-    SITECODE,
-    waterYear,
-    BF_EC,
-    BF_CA,
-    diff_ca_minus_ec = BF_CA - BF_EC,
-    abs_diff_ca_minus_ec = abs(BF_CA - BF_EC),
-    pct_diff_ca_vs_ec = ifelse(
-      abs(BF_EC) > 0,
-      100 * (BF_CA - BF_EC) / BF_EC,
-      NA_real_
-    )
-  ) %>%
-  arrange(SITECODE, waterYear)
-
-site_by_site_stats <- site_year_pairs_ec_ca %>%
-  group_by(SITECODE) %>%
-  summarise(
-    n_years_paired = n(),
-    corr_pearson = safe_cor(BF_EC, BF_CA),
-    corr_spearman = safe_cor_spearman(BF_EC, BF_CA),
-    mean_diff_ca_minus_ec = safe_mean(diff_ca_minus_ec),
-    median_diff_ca_minus_ec = median(diff_ca_minus_ec, na.rm = TRUE),
-    rmse_ca_vs_ec = safe_rmse(BF_CA, BF_EC),
-    lm_intercept_ca_on_ec = safe_lm_intercept(BF_EC, BF_CA),
-    lm_slope_ca_on_ec = safe_lm_slope(BF_EC, BF_CA),
-    .groups = "drop"
-  ) %>%
-  arrange(SITECODE)
-
-write.csv(
-  comparison,
-  file.path(output_dir, "annual_gw_prop_ec_ca_comparison.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  site_summary,
-  file.path(output_dir, "annual_gw_prop_ec_ca_site_summary.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  overall_summary,
-  file.path(output_dir, "annual_gw_prop_ec_ca_overall_summary.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  site_year_pairs_ec_ca,
-  file.path(output_dir, "annual_gw_prop_ec_ca_site_year_pairs.csv"),
-  row.names = FALSE
-)
-
-write.csv(
-  site_by_site_stats,
-  file.path(output_dir, "annual_gw_prop_ec_ca_site_by_site_stats.csv"),
-  row.names = FALSE
-)
-
-# part 2: isotope derived site metrics (mtt/fyw/dr)
+# site isotope metrics (MTT, Fyw, DR)
 
 mtt_fyw <- read_csv(
   file.path(isotope_dir, "MTT_FYW.csv"),
@@ -390,12 +183,6 @@ isotope_metrics_mean <- site_template %>%
   left_join(damping, by = "site") %>%
   mutate(site = factor(site, levels = SITE_ORDER_HYDROMETRIC)) %>%
   arrange(site)
-
-write.csv(
-  isotope_metrics_mean,
-  file.path(output_dir, "isotope_metrics_site_mean.csv"),
-  row.names = FALSE
-)
 
 write.csv(
   isotope_metrics_mean,
